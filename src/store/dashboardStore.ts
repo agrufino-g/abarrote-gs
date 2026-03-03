@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import {
   DashboardState, KPIData, InventoryAlert, SalesData, MermaRecord, PedidoRecord,
   Product, SaleRecord, SaleItem, CorteCaja, Cliente, FiadoTransaction, Gasto, GastoCategoria,
-  Proveedor,
+  Proveedor, StoreConfig, DEFAULT_STORE_CONFIG,
 } from '@/types';
 import {
   fetchDashboardFromDB,
@@ -18,11 +18,15 @@ import {
   updateProveedor as dbUpdateProveedor,
   createCorteCaja as dbCreateCorteCaja,
   updateProductStock as dbUpdateProductStock,
+  deleteProduct as dbDeleteProduct,
+  fetchStoreConfig as dbFetchStoreConfig,
+  saveStoreConfig as dbSaveStoreConfig,
   fetchInventoryAlerts,
   fetchKPIData,
 } from '@/app/actions/db-actions';
 
 interface DashboardStore extends DashboardState {
+  storeConfig: StoreConfig;
   setKPIData: (data: KPIData) => void;
   setInventoryAlerts: (alerts: InventoryAlert[]) => void;
   setSalesData: (data: SalesData[]) => void;
@@ -33,6 +37,7 @@ interface DashboardStore extends DashboardState {
   adjustStock: (productId: string, newStock: number, reason: string) => Promise<void>;
   createPedido: (pedido: Omit<PedidoRecord, 'id' | 'fecha' | 'estado'>) => Promise<void>;
   registerProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
   registerSale: (sale: Omit<SaleRecord, 'id' | 'folio' | 'date'>) => Promise<SaleRecord>;
   getAllProducts: () => Product[];
   // Corte de Caja
@@ -46,6 +51,8 @@ interface DashboardStore extends DashboardState {
   // Proveedores
   addProveedor: (proveedor: Omit<Proveedor, 'id' | 'ultimoPedido'>) => Promise<void>;
   updateProveedor: (id: string, data: Partial<Proveedor>) => Promise<void>;
+  // Store Config
+  saveStoreConfig: (data: Partial<StoreConfig>) => Promise<void>;
 }
 
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
@@ -61,6 +68,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   gastos: [],
   proveedores: [],
   cortesHistory: [],
+  storeConfig: DEFAULT_STORE_CONFIG,
   isLoading: false,
   error: null,
 
@@ -88,6 +96,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         gastos: data.gastos,
         proveedores: data.proveedores,
         cortesHistory: data.cortesHistory,
+        storeConfig: data.storeConfig,
         isLoading: false,
       });
     } catch (error) {
@@ -150,6 +159,23 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       set({ inventoryAlerts: alerts });
     } catch (error) {
       console.error('Error registering product:', error);
+    }
+  },
+
+  // ==================== ELIMINAR PRODUCTO ====================
+  deleteProduct: async (productId) => {
+    try {
+      await dbDeleteProduct(productId);
+      const state = get();
+      set({
+        products: state.products.filter(p => p.id !== productId),
+        inventoryAlerts: state.inventoryAlerts.filter(a => a.product.id !== productId),
+      });
+      const kpi = await fetchKPIData();
+      set({ kpiData: kpi });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      throw error;
     }
   },
 
@@ -268,6 +294,16 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       set({ proveedores: updated });
     } catch (error) {
       console.error('Error updating proveedor:', error);
+    }
+  },
+
+  // ==================== STORE CONFIG ====================
+  saveStoreConfig: async (data) => {
+    try {
+      const updatedConfig = await dbSaveStoreConfig(data);
+      set({ storeConfig: updatedConfig });
+    } catch (error) {
+      console.error('Error saving store config:', error);
     }
   },
 }));

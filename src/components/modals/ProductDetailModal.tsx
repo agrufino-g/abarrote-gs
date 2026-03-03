@@ -14,8 +14,10 @@ import {
   Select,
   Banner,
 } from '@shopify/polaris';
+import { DeleteIcon } from '@shopify/polaris-icons';
 import { Product } from '@/types';
 import { formatCurrency, formatDate, getDaysUntil, getStockStatus } from '@/lib/utils';
+import { useDashboardStore } from '@/store/dashboardStore';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -38,6 +40,9 @@ export function ProductDetailModal({
   const [editMode, setEditMode] = useState(false);
   const [newStock, setNewStock] = useState('');
   const [adjustmentReason, setAdjustmentReason] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const deleteProduct = useDashboardStore((s) => s.deleteProduct);
 
   if (!product) return null;
 
@@ -55,6 +60,19 @@ export function ProductDetailModal({
     setNewStock('');
     setAdjustmentReason('');
     onClose();
+  };
+
+  const handleDelete = async () => {
+    if (!product) return;
+    setDeleting(true);
+    try {
+      await deleteProduct(product.id);
+      setShowDeleteConfirm(false);
+      setDeleting(false);
+      onClose();
+    } catch {
+      setDeleting(false);
+    }
   };
 
   const getExpirationBadge = () => {
@@ -270,6 +288,44 @@ export function ProductDetailModal({
                 )}
               </BlockStack>
             </>
+          )}
+
+          {/* Eliminar Producto */}
+          <Divider />
+          {showDeleteConfirm ? (
+            <Banner
+              tone="critical"
+              title="¿Estás seguro de eliminar este producto?"
+              onDismiss={() => setShowDeleteConfirm(false)}
+            >
+              <p style={{ marginBottom: 12 }}>
+                Se eliminará <strong>{product.name}</strong> permanentemente del inventario. Esta acción no se puede deshacer.
+              </p>
+              <InlineStack gap="200">
+                <Button
+                  variant="primary"
+                  tone="critical"
+                  onClick={handleDelete}
+                  loading={deleting}
+                >
+                  Sí, Eliminar
+                </Button>
+                <Button onClick={() => setShowDeleteConfirm(false)}>
+                  Cancelar
+                </Button>
+              </InlineStack>
+            </Banner>
+          ) : (
+            <InlineStack align="end">
+              <Button
+                variant="plain"
+                tone="critical"
+                icon={DeleteIcon}
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                Eliminar Producto
+              </Button>
+            </InlineStack>
           )}
         </BlockStack>
       </Modal.Section>

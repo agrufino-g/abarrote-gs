@@ -8,6 +8,31 @@ import {
   date,
 } from 'drizzle-orm/pg-core';
 
+// ==================== CONFIGURACION DE TIENDA ====================
+export const storeConfig = pgTable('store_config', {
+  id: text('id').primaryKey().default('main'),
+  storeName: text('store_name').notNull().default('MI ABARROTES'),
+  legalName: text('legal_name').notNull().default('MI ABARROTES S DE RL DE CV'),
+  address: text('address').notNull().default('AV. PRINCIPAL #123, COL. CENTRO'),
+  city: text('city').notNull().default('MEXICO'),
+  postalCode: text('postal_code').notNull().default('00000'),
+  phone: text('phone').notNull().default('(555) 123-4567'),
+  rfc: text('rfc').notNull().default('XAXX010101000'),
+  regimenFiscal: text('regimen_fiscal').notNull().default('612'),
+  regimenDescription: text('regimen_description').notNull().default('REGIMEN SIMPLIFICADO DE CONFIANZA'),
+  ivaRate: text('iva_rate').notNull().default('16'),
+  currency: text('currency').notNull().default('MXN'),
+  lowStockThreshold: text('low_stock_threshold').notNull().default('25'),
+  expirationWarningDays: text('expiration_warning_days').notNull().default('7'),
+  printReceipts: boolean('print_receipts').notNull().default(true),
+  autoBackup: boolean('auto_backup').notNull().default(false),
+  ticketFooter: text('ticket_footer').notNull().default('Espera algo especial\nSU TICKET DE COMPRA SERA\nREVISADO AL SALIR DE ACUERDO\nAL REGLAMENTO'),
+  ticketServicePhone: text('ticket_service_phone').notNull().default('800-000-0000'),
+  ticketVigencia: text('ticket_vigencia').notNull().default('12/2026'),
+  storeNumber: text('store_number').notNull().default('001'),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 // ==================== PRODUCTOS ====================
 export const products = pgTable('products', {
   id: text('id').primaryKey(),

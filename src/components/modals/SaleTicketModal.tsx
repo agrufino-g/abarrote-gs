@@ -55,6 +55,7 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
   const registerSale = useDashboardStore((s) => s.registerSale);
   const clientes = useDashboardStore((s) => s.clientes);
   const registerFiado = useDashboardStore((s) => s.registerFiado);
+  const storeConfig = useDashboardStore((s) => s.storeConfig);
   const { showSuccess, showError } = useToast();
 
   const [items, setItems] = useState<SaleItem[]>([]);
@@ -423,18 +424,21 @@ ${dashes}
       }
     }
 
+    const sc = storeConfig;
+    const footerLines = sc.ticketFooter.split('\\n').map((l: string) => `       ${l}`).join('\n');
+
     const ticketText = `
-         MI ABARROTES S DE RL DE CV
-    AV. PRINCIPAL #123, COL. CENTRO
-         C.P. 00000, MEXICO
-       RFC: XAXX010101000
-         TEL: (555) 123-4567
-       REGIMEN FISCAL - 612
-    REGIMEN SIMPLIFICADO DE CONFIANZA
+         ${sc.legalName}
+    ${sc.address}
+         C.P. ${sc.postalCode}, ${sc.city}
+       RFC: ${sc.rfc}
+         TEL: ${sc.phone}
+       REGIMEN FISCAL - ${sc.regimenFiscal}
+    ${sc.regimenDescription}
    ESTE COMPROBANTE NO ES VALIDO PARA
            EFECTOS FISCALES
 
-  TDA#001 OP#${completedSale.cajero.toUpperCase().substring(0, 12).padEnd(12)}  TR# ${completedSale.folio}
+  TDA#${sc.storeNumber} OP#${completedSale.cajero.toUpperCase().substring(0, 12).padEnd(12)}  TR# ${completedSale.folio}
   ${dateStr}              ${timeStr}
   RFC: SIN R.F.C.
 ${dashes}
@@ -446,7 +450,7 @@ ${completedSale.cardSurcharge > 0 ? `  COMISION TARJETA       ${fmtAmt(completed
   CAMBIO                 ${fmtAmt(completedSale.change)}
 ${completedSale.paymentMethod === 'efectivo' ? `  RECIBIDO               ${fmtAmt(completedSale.amountPaid)}\n` : ''}${fiadoTxt}
 ${dashes}
-  IVA    16.0%  ${fmtAmt(completedSale.subtotal)}${fmtAmt(completedSale.iva)}
+  IVA    ${sc.ivaRate}.0%  ${fmtAmt(completedSale.subtotal)}${fmtAmt(completedSale.iva)}
 ${dashes}
   TOTAL IVA              ${fmtAmt(completedSale.iva)}
 
@@ -454,14 +458,11 @@ ${dashes}
   TC# ${completedSale.folio}${String(Date.now()).slice(-8)}
 ${dashes}
 
-       Espera algo especial
-      SU TICKET DE COMPRA SERA
-     REVISADO AL SALIR DE ACUERDO
-            AL REGLAMENTO
+${footerLines}
       Necesitas ayuda ahora?
-           800-000-0000
+           ${sc.ticketServicePhone}
 ${dashes}
-        Vigencia 12/2026
+        Vigencia ${sc.ticketVigencia}
     ${dateStr}     ${timeStr}
 `;
 
@@ -536,18 +537,21 @@ pre {
       }
     }
 
+    const sc = storeConfig;
+    const footerLines = sc.ticketFooter.split('\\n').map((l: string) => `       ${l}`).join('\n');
+
     const previewText = `
-         MI ABARROTES S DE RL DE CV
-    AV. PRINCIPAL #123, COL. CENTRO
-         C.P. 00000, MEXICO
-       RFC: XAXX010101000
-         TEL: (555) 123-4567
-       REGIMEN FISCAL - 612
-    REGIMEN SIMPLIFICADO DE CONFIANZA
+         ${sc.legalName}
+    ${sc.address}
+         C.P. ${sc.postalCode}, ${sc.city}
+       RFC: ${sc.rfc}
+         TEL: ${sc.phone}
+       REGIMEN FISCAL - ${sc.regimenFiscal}
+    ${sc.regimenDescription}
    ESTE COMPROBANTE NO ES VALIDO PARA
            EFECTOS FISCALES
 
-  TDA#001 OP#${completedSale.cajero.toUpperCase().substring(0, 12).padEnd(12)}  TR# ${completedSale.folio}
+  TDA#${sc.storeNumber} OP#${completedSale.cajero.toUpperCase().substring(0, 12).padEnd(12)}  TR# ${completedSale.folio}
   ${dateStr}              ${timeStr}
   RFC: SIN R.F.C.
 ${dashes}
@@ -559,7 +563,7 @@ ${completedSale.cardSurcharge > 0 ? `  COMISION TARJETA       ${fmtAmt(completed
   CAMBIO                 ${fmtAmt(completedSale.change)}
 ${completedSale.paymentMethod === 'efectivo' ? `  RECIBIDO               ${fmtAmt(completedSale.amountPaid)}\n` : ''}${fiadoTxt}
 ${dashes}
-  IVA    16.0%  ${fmtAmt(completedSale.subtotal)}${fmtAmt(completedSale.iva)}
+  IVA    ${sc.ivaRate}.0%  ${fmtAmt(completedSale.subtotal)}${fmtAmt(completedSale.iva)}
 ${dashes}
   TOTAL IVA              ${fmtAmt(completedSale.iva)}
 
@@ -567,14 +571,11 @@ ${dashes}
   TC# ${completedSale.folio}${String(Date.now()).slice(-8)}
 ${dashes}
 
-       Espera algo especial
-      SU TICKET DE COMPRA SERA
-     REVISADO AL SALIR DE ACUERDO
-            AL REGLAMENTO
+${footerLines}
       Necesitas ayuda ahora?
-           800-000-0000
+           ${sc.ticketServicePhone}
 ${dashes}
-        Vigencia 12/2026
+        Vigencia ${sc.ticketVigencia}
     ${dateStr}     ${timeStr}
 `;
 

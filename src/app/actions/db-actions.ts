@@ -2,6 +2,7 @@
 
 import { db } from '@/db';
 import {
+  storeConfig,
   products,
   saleRecords,
   saleItems,
@@ -31,7 +32,9 @@ import type {
   Gasto,
   GastoCategoria,
   Proveedor,
+  StoreConfig,
 } from '@/types';
+import { DEFAULT_STORE_CONFIG } from '@/types';
 
 // ==================== HELPERS ====================
 function numVal(v: string | null | undefined): number {
@@ -85,6 +88,53 @@ export async function createProduct(data: Omit<Product, 'id'>): Promise<Product>
 
 export async function updateProductStock(productId: string, newStock: number): Promise<void> {
   await db.update(products).set({ currentStock: newStock, updatedAt: new Date() }).where(eq(products.id, productId));
+}
+
+export async function deleteProduct(productId: string): Promise<void> {
+  await db.delete(products).where(eq(products.id, productId));
+}
+
+// ==================== STORE CONFIG ====================
+export async function fetchStoreConfig(): Promise<StoreConfig> {
+  const rows = await db.select().from(storeConfig).limit(1);
+  if (rows.length === 0) {
+    // Create default config if none exists
+    await db.insert(storeConfig).values({ id: 'main' });
+    return DEFAULT_STORE_CONFIG;
+  }
+  const r = rows[0];
+  return {
+    id: r.id,
+    storeName: r.storeName,
+    legalName: r.legalName,
+    address: r.address,
+    city: r.city,
+    postalCode: r.postalCode,
+    phone: r.phone,
+    rfc: r.rfc,
+    regimenFiscal: r.regimenFiscal,
+    regimenDescription: r.regimenDescription,
+    ivaRate: r.ivaRate,
+    currency: r.currency,
+    lowStockThreshold: r.lowStockThreshold,
+    expirationWarningDays: r.expirationWarningDays,
+    printReceipts: r.printReceipts,
+    autoBackup: r.autoBackup,
+    ticketFooter: r.ticketFooter,
+    ticketServicePhone: r.ticketServicePhone,
+    ticketVigencia: r.ticketVigencia,
+    storeNumber: r.storeNumber,
+  };
+}
+
+export async function saveStoreConfig(data: Partial<StoreConfig>): Promise<StoreConfig> {
+  const { id, ...rest } = data;
+  // Upsert: try update, if 0 rows affected then insert
+  const result = await db.update(storeConfig).set({ ...rest, updatedAt: new Date() }).where(eq(storeConfig.id, 'main'));
+  if (!result.rowCount || result.rowCount === 0) {
+    await db.insert(storeConfig).values({ id: 'main', ...rest });
+  }
+  return fetchStoreConfig();
 }
 
 // ==================== INVENTORY ALERTS (computed) ====================
@@ -797,6 +847,7 @@ export async function fetchDashboardFromDB() {
     gastosList,
     proveedoresList,
     cortesHistoryList,
+    storeConfigData,
   ] = await Promise.all([
     fetchKPIData(),
     fetchAllProducts(),
@@ -810,6 +861,7 @@ export async function fetchDashboardFromDB() {
     fetchGastos(),
     fetchProveedores(),
     fetchCortesHistory(),
+    fetchStoreConfig(),
   ]);
 
   return {
@@ -825,5 +877,6 @@ export async function fetchDashboardFromDB() {
     gastos: gastosList,
     proveedores: proveedoresList,
     cortesHistory: cortesHistoryList,
+    storeConfig: storeConfigData,
   };
 }

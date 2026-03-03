@@ -15,6 +15,7 @@ import {
   Checkbox,
   Badge,
   Spinner,
+  Divider,
 } from '@shopify/polaris';
 import {
   getMPConfig,
@@ -22,36 +23,19 @@ import {
   getDevices,
 } from '@/lib/mercadopago';
 import type { MercadoPagoConfig } from '@/lib/mercadopago';
-
-interface StoreConfig {
-  storeName: string;
-  storeAddress: string;
-  phone: string;
-  rfc: string;
-  ivaRate: string;
-  currency: string;
-  lowStockThreshold: string;
-  expirationWarningDays: string;
-  printReceipts: boolean;
-  autoBackup: boolean;
-}
-
-const DEFAULT_CONFIG: StoreConfig = {
-  storeName: 'Abarrotes Don José',
-  storeAddress: 'Calle Principal #123, Col. Centro, CP 12345',
-  phone: '(555) 123-4567',
-  rfc: 'XAXX010101000',
-  ivaRate: '16',
-  currency: 'MXN',
-  lowStockThreshold: '25',
-  expirationWarningDays: '7',
-  printReceipts: true,
-  autoBackup: false,
-};
+import { useDashboardStore } from '@/store/dashboardStore';
+import type { StoreConfig } from '@/types';
 
 export function ConfiguracionPage() {
-  const [config, setConfig] = useState<StoreConfig>(DEFAULT_CONFIG);
+  const { storeConfig, saveStoreConfig } = useDashboardStore();
+  const [config, setConfig] = useState<StoreConfig>(storeConfig);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Sync from store when storeConfig changes (e.g., after initial fetch)
+  useEffect(() => {
+    setConfig(storeConfig);
+  }, [storeConfig]);
 
   // Mercado Pago config
   const [mpConfig, setMpConfig] = useState<MercadoPagoConfig>({ accessToken: '', deviceId: '', enabled: false });
@@ -69,10 +53,17 @@ export function ConfiguracionPage() {
     setSaved(false);
   }, []);
 
-  const handleSave = useCallback(() => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  }, []);
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      await saveStoreConfig(config);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error('Error saving config:', err);
+    }
+    setSaving(false);
+  }, [config, saveStoreConfig]);
 
   const handleMPSave = useCallback(() => {
     saveMPConfig(mpConfig);
@@ -92,7 +83,6 @@ export function ConfiguracionPage() {
       setMpDevices(devices);
       if (devices.length > 0) {
         setMpTestResult({ success: true, message: `Conexión exitosa. ${devices.length} terminal(es) encontrada(s).` });
-        // Auto-fill first device if empty
         if (!mpConfig.deviceId && devices.length > 0) {
           setMpConfig(prev => ({ ...prev, deviceId: devices[0].id }));
         }
@@ -105,34 +95,98 @@ export function ConfiguracionPage() {
     setMpTesting(false);
   }, [mpConfig.accessToken, mpConfig.deviceId]);
 
+  // Generate ticket preview text
+  const previewText = `
+       ${config.legalName}
+  ${config.address}
+       C.P. ${config.postalCode}, ${config.city}
+     RFC: ${config.rfc}
+       TEL: ${config.phone}
+     REGIMEN FISCAL - ${config.regimenFiscal}
+  ${config.regimenDescription}
+ ESTE COMPROBANTE NO ES VALIDO PARA
+         EFECTOS FISCALES
+
+TDA#${config.storeNumber} OP#CAJERO 1     TR# V-000001
+01/01/2026              12:00:00
+RFC: SIN R.F.C.
+----------------------------------------
+  PRODUCTO EJEMPLO
+    2 pza x $25.00          $ 50.00
+  REFRESCO COLA 600ML
+    1 pza x $18.00          $ 18.00
+----------------------------------------
+  SUBTOTAL                    $ 68.00
+  TOTAL                       $ 68.00
+  EFECTIVO                    $ 68.00
+  CAMBIO                      $ 0.00
+
+----------------------------------------
+  IVA    ${config.ivaRate}.0%     $ 58.62     $ 9.38
+----------------------------------------
+  TOTAL IVA                   $ 9.38
+
+     ARTICULOS VENDIDOS    3
+  TC# V-00000112345678
+----------------------------------------
+
+${config.ticketFooter.split('\\n').map((l: string) => `       ${l}`).join('\n')}
+      Necesitas ayuda ahora?
+         ${config.ticketServicePhone}
+----------------------------------------
+      Vigencia ${config.ticketVigencia}
+`;
+
   return (
     <BlockStack gap="400">
       {saved && (
         <Banner tone="success" title="Configuración guardada" onDismiss={() => setSaved(false)}>
-          <p>Los cambios se han guardado correctamente.</p>
+          <p>Los cambios se han guardado y sincronizado automáticamente en todos los tickets.</p>
         </Banner>
       )}
 
       <Layout>
         <Layout.AnnotatedSection
-          title="Información de la tienda"
-          description="Datos generales de tu negocio que aparecen en tickets y reportes."
+          title="Datos de la tienda"
+          description="Información general que aparece en el encabezado de los tickets de venta y corte de caja."
         >
           <Card>
             <FormLayout>
               <TextField
-                label="Nombre de la tienda"
+                label="Nombre corto de la tienda"
                 value={config.storeName}
                 onChange={(v) => updateField('storeName', v)}
                 autoComplete="off"
+                helpText="Nombre que se muestra en reportes y corte de caja"
+              />
+              <TextField
+                label="Razón social (nombre legal)"
+                value={config.legalName}
+                onChange={(v) => updateField('legalName', v)}
+                autoComplete="off"
+                helpText="Aparece en la primera línea del ticket"
               />
               <TextField
                 label="Dirección"
-                value={config.storeAddress}
-                onChange={(v) => updateField('storeAddress', v)}
+                value={config.address}
+                onChange={(v) => updateField('address', v)}
                 autoComplete="off"
                 multiline={2}
               />
+              <FormLayout.Group>
+                <TextField
+                  label="Ciudad"
+                  value={config.city}
+                  onChange={(v) => updateField('city', v)}
+                  autoComplete="off"
+                />
+                <TextField
+                  label="Código Postal"
+                  value={config.postalCode}
+                  onChange={(v) => updateField('postalCode', v)}
+                  autoComplete="off"
+                />
+              </FormLayout.Group>
               <FormLayout.Group>
                 <TextField
                   label="Teléfono"
@@ -141,10 +195,43 @@ export function ConfiguracionPage() {
                   autoComplete="tel"
                 />
                 <TextField
-                  label="RFC"
-                  value={config.rfc}
-                  onChange={(v) => updateField('rfc', v)}
+                  label="Número de sucursal"
+                  value={config.storeNumber}
+                  onChange={(v) => updateField('storeNumber', v)}
                   autoComplete="off"
+                  helpText="Ej: 001, aparece como TDA#001"
+                />
+              </FormLayout.Group>
+            </FormLayout>
+          </Card>
+        </Layout.AnnotatedSection>
+
+        <Layout.AnnotatedSection
+          title="Datos fiscales"
+          description="RFC y régimen fiscal que se imprimen en los tickets."
+        >
+          <Card>
+            <FormLayout>
+              <TextField
+                label="RFC"
+                value={config.rfc}
+                onChange={(v) => updateField('rfc', v)}
+                autoComplete="off"
+              />
+              <FormLayout.Group>
+                <TextField
+                  label="Clave del Régimen Fiscal"
+                  value={config.regimenFiscal}
+                  onChange={(v) => updateField('regimenFiscal', v)}
+                  autoComplete="off"
+                  helpText="Ej: 612, 601, 625"
+                />
+                <TextField
+                  label="Descripción del Régimen"
+                  value={config.regimenDescription}
+                  onChange={(v) => updateField('regimenDescription', v)}
+                  autoComplete="off"
+                  helpText="Ej: REGIMEN SIMPLIFICADO DE CONFIANZA"
                 />
               </FormLayout.Group>
             </FormLayout>
@@ -153,7 +240,7 @@ export function ConfiguracionPage() {
 
         <Layout.AnnotatedSection
           title="Impuestos y moneda"
-          description="Configura la tasa de IVA y la moneda que se usa en tu negocio."
+          description="Configura la tasa de IVA y la moneda de tu negocio."
         >
           <Card>
             <FormLayout>
@@ -181,8 +268,63 @@ export function ConfiguracionPage() {
         </Layout.AnnotatedSection>
 
         <Layout.AnnotatedSection
+          title="Pie del ticket"
+          description="Personaliza el mensaje que aparece al final de cada ticket de venta."
+        >
+          <Card>
+            <FormLayout>
+              <TextField
+                label="Mensaje del pie del ticket"
+                value={config.ticketFooter}
+                onChange={(v) => updateField('ticketFooter', v)}
+                autoComplete="off"
+                multiline={4}
+                helpText="Usa \\n para saltos de línea. Este texto se centra en el ticket."
+              />
+              <FormLayout.Group>
+                <TextField
+                  label="Teléfono de atención al cliente"
+                  value={config.ticketServicePhone}
+                  onChange={(v) => updateField('ticketServicePhone', v)}
+                  autoComplete="off"
+                  helpText="Aparece en el pie del ticket"
+                />
+                <TextField
+                  label="Vigencia del ticket"
+                  value={config.ticketVigencia}
+                  onChange={(v) => updateField('ticketVigencia', v)}
+                  autoComplete="off"
+                  helpText="Ej: 12/2026"
+                />
+              </FormLayout.Group>
+            </FormLayout>
+          </Card>
+        </Layout.AnnotatedSection>
+
+        <Layout.AnnotatedSection
+          title="Vista previa del ticket"
+          description="Así se verá tu ticket de venta con los datos configurados."
+        >
+          <Card>
+            <div style={{ background: '#fff', padding: '8px', maxWidth: '360px', margin: '0 auto', border: '1px solid #ddd' }}>
+              <pre style={{
+                fontFamily: "'Courier New', 'Consolas', 'Lucida Console', monospace",
+                fontSize: '10.5px',
+                lineHeight: '1.3',
+                margin: 0,
+                padding: '4px 6px',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                color: '#000',
+                background: '#fff',
+              }}>{previewText}</pre>
+            </div>
+          </Card>
+        </Layout.AnnotatedSection>
+
+        <Layout.AnnotatedSection
           title="Alertas de inventario"
-          description="Define los umbrales para recibir alertas de stock bajo y productos por vencer."
+          description="Define los umbrales para recibir alertas."
         >
           <Card>
             <FormLayout>
@@ -327,7 +469,7 @@ export function ConfiguracionPage() {
       </Layout>
 
       <InlineStack align="end">
-        <Button variant="primary" onClick={handleSave}>
+        <Button variant="primary" onClick={handleSave} loading={saving}>
           Guardar cambios
         </Button>
       </InlineStack>

@@ -27,7 +27,7 @@ interface CorteCajaModalProps {
 }
 
 export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
-  const { saleRecords, gastos, cortesHistory, createCorteCaja } = useDashboardStore();
+  const { saleRecords, gastos, cortesHistory, createCorteCaja, storeConfig } = useDashboardStore();
   const { showSuccess, showError } = useToast();
 
   const [cajero, setCajero] = useState('');
@@ -120,9 +120,9 @@ body {
 </style></head><body>
 
 <div class="sep-thick"></div>
-<div class="center store-name">MI ABARROTES</div>
-<div class="center store-sub">AV. PRINCIPAL #123, COL. CENTRO</div>
-<div class="center store-sub">TEL: (555) 123-4567</div>
+<div class="center store-name">${storeConfig.storeName}</div>
+<div class="center store-sub">${storeConfig.address}</div>
+<div class="center store-sub">TEL: ${storeConfig.phone}</div>
 <div class="sep-thick"></div>
 
 <div class="data-row"><span>CAJERO:</span><span>${completedCorte.cajero.toUpperCase()}</span></div>
