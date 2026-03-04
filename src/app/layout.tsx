@@ -3,6 +3,7 @@ import '@shopify/polaris/build/esm/styles.css';
 import './globals.css';
 import { PolarisProvider } from './PolarisProvider';
 import { AuthProvider } from '@/lib/auth/AuthContext';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   title: 'Dashboard de Abarrotes',
@@ -20,6 +21,7 @@ export default function RootLayout({
         <AuthProvider>
           <PolarisProvider>{children}</PolarisProvider>
         </AuthProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
