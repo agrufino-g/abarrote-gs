@@ -52,7 +52,7 @@ import { ConfiguracionPage } from '@/components/settings/ConfiguracionPage';
 import { SidebarNav } from '@/components/navigation/SidebarNav';
 import { Product } from '@/types';
 import { useToast } from '@/components/notifications/ToastProvider';
-import { UserButton } from '@neondatabase/neon-js/auth/react/ui';
+import { UserMenu } from '@/components/auth/UserMenu';
 
 const SECTION_TITLES: Record<string, string> = {
   overview: 'Inicio',
@@ -278,7 +278,7 @@ export function DashboardHome() {
       onNavigationToggle={toggleMobileNav}
       userMenu={
         <div style={{ marginRight: '12px' }}>
-          <UserButton />
+          <UserMenu />
         </div>
       }
     />

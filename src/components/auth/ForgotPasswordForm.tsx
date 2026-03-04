@@ -3,7 +3,8 @@
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { sileo } from 'sileo';
-import { authClient } from '@/lib/auth/client';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,11 +26,17 @@ export function ForgotPasswordForm() {
 
     setIsLoading(true);
     try {
-      await authClient.forgetPassword.emailOtp({ email });
+      await sendPasswordResetEmail(auth, email);
       setEmailSent(true);
       sileo.success({ title: 'Correo enviado' });
-    } catch {
-      sileo.error({ title: 'Error al enviar el correo' });
+    } catch (error: unknown) {
+      const err = error as { code?: string };
+      const msg = err.code === 'auth/user-not-found'
+        ? 'No existe una cuenta con este correo'
+        : err.code === 'auth/invalid-email'
+        ? 'Correo electrónico inválido'
+        : 'Error al enviar el correo';
+      sileo.error({ title: msg });
     } finally {
       setIsLoading(false);
     }
@@ -38,7 +45,7 @@ export function ForgotPasswordForm() {
   const handleResend = useCallback(async () => {
     setIsLoading(true);
     try {
-      await authClient.forgetPassword.emailOtp({ email });
+      await sendPasswordResetEmail(auth, email);
       sileo.success({ title: 'Correo reenviado' });
     } catch {
       sileo.error({ title: 'Error al reenviar' });
@@ -64,9 +71,9 @@ export function ForgotPasswordForm() {
             <div className="w-12 h-12 bg-[#3f3f46] rounded-full flex items-center justify-center mx-auto mb-2">
               <Mail className="w-6 h-6 text-white" />
             </div>
-            <CardTitle className="text-white text-xl">Check your email</CardTitle>
+            <CardTitle className="text-white text-xl">Revisa tu correo</CardTitle>
             <CardDescription className="text-[#a1a1aa]">
-              We sent a password reset link to
+              Enviamos un enlace de recuperación a
               <br />
               <span className="text-white font-medium">{email}</span>
             </CardDescription>
@@ -78,7 +85,7 @@ export function ForgotPasswordForm() {
               onClick={handleResend}
               disabled={isLoading}
             >
-              {isLoading ? 'Sending...' : 'Resend email'}
+              {isLoading ? 'Enviando...' : 'Reenviar correo'}
             </Button>
 
             <Button 
@@ -88,7 +95,7 @@ export function ForgotPasswordForm() {
             >
               <Link href="/auth/login">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to login
+                Volver a iniciar sesión
               </Link>
             </Button>
           </CardContent>
@@ -110,21 +117,21 @@ export function ForgotPasswordForm() {
       {/* Card */}
       <Card className="w-full max-w-[400px] bg-[#27272a] border-[#3f3f46]">
         <CardHeader className="text-center pb-4">
-          <CardTitle className="text-white text-xl">Forgot password?</CardTitle>
+          <CardTitle className="text-white text-xl">¿Olvidaste tu contraseña?</CardTitle>
           <CardDescription className="text-[#a1a1aa]">
-            No worries, we&apos;ll send you reset instructions
+            No te preocupes, te enviaremos instrucciones para restablecerla
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-white text-sm">
-                Email
+                Correo electrónico
               </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="m@example.com"
+                placeholder="tu@ejemplo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
@@ -138,7 +145,7 @@ export function ForgotPasswordForm() {
               className="w-full h-10 bg-[#27272a] border-[#3f3f46] text-white hover:bg-[#3f3f46] hover:text-white"
               disabled={isLoading}
             >
-              {isLoading ? 'Sending...' : 'Reset password'}
+              {isLoading ? 'Enviando...' : 'Restablecer contraseña'}
             </Button>
           </form>
 
@@ -149,7 +156,7 @@ export function ForgotPasswordForm() {
           >
             <Link href="/auth/login">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to login
+              Volver a iniciar sesión
             </Link>
           </Button>
         </CardContent>
