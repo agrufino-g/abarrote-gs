@@ -489,7 +489,7 @@ ${dashes}
     // Generate barcode as data URL
     const barcodeCanvas = document.createElement('canvas');
     JsBarcode(barcodeCanvas, tcCode, {
-      format: 'CODE128',
+      format: sc.ticketBarcodeFormat || 'CODE128',
       width: 1.5,
       height: 45,
       displayValue: true,
@@ -670,7 +670,7 @@ ${centerLine(`${dateStr}     ${timeStr}`)}
                   if (el) {
                     try {
                       JsBarcode(el, previewTcCode, {
-                        format: 'CODE128',
+                        format: sc.ticketBarcodeFormat || 'CODE128',
                         width: 1.5,
                         height: 40,
                         displayValue: true,

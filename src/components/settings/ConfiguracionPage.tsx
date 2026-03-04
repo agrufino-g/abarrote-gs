@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import JsBarcode from 'jsbarcode';
 import {
   Card,
   Text,
@@ -127,8 +128,9 @@ RFC: SIN R.F.C.
   TOTAL IVA                   $ 9.38
 
      ARTICULOS VENDIDOS    3
-  TC# V-00000112345678
-----------------------------------------
+`;
+
+  const previewTextAfter = `----------------------------------------
 
 ${config.ticketFooter.split('\\n').map((l: string) => `       ${l}`).join('\n')}
       Necesitas ayuda ahora?
@@ -318,7 +320,62 @@ ${config.ticketFooter.split('\\n').map((l: string) => `       ${l}`).join('\n')}
                 color: '#000',
                 background: '#fff',
               }}>{previewText}</pre>
+              <div style={{ textAlign: 'center', padding: '4px 0' }}>
+                <svg ref={(el) => {
+                  if (el) {
+                    try {
+                      JsBarcode(el, 'V-00000112345678', {
+                        format: config.ticketBarcodeFormat || 'CODE128',
+                        width: 1.5,
+                        height: 40,
+                        displayValue: true,
+                        fontSize: 10,
+                        font: 'Courier New',
+                        textMargin: 2,
+                        margin: 0,
+                      });
+                    } catch { /* format may not support this value */ }
+                  }
+                }} />
+              </div>
+              <pre style={{
+                fontFamily: "'Courier New', 'Consolas', 'Lucida Console', monospace",
+                fontSize: '10.5px',
+                lineHeight: '1.3',
+                margin: 0,
+                padding: '4px 6px',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                color: '#000',
+                background: '#fff',
+              }}>{previewTextAfter}</pre>
             </div>
+          </Card>
+        </Layout.AnnotatedSection>
+
+        <Layout.AnnotatedSection
+          title="Código de barras del ticket"
+          description="Selecciona el formato de código de barras que se imprime en cada ticket de venta."
+        >
+          <Card>
+            <FormLayout>
+              <Select
+                label="Formato de código de barras"
+                options={[
+                  { label: 'CODE128 (recomendado — alfanumérico)', value: 'CODE128' },
+                  { label: 'CODE128A (solo mayúsculas + control)', value: 'CODE128A' },
+                  { label: 'CODE128B (mayúsculas y minúsculas)', value: 'CODE128B' },
+                  { label: 'CODE128C (solo dígitos, compacto)', value: 'CODE128C' },
+                  { label: 'CODE39 (alfanumérico clásico)', value: 'CODE39' },
+                  { label: 'ITF14 (14 dígitos, logística)', value: 'ITF14' },
+                  { label: 'pharmacode (industria farmacéutica)', value: 'pharmacode' },
+                  { label: 'codabar (bibliotecas, bancos de sangre)', value: 'codabar' },
+                ]}
+                value={config.ticketBarcodeFormat || 'CODE128'}
+                onChange={(v) => updateField('ticketBarcodeFormat', v)}
+                helpText="CODE128 es el más versátil y soporta letras y números. CODE39 es un estándar industrial clásico."
+              />
+            </FormLayout>
           </Card>
         </Layout.AnnotatedSection>
 

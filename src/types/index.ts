@@ -22,6 +22,7 @@ export interface StoreConfig {
   ticketServicePhone: string;
   ticketVigencia: string;
   storeNumber: string;
+  ticketBarcodeFormat: string;
 }
 
 export const DEFAULT_STORE_CONFIG: StoreConfig = {
@@ -45,6 +46,7 @@ export const DEFAULT_STORE_CONFIG: StoreConfig = {
   ticketServicePhone: '800-000-0000',
   ticketVigencia: '12/2026',
   storeNumber: '001',
+  ticketBarcodeFormat: 'CODE128',
 };
 
 export interface Product {
