@@ -108,11 +108,16 @@ export function RolesManager() {
 
   useEffect(() => {
     const init = async () => {
-      if (user) {
-        await ensureOwnerRole(user.uid, user.email || '', user.displayName || '');
+      try {
+        if (user) {
+          await ensureOwnerRole(user.uid, user.email || '', user.displayName || '');
+        }
+        await Promise.all([fetchRoleDefinitions(), fetchRoles()]);
+      } catch (err) {
+        console.error('Error initializing roles:', err);
+      } finally {
+        setLoading(false);
       }
-      await Promise.all([fetchRoleDefinitions(), fetchRoles()]);
-      setLoading(false);
     };
     init();
   }, [user, ensureOwnerRole, fetchRoleDefinitions, fetchRoles]);
