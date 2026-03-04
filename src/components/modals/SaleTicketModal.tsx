@@ -21,6 +21,7 @@ import {
   ProgressBar,
 } from '@shopify/polaris';
 import { DeleteIcon, PrintIcon, BarcodeIcon } from '@shopify/polaris-icons';
+import JsBarcode from 'jsbarcode';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { formatCurrency } from '@/lib/utils';
@@ -481,8 +482,25 @@ ${dashes}
   TOTAL IVA              ${fmtAmt(completedSale.iva)}
 
        ARTICULOS VENDIDOS    ${totalArticles}
-  TC# ${completedSale.folio}${String(Date.now()).slice(-8)}
-${dashes}
+`;
+
+    const tcCode = `${completedSale.folio}${String(Date.now()).slice(-8)}`;
+
+    // Generate barcode as data URL
+    const barcodeCanvas = document.createElement('canvas');
+    JsBarcode(barcodeCanvas, tcCode, {
+      format: 'CODE128',
+      width: 1.5,
+      height: 45,
+      displayValue: true,
+      fontSize: 11,
+      font: 'Courier New',
+      textMargin: 2,
+      margin: 0,
+    });
+    const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
+
+    const ticketTextAfter = `${dashes}
 
 ${footerLines}
 ${centerLine('Necesitas ayuda ahora?')}
@@ -515,8 +533,18 @@ pre {
   margin: 0;
   padding: 0 6px;
 }
+.barcode-wrapper {
+  text-align: center;
+  padding: 4px 0;
+}
+.barcode-wrapper img {
+  max-width: 280px;
+  height: auto;
+}
 </style></head><body>
 <pre>${ticketText}</pre>
+<div class="barcode-wrapper"><img src="${barcodeDataUrl}" alt="${tcCode}" /></div>
+<pre>${ticketTextAfter}</pre>
 <script>window.onload=()=>{window.print();window.close();}<\/script>
 </body></html>`);
     printWindow.document.close();
@@ -594,8 +622,11 @@ ${dashes}
   TOTAL IVA              ${fmtAmt(completedSale.iva)}
 
        ARTICULOS VENDIDOS    ${totalArticles}
-  TC# ${completedSale.folio}${String(Date.now()).slice(-8)}
-${dashes}
+`;
+
+    const previewTcCode = `${completedSale.folio}${String(Date.now()).slice(-8)}`;
+
+    const previewTextAfter = `${dashes}
 
 ${footerLines}
 ${centerLine('Necesitas ayuda ahora?')}
@@ -634,6 +665,35 @@ ${centerLine(`${dateStr}     ${timeStr}`)}
                 color: '#000',
                 background: '#fff',
               }}>{previewText}</pre>
+              <div style={{ textAlign: 'center', padding: '4px 0' }}>
+                <svg ref={(el) => {
+                  if (el) {
+                    try {
+                      JsBarcode(el, previewTcCode, {
+                        format: 'CODE128',
+                        width: 1.5,
+                        height: 40,
+                        displayValue: true,
+                        fontSize: 10,
+                        font: 'Courier New',
+                        textMargin: 2,
+                        margin: 0,
+                      });
+                    } catch { /* ignore */ }
+                  }
+                }} />
+              </div>
+              <pre style={{
+                fontFamily: "'Courier New', 'Consolas', 'Lucida Console', monospace",
+                fontSize: '11.5px',
+                lineHeight: '1.3',
+                margin: 0,
+                padding: '4px 6px',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                color: '#000',
+                background: '#fff',
+              }}>{previewTextAfter}</pre>
             </div>
           </div>
         </Modal.Section>
