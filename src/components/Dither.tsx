@@ -172,7 +172,12 @@ class RetroEffectImpl extends Effect {
 
 const WrappedRetro = wrapEffect(RetroEffectImpl);
 
-const RetroEffect = forwardRef((props, ref) => {
+interface RetroEffectProps {
+  colorNum?: number;
+  pixelSize?: number;
+}
+
+const RetroEffect = forwardRef<typeof WrappedRetro, RetroEffectProps>((props, ref) => {
   const { colorNum, pixelSize } = props;
   return <WrappedRetro ref={ref} colorNum={colorNum} pixelSize={pixelSize} />;
 });
@@ -188,8 +193,8 @@ function DitheredWaves({
   disableAnimation,
   enableMouseInteraction,
   mouseRadius
-}) {
-  const mesh = useRef(null);
+}: DitheredWavesProps) {
+  const mesh = useRef<THREE.Mesh>(null);
   const mouseRef = useRef(new THREE.Vector2());
   const { viewport, size, gl } = useThree();
 
