@@ -1,5 +1,8 @@
 // Exportaciones de componentes del Dashboard de Abarrotes
 
+// Auth Components
+export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, AuthLayout } from './auth';
+
 // Dashboard
 export { DashboardHome } from './dashboard/DashboardHome';
 

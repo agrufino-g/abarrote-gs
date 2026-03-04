@@ -1,17 +1,36 @@
 'use client';
 
-import { AuthView } from '@neondatabase/neon-js/auth/react/ui';
+import { useParams } from 'next/navigation';
+import { AuthLayout, LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm } from '@/components/auth';
+import { Toaster } from 'sileo';
+import 'sileo/styles.css';
 
 export default function AuthPage() {
+  const params = useParams();
+  const pathname = params.pathname as string[] | undefined;
+  const route = pathname?.[0] || 'login';
+
+  const renderAuthForm = () => {
+    switch (route) {
+      case 'login':
+        return <LoginForm />;
+      case 'register':
+        return <RegisterForm />;
+      case 'forgot-password':
+        return <ForgotPasswordForm />;
+      case 'reset-password':
+        return <ResetPasswordForm />;
+      default:
+        return <LoginForm />;
+    }
+  };
+
   return (
-    <div style={{
-      display: 'flex',
-      minHeight: '100vh',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#f6f6f7',
-    }}>
-      <AuthView />
-    </div>
+    <>
+      <Toaster position="top-right" theme="light" />
+      <AuthLayout>
+        {renderAuthForm()}
+      </AuthLayout>
+    </>
   );
 }
