@@ -11,6 +11,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: TOKEN_VERCEL
     steps:
       - name: Checkout
         uses: actions/checkout@v4
