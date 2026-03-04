@@ -287,9 +287,9 @@ export function ProductDetailModal({
                 </Text>
                 <Badge
                   tone={
-                    stockStatus.status === 'critical'
+                    stockStatus.status === 'critical' || stockStatus.status === 'out'
                       ? 'critical'
-                      : stockStatus.status === 'warning'
+                      : stockStatus.status === 'low'
                       ? 'warning'
                       : 'success'
                   }
