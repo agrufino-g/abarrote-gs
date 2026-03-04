@@ -310,7 +310,7 @@ ${completedCorte.notas ? `<div class="data-row" style="font-size:10px"><span>NOT
                   <Text as="span" fontWeight="bold">Diferencia:</Text>
                   <Text as="span" fontWeight="bold">
                     {diferencia >= 0 ? '+' : ''}{formatCurrency(diferencia)}
-                    {Math.abs(diferencia) <= 10 ? ' ✓' : diferencia < 0 ? ' — Faltante' : ' — Sobrante'}
+                    {Math.abs(diferencia) <= 10 ? ' OK' : diferencia < 0 ? ' - Faltante' : ' - Sobrante'}
                   </Text>
                 </InlineStack>
               </Banner>

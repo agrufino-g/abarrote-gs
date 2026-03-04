@@ -21,7 +21,7 @@ import type { PedidoRecord } from '@/types';
 const estadoBadge: Record<PedidoRecord['estado'], { tone: 'attention' | 'info' | 'success'; label: string }> = {
   pendiente: { tone: 'attention', label: '⏳ Pendiente' },
   enviado: { tone: 'info', label: '🚚 Enviado' },
-  recibido: { tone: 'success', label: '✅ Recibido' },
+  recibido: { tone: 'success', label: 'Recibido' },
 };
 
 export function PedidosManager() {
@@ -144,7 +144,7 @@ export function PedidosManager() {
           title={`Pedido — ${selectedPedido.proveedor}`}
           primaryAction={
             selectedPedido.estado !== 'recibido'
-              ? { content: '📦 Recibir Mercancía', onAction: () => handleReceive(selectedPedido.id), loading: receiving }
+              ? { content: 'Recibir Mercancia', onAction: () => handleReceive(selectedPedido.id), loading: receiving }
               : undefined
           }
           secondaryActions={[{ content: 'Cerrar', onAction: () => { setDetailOpen(false); setSelectedPedido(null); } }]}

@@ -7,7 +7,7 @@ import * as schema from './schema';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
-  console.error('❌ DATABASE_URL no está configurada.');
+  console.error('DATABASE_URL no esta configurada.');
   console.error('   Revisa tu archivo .env.local');
   process.exit(1);
 }
@@ -19,7 +19,7 @@ async function seed() {
   console.log('🌱 Iniciando seed de la base de datos...');
 
   // ==================== PRODUCTOS ====================
-  console.log('📦 Insertando productos...');
+  console.log('Insertando productos...');
   const productData = [
     {
       id: 'p1',
@@ -138,7 +138,7 @@ async function seed() {
   }
 
   // ==================== VENTAS DE EJEMPLO ====================
-  console.log('💰 Insertando ventas de ejemplo...');
+  console.log('Insertando ventas de ejemplo...');
   const today = new Date().toISOString().split('T')[0];
 
   const sale1 = {
@@ -252,7 +252,7 @@ async function seed() {
   ]).onConflictDoNothing();
 
   console.log('');
-  console.log('✅ Seed completado exitosamente!');
+  console.log('Seed completado exitosamente!');
   console.log('   - 5 productos');
   console.log('   - 3 proveedores');
   console.log('   - 2 ventas con 3 items');
@@ -260,10 +260,10 @@ async function seed() {
   console.log('   - 2 transacciones de fiado');
   console.log('   - 2 gastos');
   console.log('');
-  console.log('🚀 Ahora puedes iniciar la app con: bun run dev');
+  console.log('Ahora puedes iniciar la app con: bun run dev');
 }
 
 seed().catch((err) => {
-  console.error('❌ Error en seed:', err);
+  console.error('Error en seed:', err);
   process.exit(1);
 });

@@ -57,6 +57,7 @@ import { SidebarNav } from '@/components/navigation/SidebarNav';
 import { Product } from '@/types';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { usePermissions, SECTION_PERMISSIONS } from '@/lib/usePermissions';
 
 const SECTION_TITLES: Record<string, string> = {
   overview: 'Inicio',
@@ -105,6 +106,7 @@ export function DashboardHome() {
     adjustStock,
     createPedido,
     ensureOwnerRole,
+    fetchRoleDefinitions,
   } = useDashboardStore();
 
   const toast = useToast();
@@ -123,6 +125,7 @@ export function DashboardHome() {
   const [searchActive, setSearchActive] = useState(false);
   const [userMenuActive, setUserMenuActive] = useState(false);
   const { user, signOut } = useAuth();
+  const { permissions, isLoaded: permissionsLoaded } = usePermissions();
 
   const [filters, setFilters] = useState<FilterState>({
     search: '',
@@ -134,7 +137,8 @@ export function DashboardHome() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [fetchDashboardData]);
+    fetchRoleDefinitions();
+  }, [fetchDashboardData, fetchRoleDefinitions]);
 
   // Auto-register role for current user (first user becomes owner)
   useEffect(() => {
@@ -304,19 +308,21 @@ export function DashboardHome() {
     const userMenuMarkup = (
       <TopBar.UserMenu
         actions={[
+          ...((!permissionsLoaded || permissions.length === 0 || permissions.includes('settings.view'))
+            ? [{
+                items: [
+                  {
+                    content: 'Configuracion',
+                    icon: SettingsIcon,
+                    onAction: () => handleSectionSelect('settings'),
+                  },
+                ],
+              }]
+            : []),
           {
             items: [
               {
-                content: 'Configuración',
-                icon: SettingsIcon,
-                onAction: () => handleSectionSelect('settings'),
-              },
-            ],
-          },
-          {
-            items: [
-              {
-                content: 'Cerrar sesión',
+                content: 'Cerrar sesion',
                 icon: ExitIcon,
                 onAction: signOut,
               },
@@ -335,9 +341,15 @@ export function DashboardHome() {
     const searchResultsMarkup = searchValue ? (
       <ActionList
         items={Object.entries(SECTION_TITLES)
-          .filter(([, title]) =>
-            title.toLowerCase().includes(searchValue.toLowerCase())
-          )
+          .filter(([key, title]) => {
+            if (!title.toLowerCase().includes(searchValue.toLowerCase())) return false;
+            // Respect permissions in search
+            if (permissionsLoaded && permissions.length > 0) {
+              const required = SECTION_PERMISSIONS[key];
+              if (required && !required.some((k) => permissions.includes(k))) return false;
+            }
+            return true;
+          })
           .map(([key, title]) => ({
             content: title,
             helpText: SECTION_SUBTITLES[key] || '',
@@ -385,10 +397,23 @@ export function DashboardHome() {
       badges={{
         lowStock: kpiData?.lowStockProducts,
       }}
+      permissions={permissionsLoaded ? permissions : undefined}
     />
   );
 
   const renderSectionContent = () => {
+    // Guard: if permissions are loaded, check if user can access this section
+    if (permissionsLoaded && permissions.length > 0) {
+      const required = SECTION_PERMISSIONS[selectedSection];
+      if (required && !required.some((k) => permissions.includes(k))) {
+        return (
+          <Banner tone="warning" title="Acceso restringido">
+            <p>No tienes permisos para acceder a esta seccion. Contacta al propietario o administrador.</p>
+          </Banner>
+        );
+      }
+    }
+
     switch (selectedSection) {
       case 'overview':
         return (

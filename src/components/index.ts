@@ -66,3 +66,6 @@ export { ExportModal, generateCSV, downloadFile, exportDashboardData } from './e
 
 // Notifications
 export { ToastProvider, useToast } from './notifications/ToastProvider';
+
+// Scanner
+export { CameraScanner } from './scanner/CameraScanner';

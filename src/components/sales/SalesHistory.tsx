@@ -81,7 +81,7 @@ export function SalesHistory() {
         .line { border-top: 1px dashed #000; margin: 6px 0; }
         .bold { font-weight: bold; } .row { display: flex; justify-content: space-between; }
       </style></head><body>
-      <div class="center"><h2 style="margin:4px 0;font-size:16px">🏪 ${storeConfig.storeName}</h2>
+      <div class="center"><h2 style="margin:4px 0;font-size:16px">${storeConfig.storeName}</h2>
       <p style="margin:2px 0;font-size:11px">${storeConfig.address}</p>
       <p style="margin:2px 0;font-size:11px">Tel: ${storeConfig.phone}</p></div>
       <div class="line"></div>

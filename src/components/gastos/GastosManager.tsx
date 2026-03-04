@@ -28,11 +28,11 @@ import type { GastoCategoria } from '@/types';
 const categoriaOptions: { label: string; value: GastoCategoria | '' }[] = [
   { label: 'Todas las categorías', value: '' },
   { label: '🏠 Renta', value: 'renta' },
-  { label: '💡 Servicios (luz, agua, gas)', value: 'servicios' },
-  { label: '📦 Proveedores', value: 'proveedores' },
+  { label: 'Servicios (luz, agua, gas)', value: 'servicios' },
+  { label: 'Proveedores', value: 'proveedores' },
   { label: '👷 Salarios', value: 'salarios' },
   { label: '🔧 Mantenimiento', value: 'mantenimiento' },
-  { label: '📋 Impuestos', value: 'impuestos' },
+  { label: 'Impuestos', value: 'impuestos' },
   { label: '📌 Otro', value: 'otro' },
 ];
 
@@ -40,11 +40,11 @@ const categoriaFormOptions = categoriaOptions.filter((o) => o.value !== '');
 
 const categoriaBadge: Record<GastoCategoria, { tone: 'info' | 'success' | 'warning' | 'critical' | 'attention' | 'new'; label: string }> = {
   renta: { tone: 'info', label: '🏠 Renta' },
-  servicios: { tone: 'attention', label: '💡 Servicios' },
-  proveedores: { tone: 'success', label: '📦 Proveedores' },
+  servicios: { tone: 'attention', label: 'Servicios' },
+  proveedores: { tone: 'success', label: 'Proveedores' },
   salarios: { tone: 'warning', label: '👷 Salarios' },
   mantenimiento: { tone: 'info', label: '🔧 Mantenimiento' },
-  impuestos: { tone: 'critical', label: '📋 Impuestos' },
+  impuestos: { tone: 'critical', label: 'Impuestos' },
   otro: { tone: 'new', label: '📌 Otro' },
 };
 

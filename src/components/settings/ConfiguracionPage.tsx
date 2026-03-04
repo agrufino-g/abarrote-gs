@@ -97,46 +97,69 @@ export function ConfiguracionPage() {
   }, [mpConfig.accessToken, mpConfig.deviceId]);
 
   // Generate ticket preview text
+  const TW = 40;
+  const center = (text: string) => {
+    const t = text.trim();
+    if (t.length >= TW) return t;
+    const pad = TW - t.length;
+    return ' '.repeat(Math.floor(pad / 2)) + t;
+  };
+  const wrapCenter = (text: string) => {
+    const words = text.trim().split(/\s+/);
+    const lines: string[] = [];
+    let cur = '';
+    for (const w of words) {
+      const c = cur ? `${cur} ${w}` : w;
+      if (c.length > TW) { if (cur) lines.push(center(cur)); cur = w; }
+      else cur = c;
+    }
+    if (cur) lines.push(center(cur));
+    return lines.join('\n');
+  };
+  const dashes = '-'.repeat(TW);
+  const fmtAmt = (s: string) => ('$ ' + s).padStart(16);
+  const footerPrev = config.ticketFooter.split('\\n').map((l: string) => center(l)).join('\n');
+
   const previewText = `
-       ${config.legalName}
-  ${config.address}
-       C.P. ${config.postalCode}, ${config.city}
-     RFC: ${config.rfc}
-       TEL: ${config.phone}
-     REGIMEN FISCAL - ${config.regimenFiscal}
-  ${config.regimenDescription}
- ESTE COMPROBANTE NO ES VALIDO PARA
-         EFECTOS FISCALES
+${center(config.legalName)}
+${center(config.address)}
+${center(`C.P. ${config.postalCode}, ${config.city}`)}
+${center(`RFC: ${config.rfc}`)}
+${center(`TEL: ${config.phone}`)}
+${center(`REGIMEN FISCAL - ${config.regimenFiscal}`)}
+${wrapCenter(config.regimenDescription)}
+${center('ESTE COMPROBANTE NO ES VALIDO PARA')}
+${center('EFECTOS FISCALES')}
 
-TDA#${config.storeNumber} OP#CAJERO 1     TR# V-000001
-01/01/2026              12:00:00
-RFC: SIN R.F.C.
-----------------------------------------
+${center(`TDA#${config.storeNumber} OP#CAJERO 1     TR# V-000001`)}
+${center('01/01/2026              12:00:00')}
+${center('RFC: SIN R.F.C.')}
+${dashes}
   PRODUCTO EJEMPLO
-    2 pza x $25.00          $ 50.00
+    2 pza x $25.00    ${fmtAmt('50.00')}
   REFRESCO COLA 600ML
-    1 pza x $18.00          $ 18.00
-----------------------------------------
-  SUBTOTAL                    $ 68.00
-  TOTAL                       $ 68.00
-  EFECTIVO                    $ 68.00
-  CAMBIO                      $ 0.00
+    1 pza x $18.00    ${fmtAmt('18.00')}
+${dashes}
+  SUBTOTAL            ${fmtAmt('68.00')}
+  TOTAL               ${fmtAmt('68.00')}
+  EFECTIVO            ${fmtAmt('68.00')}
+  CAMBIO              ${fmtAmt('0.00')}
 
-----------------------------------------
-  IVA    ${config.ivaRate}.0%     $ 58.62     $ 9.38
-----------------------------------------
-  TOTAL IVA                   $ 9.38
+${dashes}
+  IVA    ${config.ivaRate}.0%  ${fmtAmt('58.62')}${fmtAmt('9.38')}
+${dashes}
+  TOTAL IVA           ${fmtAmt('9.38')}
 
-     ARTICULOS VENDIDOS    3
+${center('ARTICULOS VENDIDOS    3')}
 `;
 
-  const previewTextAfter = `----------------------------------------
+  const previewTextAfter = `${dashes}
 
-${config.ticketFooter.split('\\n').map((l: string) => `       ${l}`).join('\n')}
-      Necesitas ayuda ahora?
-         ${config.ticketServicePhone}
-----------------------------------------
-      Vigencia ${config.ticketVigencia}
+${footerPrev}
+${center('Necesitas ayuda ahora?')}
+${center(config.ticketServicePhone)}
+${dashes}
+${center(`Vigencia ${config.ticketVigencia}`)}
 `;
 
   return (

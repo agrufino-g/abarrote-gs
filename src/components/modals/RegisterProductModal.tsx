@@ -15,6 +15,7 @@ import {
 } from '@shopify/polaris';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
+import { CameraScanner } from '@/components/scanner/CameraScanner';
 
 interface RegisterProductModalProps {
   open: boolean;
@@ -171,6 +172,15 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
               placeholder="Escanea o escribe el código de barras"
               error={errors.barcode}
               helpText="Escanea con el lector o escribe el código manualmente"
+            />
+
+            <CameraScanner
+              onScan={(code) => {
+                setBarcode(code);
+                setErrors((prev) => { const { barcode: _, ...rest } = prev; return rest; });
+              }}
+              buttonLabel="Escanear codigo con camara"
+              compact
             />
 
             <Select

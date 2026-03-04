@@ -24,6 +24,7 @@ import { DeleteIcon, PrintIcon, BarcodeIcon } from '@shopify/polaris-icons';
 import JsBarcode from 'jsbarcode';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
+import { CameraScanner } from '@/components/scanner/CameraScanner';
 import { formatCurrency } from '@/lib/utils';
 import {
   getMPConfig,
@@ -180,7 +181,7 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
       ]);
     }
 
-    showSuccess(`✓ ${product.name} agregado`);
+    showSuccess(`${product.name} agregado`);
     setBarcodeInput('');
   }, [inventoryAlerts, items, showSuccess]);
 
@@ -340,7 +341,7 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
               cajero: cajero.trim(),
             });
             setCompletedSale(sale);
-            showSuccess(`✅ Pago con tarjeta procesado. Venta ${sale.folio}: ${formatCurrency(sale.total)}`);
+            showSuccess(`Pago con tarjeta procesado. Venta ${sale.folio}: ${formatCurrency(sale.total)}`);
           } else if (status.status === 'canceled' || status.status === 'error' || status.status === 'expired') {
             if (mpPollingRef.current) clearInterval(mpPollingRef.current);
             setMpProcessing(false);
@@ -731,6 +732,13 @@ ${centerLine(`${dateStr}     ${timeStr}`)}
                 <Icon source={BarcodeIcon} />
                 <Text as="h3" variant="headingSm">Escanear código de barras</Text>
               </InlineStack>
+
+              <CameraScanner
+                onScan={handleBarcodeScan}
+                continuous
+                buttonLabel="Escanear productos con camara"
+              />
+
               <InlineStack gap="200" align="end" blockAlign="end">
                 <Box minWidth="350px">
                   <div onKeyDown={(e) => {
@@ -914,7 +922,7 @@ ${centerLine(`${dateStr}     ${timeStr}`)}
                         </Text>
                         {excedeCredito && (
                           <Text as="p" variant="bodySm" tone="critical">
-                            ⚠️ Esta venta de {formatCurrency(total)} excede el crédito disponible.
+                            Esta venta de {formatCurrency(total)} excede el credito disponible.
                           </Text>
                         )}
                       </BlockStack>

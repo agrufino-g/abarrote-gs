@@ -234,7 +234,7 @@ export function ReportesView() {
       {/* Reporte de Utilidad Real */}
       <Card>
         <BlockStack gap="300">
-          <Text variant="headingMd" as="h3">💰 Reporte de Utilidad Real (Costo vs Precio)</Text>
+          <Text variant="headingMd" as="h3">Reporte de Utilidad Real (Costo vs Precio)</Text>
           <Text variant="bodySm" tone="subdued" as="p">
             Calcula la ganancia real usando el precio de costo registrado de cada producto
           </Text>
@@ -292,7 +292,7 @@ export function ReportesView() {
                 {formatCurrency(stats.netProfit)}
               </Text>
               <Badge tone={stats.netProfit >= 0 ? 'success' : 'critical'}>
-                {stats.netProfit >= 0 ? '✅ Ganancia' : '❌ Pérdida'}
+                {stats.netProfit >= 0 ? 'Ganancia' : 'Perdida'}
               </Badge>
             </BlockStack>
           </Card>
