@@ -48,64 +48,71 @@ export function CameraScanner({
   const startScanner = useCallback(async () => {
     setError('');
     setLastScanned('');
+    setIsOpen(true);
+  }, []);
 
-    try {
-      // Dynamic import to avoid SSR issues
-      const { Html5Qrcode } = await import('html5-qrcode');
+  // Actually start the scanner once isOpen becomes true and the container is in the DOM
+  useEffect(() => {
+    if (!isOpen) return;
 
-      // Ensure container exists
-      if (!document.getElementById(containerId.current)) {
-        setError('Error interno: contenedor no encontrado');
-        return;
-      }
+    let cancelled = false;
 
-      const scanner = new Html5Qrcode(containerId.current);
-      html5QrCodeRef.current = scanner;
+    const init = async () => {
+      try {
+        const { Html5Qrcode } = await import('html5-qrcode');
 
-      setIsOpen(true);
+        // Wait for the container to be in the DOM
+        await new Promise((r) => setTimeout(r, 150));
 
-      // Small delay to let the container render
-      await new Promise((r) => setTimeout(r, 100));
-
-      await scanner.start(
-        { facingMode: 'environment' }, // back camera
-        {
-          fps: 10,
-          qrbox: { width: 280, height: 120 },
-          aspectRatio: 1.5,
-        },
-        (decodedText) => {
-          // Dedupe: ignore same code within 2 seconds
-          setLastScanned((prev) => {
-            if (prev === decodedText) return prev;
-            onScan(decodedText);
-            return decodedText;
-          });
-
-          // Clear dedupe after 2s
-          setTimeout(() => setLastScanned(''), 2000);
-
-          if (!continuous) {
-            // Stop after single scan
-            setTimeout(() => stopScanner(), 300);
-          }
-        },
-        () => {
-          // Ignore QR code parse errors (happens every frame without a code)
+        if (cancelled) return;
+        const el = document.getElementById(containerId.current);
+        if (!el) {
+          setError('Error interno: contenedor no encontrado');
+          setIsOpen(false);
+          return;
         }
-      );
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('NotAllowedError') || msg.includes('Permission')) {
-        setError('Permiso de cámara denegado. Habilítalo en la configuración de tu navegador.');
-      } else if (msg.includes('NotFoundError') || msg.includes('device')) {
-        setError('No se encontró una cámara en este dispositivo.');
-      } else {
-        setError(`Error al iniciar la cámara: ${msg}`);
+
+        const scanner = new Html5Qrcode(containerId.current);
+        html5QrCodeRef.current = scanner;
+
+        await scanner.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 280, height: 120 },
+            aspectRatio: 1.5,
+          },
+          (decodedText) => {
+            setLastScanned((prev) => {
+              if (prev === decodedText) return prev;
+              onScan(decodedText);
+              return decodedText;
+            });
+            setTimeout(() => setLastScanned(''), 2000);
+            if (!continuous) {
+              setTimeout(() => stopScanner(), 300);
+            }
+          },
+          () => {}
+        );
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('NotAllowedError') || msg.includes('Permission')) {
+          setError('Permiso de camara denegado. Habilitalo en la configuracion de tu navegador.');
+        } else if (msg.includes('NotFoundError') || msg.includes('device')) {
+          setError('No se encontro una camara en este dispositivo.');
+        } else {
+          setError(`Error al iniciar la camara: ${msg}`);
+        }
+        setIsOpen(false);
       }
-      setIsOpen(false);
-    }
-  }, [onScan, continuous, stopScanner]);
+    };
+
+    init();
+
+    return () => { cancelled = true; };
+  }, [isOpen, onScan, continuous, stopScanner]);
 
   // Cleanup on unmount
   useEffect(() => {

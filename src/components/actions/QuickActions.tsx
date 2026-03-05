@@ -23,12 +23,18 @@ import {
 } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
+import { usePermissions } from '@/lib/usePermissions';
 import { RegisterProductModal } from '@/components/modals/RegisterProductModal';
 import { SaleTicketModal } from '@/components/modals/SaleTicketModal';
 
 export function QuickActions() {
   const { inventoryAlerts, registerMerma, adjustStock, createPedido } = useDashboardStore();
   const toast = useToast();
+  const { hasPermission, isLoaded: permsLoaded } = usePermissions();
+
+  const canManageInventory = !permsLoaded || hasPermission('inventory.edit');
+  const canCreateSales = !permsLoaded || hasPermission('sales.create');
+  const canManagePedidos = !permsLoaded || hasPermission('pedidos.create');
 
   const [mermaModalOpen, setMermaModalOpen] = useState(false);
   const [pedidoModalOpen, setPedidoModalOpen] = useState(false);
@@ -155,39 +161,49 @@ export function QuickActions() {
           </Text>
           
           <ButtonGroup>
-            <Button
-              icon={ProductIcon}
-              variant="primary"
-              tone="success"
-              onClick={() => setRegisterProductOpen(true)}
-            >
-              Registrar Producto
-            </Button>
-            <Button
-              icon={CartIcon}
-              variant="primary"
-              onClick={() => setSaleTicketOpen(true)}
-            >
-              Registrar Venta
-            </Button>
-            <Button
-              icon={ArchiveIcon}
-              onClick={() => setMermaModalOpen(true)}
-            >
-              Registrar Merma
-            </Button>
-            <Button
-              icon={PlusIcon}
-              onClick={() => setPedidoModalOpen(true)}
-            >
-              Crear Pedido a Proveedor
-            </Button>
-            <Button
-              icon={AdjustIcon}
-              onClick={() => setAjusteModalOpen(true)}
-            >
-              Ajuste de Inventario
-            </Button>
+            {canManageInventory && (
+              <Button
+                icon={ProductIcon}
+                variant="primary"
+                tone="success"
+                onClick={() => setRegisterProductOpen(true)}
+              >
+                Registrar Producto
+              </Button>
+            )}
+            {canCreateSales && (
+              <Button
+                icon={CartIcon}
+                variant="primary"
+                onClick={() => setSaleTicketOpen(true)}
+              >
+                Registrar Venta
+              </Button>
+            )}
+            {canManageInventory && (
+              <Button
+                icon={ArchiveIcon}
+                onClick={() => setMermaModalOpen(true)}
+              >
+                Registrar Merma
+              </Button>
+            )}
+            {canManagePedidos && (
+              <Button
+                icon={PlusIcon}
+                onClick={() => setPedidoModalOpen(true)}
+              >
+                Crear Pedido a Proveedor
+              </Button>
+            )}
+            {canManageInventory && (
+              <Button
+                icon={AdjustIcon}
+                onClick={() => setAjusteModalOpen(true)}
+              >
+                Ajuste de Inventario
+              </Button>
+            )}
           </ButtonGroup>
         </BlockStack>
       </Card>

@@ -62,12 +62,8 @@ export function ProductDetailModal({
   const [editIsPerishable, setEditIsPerishable] = useState(false);
   const [editExpirationDate, setEditExpirationDate] = useState('');
 
-  if (!product) return null;
-
-  const stockStatus = getStockStatus(product.currentStock, product.minStock);
-  const daysUntil = product.expirationDate ? getDaysUntil(product.expirationDate) : null;
-
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
+    if (!product) return;
     if (onSave && newStock) {
       onSave(product, {
         newStock: parseInt(newStock, 10),
@@ -78,7 +74,7 @@ export function ProductDetailModal({
     setNewStock('');
     setAdjustmentReason('');
     onClose();
-  };
+  }, [product, onSave, newStock, adjustmentReason, onClose]);
 
   const handleStartEdit = useCallback(() => {
     if (!product) return;
@@ -135,6 +131,12 @@ export function ProductDetailModal({
       setDeleting(false);
     }
   };
+
+  // Early return AFTER all hooks
+  if (!product) return null;
+
+  const stockStatus = getStockStatus(product.currentStock, product.minStock);
+  const daysUntil = product.expirationDate ? getDaysUntil(product.expirationDate) : null;
 
   const getExpirationBadge = () => {
     if (!daysUntil) return null;

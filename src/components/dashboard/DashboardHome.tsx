@@ -549,6 +549,7 @@ export function DashboardHome() {
     <Frame
       logo={{
         topBarSource: '/logo.svg',
+        contextualSaveBarSource: '/logo.svg',
         accessibilityLabel: 'Abarrotes GS',
         url: '#',
         width: 124,

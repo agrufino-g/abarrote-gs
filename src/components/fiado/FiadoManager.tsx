@@ -23,11 +23,16 @@ import { PlusIcon, CashDollarIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { formatCurrency } from '@/lib/utils';
+import { usePermissions } from '@/lib/usePermissions';
 import type { Cliente, FiadoTransaction } from '@/types';
 
 export function FiadoManager() {
   const { clientes, fiadoTransactions, addCliente, registerFiado, registerAbono, updateCliente, deleteCliente } = useDashboardStore();
   const { showSuccess, showError } = useToast();
+  const { hasPermission, isLoaded: permsLoaded } = usePermissions();
+
+  const canEditClients = !permsLoaded || hasPermission('customers.edit');
+  const canCreateFiado = !permsLoaded || hasPermission('fiado.create');
 
   const [addClienteOpen, setAddClienteOpen] = useState(false);
   const [fiadoOpen, setFiadoOpen] = useState(false);
@@ -178,15 +183,21 @@ export function FiadoManager() {
             </InlineStack>
 
             <InlineStack gap="200">
-              <Button icon={PlusIcon} onClick={() => setAddClienteOpen(true)}>
-                Nuevo Cliente
-              </Button>
-              <Button variant="primary" tone="critical" onClick={() => setFiadoOpen(true)} disabled={clientes.length === 0}>
-                Registrar Fiado
-              </Button>
-              <Button variant="primary" onClick={() => setAbonoOpen(true)} disabled={clientesWithDebt.length === 0}>
-                Registrar Abono
-              </Button>
+              {canEditClients && (
+                <Button icon={PlusIcon} onClick={() => setAddClienteOpen(true)}>
+                  Nuevo Cliente
+                </Button>
+              )}
+              {canCreateFiado && (
+                <Button variant="primary" tone="critical" onClick={() => setFiadoOpen(true)} disabled={clientes.length === 0}>
+                  Registrar Fiado
+                </Button>
+              )}
+              {canCreateFiado && (
+                <Button variant="primary" onClick={() => setAbonoOpen(true)} disabled={clientesWithDebt.length === 0}>
+                  Registrar Abono
+                </Button>
+              )}
             </InlineStack>
           </BlockStack>
         </Card>
@@ -254,14 +265,18 @@ export function FiadoManager() {
                     <IndexTable.Cell>
                       <InlineStack gap="100">
                         <Button variant="plain" onClick={() => handleViewHistory(cliente)}>Historial</Button>
-                        <Button variant="plain" onClick={() => handleStartEditCliente(cliente)}>Editar</Button>
-                        {deleteConfirmId === cliente.id ? (
-                          <InlineStack gap="100">
-                            <Button variant="plain" tone="critical" onClick={() => handleDeleteCliente(cliente.id)} loading={deleting}>Sí</Button>
-                            <Button variant="plain" onClick={() => setDeleteConfirmId(null)}>No</Button>
-                          </InlineStack>
-                        ) : (
-                          <Button variant="plain" tone="critical" onClick={() => setDeleteConfirmId(cliente.id)}>Eliminar</Button>
+                        {canEditClients && (
+                          <Button variant="plain" onClick={() => handleStartEditCliente(cliente)}>Editar</Button>
+                        )}
+                        {canEditClients && (
+                          deleteConfirmId === cliente.id ? (
+                            <InlineStack gap="100">
+                              <Button variant="plain" tone="critical" onClick={() => handleDeleteCliente(cliente.id)} loading={deleting}>Si</Button>
+                              <Button variant="plain" onClick={() => setDeleteConfirmId(null)}>No</Button>
+                            </InlineStack>
+                          ) : (
+                            <Button variant="plain" tone="critical" onClick={() => setDeleteConfirmId(cliente.id)}>Eliminar</Button>
+                          )
                         )}
                       </InlineStack>
                     </IndexTable.Cell>
