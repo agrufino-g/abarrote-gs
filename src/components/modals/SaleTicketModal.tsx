@@ -53,12 +53,25 @@ const IVA_RATE = 0.16;
 const CARD_SURCHARGE_RATE = 0.025; // 2.5% comisión por tarjeta
 
 export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
+  const products = useDashboardStore((s) => s.products);
   const inventoryAlerts = useDashboardStore((s) => s.inventoryAlerts);
   const registerSale = useDashboardStore((s) => s.registerSale);
   const clientes = useDashboardStore((s) => s.clientes);
   const registerFiado = useDashboardStore((s) => s.registerFiado);
   const storeConfig = useDashboardStore((s) => s.storeConfig);
   const { showSuccess, showError } = useToast();
+
+  // Merge alert products + store products (deduplicated)
+  const allProducts = useMemo(() => {
+    const alertProducts = inventoryAlerts.map((a) => a.product);
+    const merged = [...alertProducts];
+    products.forEach((p) => {
+      if (!merged.find((ap) => ap.id === p.id)) {
+        merged.push(p);
+      }
+    });
+    return merged;
+  }, [products, inventoryAlerts]);
 
   const [items, setItems] = useState<SaleItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -89,12 +102,12 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
   const productOptions = useMemo(() => {
     return [
       { label: 'Seleccionar producto...', value: '' },
-      ...inventoryAlerts.map((a) => ({
-        label: `${a.product.name} — Stock: ${a.product.currentStock} — ${formatCurrency(a.product.unitPrice)}`,
-        value: a.product.id,
+      ...allProducts.map((p) => ({
+        label: `${p.name} — Stock: ${p.currentStock} — ${formatCurrency(p.unitPrice)}`,
+        value: p.id,
       })),
     ];
-  }, [inventoryAlerts]);
+  }, [allProducts]);
 
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.subtotal, 0), [items]);
   const iva = useMemo(() => subtotal * IVA_RATE, [subtotal]);
@@ -137,17 +150,15 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
     if (!code.trim()) return;
     setBarcodeError('');
 
-    const alert = inventoryAlerts.find(
-      (a) => a.product.barcode === code.trim() || a.product.sku === code.trim()
+    const product = allProducts.find(
+      (p) => p.barcode === code.trim() || p.sku === code.trim()
     );
 
-    if (!alert) {
+    if (!product) {
       setBarcodeError(`Producto no encontrado: "${code}"`);
       setBarcodeInput('');
       return;
     }
-
-    const product = alert.product;
 
     // Check stock
     const existingItem = items.find((i) => i.productId === product.id);
@@ -183,17 +194,17 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
 
     showSuccess(`${product.name} agregado`);
     setBarcodeInput('');
-  }, [inventoryAlerts, items, showSuccess]);
+  }, [allProducts, items, showSuccess]);
 
   const addItem = useCallback(() => {
     if (!selectedProduct) return;
-    const alert = inventoryAlerts.find((a) => a.product.id === selectedProduct);
-    if (!alert) return;
+    const product = allProducts.find((p) => p.id === selectedProduct);
+    if (!product) return;
 
     const qty = parseInt(quantity) || 1;
     if (qty <= 0) return;
-    if (qty > alert.product.currentStock) {
-      showError(`Stock insuficiente. Solo hay ${alert.product.currentStock} unidades de ${alert.product.name}.`);
+    if (qty > product.currentStock) {
+      showError(`Stock insuficiente. Solo hay ${product.currentStock} unidades de ${product.name}.`);
       return;
     }
 
@@ -202,8 +213,8 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
     if (existingIdx >= 0) {
       const existing = items[existingIdx];
       const newQty = existing.quantity + qty;
-      if (newQty > alert.product.currentStock) {
-        showError(`Stock insuficiente. Solo hay ${alert.product.currentStock} unidades.`);
+      if (newQty > product.currentStock) {
+        showError(`Stock insuficiente. Solo hay ${product.currentStock} unidades.`);
         return;
       }
       const updated = [...items];
@@ -217,19 +228,19 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
       setItems([
         ...items,
         {
-          productId: alert.product.id,
-          productName: alert.product.name,
-          sku: alert.product.sku,
+          productId: product.id,
+          productName: product.name,
+          sku: product.sku,
           quantity: qty,
-          unitPrice: alert.product.unitPrice,
-          subtotal: qty * alert.product.unitPrice,
+          unitPrice: product.unitPrice,
+          subtotal: qty * product.unitPrice,
         },
       ]);
     }
 
     setSelectedProduct('');
     setQuantity('1');
-  }, [selectedProduct, quantity, inventoryAlerts, items, showError]);
+  }, [selectedProduct, quantity, allProducts, items, showError]);
 
   const removeItem = useCallback((productId: string) => {
     setItems((prev) => prev.filter((i) => i.productId !== productId));

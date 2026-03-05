@@ -1116,9 +1116,9 @@ export async function ensureOwnerRole(firebaseUid: string, email: string, displa
 
   const existing = await db.select().from(userRoles);
 
-  // Auto-generate employee number: EMP-001, EMP-002, etc.
+  // Auto-generate employee number: 322601, 322602, etc.
   const nextNum = existing.length + 1;
-  const employeeNumber = `EMP-${String(nextNum).padStart(3, '0')}`;
+  const employeeNumber = `3226${String(nextNum).padStart(2, '0')}`;
 
   // If no user roles exist at all, make this user the owner
   if (existing.length === 0) {
@@ -1149,7 +1149,7 @@ export async function ensureOwnerRole(firebaseUid: string, email: string, displa
     // Backfill employeeNumber if missing
     if (!userRow.employeeNumber) {
       const idx = existing.indexOf(userRow) + 1;
-      const empNum = `EMP-${String(idx).padStart(3, '0')}`;
+      const empNum = `3226${String(idx).padStart(2, '0')}`;
       await db.update(userRoles).set({ employeeNumber: empNum, updatedAt: new Date() }).where(eq(userRoles.id, userRow.id));
       userRow.employeeNumber = empNum;
     }
@@ -1200,7 +1200,7 @@ export async function assignUserRole(
 
   // Auto-generate employee number
   const allUsers = await db.select().from(userRoles);
-  const empNum = `EMP-${String(allUsers.length + 1).padStart(3, '0')}`;
+  const empNum = `3226${String(allUsers.length + 1).padStart(2, '0')}`;
 
   const id = crypto.randomUUID();
   const now = new Date();

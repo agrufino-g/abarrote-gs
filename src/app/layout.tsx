@@ -7,7 +7,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
-  title: 'Dashboard de Abarrotes',
+  title: 'Kiosko',
   description: 'Gestión inteligente para tiendas de abarrotes',
 };
 
