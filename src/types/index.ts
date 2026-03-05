@@ -268,6 +268,8 @@ export interface UserRoleRecord {
   firebaseUid: string;
   email: string;
   displayName: string;
+  avatarUrl: string;
+  employeeNumber: string;
   roleId: string;
   assignedBy: string;
   createdAt: string;

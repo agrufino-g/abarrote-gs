@@ -43,6 +43,8 @@ import {
   createRoleDefinition as dbCreateRoleDefinition,
   updateRoleDefinition as dbUpdateRoleDefinition,
   deleteRoleDefinition as dbDeleteRoleDefinition,
+  updateUserProfile as dbUpdateUserProfile,
+  createAutoCorteCaja as dbCreateAutoCorteCaja,
 } from '@/app/actions/db-actions';
 
 interface DashboardStore extends DashboardState {
@@ -102,6 +104,8 @@ interface DashboardStore extends DashboardState {
   updateRole: (firebaseUid: string, newRoleId: string, assignedByUid: string) => Promise<void>;
   removeRole: (firebaseUid: string) => Promise<void>;
   getUserRole: (firebaseUid: string) => Promise<UserRoleRecord | null>;
+  updateUserProfile: (firebaseUid: string, data: { displayName?: string; avatarUrl?: string }) => Promise<UserRoleRecord>;
+  checkMidnightCorte: () => Promise<void>;
 }
 
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
@@ -591,6 +595,29 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     } catch (error) {
       console.error('Error getting user role:', error);
       return null;
+    }
+  },
+
+  updateUserProfile: async (firebaseUid, data) => {
+    try {
+      const updated = await dbUpdateUserProfile(firebaseUid, data);
+      const state = get();
+      set({
+        currentUserRole: state.currentUserRole?.firebaseUid === firebaseUid ? updated : state.currentUserRole,
+        userRoles: state.userRoles.map(r => r.firebaseUid === firebaseUid ? updated : r),
+      });
+      return updated;
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+  },
+
+  checkMidnightCorte: async () => {
+    try {
+      await dbCreateAutoCorteCaja();
+    } catch (error) {
+      console.error('Error checking midnight corte:', error);
     }
   },
 }));

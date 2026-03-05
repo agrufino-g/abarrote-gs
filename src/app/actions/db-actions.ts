@@ -1083,6 +1083,8 @@ function mapUserRole(r: typeof userRoles.$inferSelect): UserRoleRecord {
     firebaseUid: r.firebaseUid,
     email: r.email,
     displayName: r.displayName,
+    avatarUrl: r.avatarUrl,
+    employeeNumber: r.employeeNumber,
     roleId: r.roleId,
     assignedBy: r.assignedBy,
     createdAt: r.createdAt.toISOString(),
@@ -1114,6 +1116,10 @@ export async function ensureOwnerRole(firebaseUid: string, email: string, displa
 
   const existing = await db.select().from(userRoles);
 
+  // Auto-generate employee number: EMP-001, EMP-002, etc.
+  const nextNum = existing.length + 1;
+  const employeeNumber = `EMP-${String(nextNum).padStart(3, '0')}`;
+
   // If no user roles exist at all, make this user the owner
   if (existing.length === 0) {
     const id = crypto.randomUUID();
@@ -1123,6 +1129,7 @@ export async function ensureOwnerRole(firebaseUid: string, email: string, displa
       firebaseUid,
       email,
       displayName: displayName || '',
+      employeeNumber,
       roleId: ownerDef.id,
       assignedBy: firebaseUid,
       createdAt: now,
@@ -1130,6 +1137,7 @@ export async function ensureOwnerRole(firebaseUid: string, email: string, displa
     });
     return {
       id, firebaseUid, email, displayName: displayName || '',
+      avatarUrl: '', employeeNumber,
       roleId: ownerDef.id, assignedBy: firebaseUid,
       createdAt: now.toISOString(), updatedAt: now.toISOString(),
     };
@@ -1137,7 +1145,16 @@ export async function ensureOwnerRole(firebaseUid: string, email: string, displa
 
   // Check if this user already has a role
   const userRow = existing.find((r) => r.firebaseUid === firebaseUid);
-  if (userRow) return mapUserRole(userRow);
+  if (userRow) {
+    // Backfill employeeNumber if missing
+    if (!userRow.employeeNumber) {
+      const idx = existing.indexOf(userRow) + 1;
+      const empNum = `EMP-${String(idx).padStart(3, '0')}`;
+      await db.update(userRoles).set({ employeeNumber: empNum, updatedAt: new Date() }).where(eq(userRoles.id, userRow.id));
+      userRow.employeeNumber = empNum;
+    }
+    return mapUserRole(userRow);
+  }
 
   // New user with no role — assign viewer
   const id = crypto.randomUUID();
@@ -1147,6 +1164,7 @@ export async function ensureOwnerRole(firebaseUid: string, email: string, displa
     firebaseUid,
     email,
     displayName: displayName || '',
+    employeeNumber,
     roleId: viewerDef.id,
     assignedBy: 'system',
     createdAt: now,
@@ -1154,6 +1172,7 @@ export async function ensureOwnerRole(firebaseUid: string, email: string, displa
   });
   return {
     id, firebaseUid, email, displayName: displayName || '',
+    avatarUrl: '', employeeNumber,
     roleId: viewerDef.id, assignedBy: 'system',
     createdAt: now.toISOString(), updatedAt: now.toISOString(),
   };
@@ -1173,22 +1192,28 @@ export async function assignUserRole(
     return {
       id: existingRows[0].id, firebaseUid: data.firebaseUid,
       email: data.email, displayName: data.displayName,
+      avatarUrl: existingRows[0].avatarUrl, employeeNumber: existingRows[0].employeeNumber,
       roleId: data.roleId, assignedBy: assignedByUid,
       createdAt: existingRows[0].createdAt.toISOString(), updatedAt: now.toISOString(),
     };
   }
 
+  // Auto-generate employee number
+  const allUsers = await db.select().from(userRoles);
+  const empNum = `EMP-${String(allUsers.length + 1).padStart(3, '0')}`;
+
   const id = crypto.randomUUID();
   const now = new Date();
   await db.insert(userRoles).values({
     id, firebaseUid: data.firebaseUid, email: data.email,
-    displayName: data.displayName || '', roleId: data.roleId,
+    displayName: data.displayName || '', employeeNumber: empNum, roleId: data.roleId,
     assignedBy: assignedByUid, createdAt: now, updatedAt: now,
   });
   return {
     id, firebaseUid: data.firebaseUid, email: data.email,
-    displayName: data.displayName || '', roleId: data.roleId,
-    assignedBy: assignedByUid, createdAt: now.toISOString(), updatedAt: now.toISOString(),
+    displayName: data.displayName || '', avatarUrl: '', employeeNumber: empNum,
+    roleId: data.roleId, assignedBy: assignedByUid,
+    createdAt: now.toISOString(), updatedAt: now.toISOString(),
   };
 }
 
@@ -1205,4 +1230,64 @@ export async function updateUserRole(
 
 export async function removeUserRole(firebaseUid: string): Promise<void> {
   await db.delete(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
+}
+
+export async function updateUserProfile(
+  firebaseUid: string,
+  data: { displayName?: string; avatarUrl?: string }
+): Promise<UserRoleRecord> {
+  const now = new Date();
+  await db.update(userRoles)
+    .set({ ...data, updatedAt: now })
+    .where(eq(userRoles.firebaseUid, firebaseUid));
+  const rows = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
+  if (rows.length === 0) throw new Error('User not found');
+  return mapUserRole(rows[0]);
+}
+
+// ==================== AUTO CORTE DE CAJA (MIDNIGHT) ====================
+export async function createAutoCorteCaja(): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Check if a corte already exists for today
+  const existingCortes = await db.select().from(cortesCaja);
+  const todayCorte = existingCortes.find(c => c.fecha.toISOString().startsWith(today));
+  if (todayCorte) return; // Already done
+
+  // Calculate today's sales
+  const allSales = await db.select().from(saleRecords);
+  const todaySales = allSales.filter(s => s.date.toISOString().startsWith(today));
+  if (todaySales.length === 0) return; // No sales today, skip
+
+  const ventasEfectivo = todaySales.filter(s => s.paymentMethod === 'efectivo').reduce((sum, s) => sum + parseFloat(String(s.total)), 0);
+  const ventasTarjeta = todaySales.filter(s => s.paymentMethod === 'tarjeta').reduce((sum, s) => sum + parseFloat(String(s.total)), 0);
+  const ventasTransferencia = todaySales.filter(s => s.paymentMethod === 'transferencia').reduce((sum, s) => sum + parseFloat(String(s.total)), 0);
+  const ventasFiado = todaySales.filter(s => s.paymentMethod === 'fiado').reduce((sum, s) => sum + parseFloat(String(s.total)), 0);
+  const totalVentas = ventasEfectivo + ventasTarjeta + ventasTransferencia + ventasFiado;
+
+  // Get today's expenses
+  const allGastos = await db.select().from(gastos);
+  const todayGastos = allGastos.filter(g => g.fecha.toISOString().startsWith(today)).reduce((sum, g) => sum + parseFloat(String(g.monto)), 0);
+
+  const fondoInicial = 500; // Default
+  const efectivoEsperado = fondoInicial + ventasEfectivo - todayGastos;
+
+  await db.insert(cortesCaja).values({
+    id: crypto.randomUUID(),
+    fecha: new Date(),
+    cajero: 'Sistema (automatico)',
+    ventasEfectivo: String(ventasEfectivo),
+    ventasTarjeta: String(ventasTarjeta),
+    ventasTransferencia: String(ventasTransferencia),
+    ventasFiado: String(ventasFiado),
+    totalVentas: String(totalVentas),
+    totalTransacciones: todaySales.length,
+    efectivoEsperado: String(efectivoEsperado),
+    efectivoContado: String(efectivoEsperado), // Auto = expected
+    diferencia: '0',
+    fondoInicial: String(fondoInicial),
+    gastosDelDia: String(todayGastos),
+    notas: 'Corte automatico generado a medianoche',
+    status: 'cerrado',
+  });
 }

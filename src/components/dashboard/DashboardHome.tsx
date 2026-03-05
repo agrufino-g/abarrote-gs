@@ -32,6 +32,8 @@ import {
   ProductIcon,
   SettingsIcon,
   ExitIcon,
+  CashDollarIcon,
+  PersonIcon,
 } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { KPICard } from '@/components/kpi/KPICard';
@@ -54,6 +56,7 @@ import { ReportesView } from '@/components/reports/ReportesView';
 import { ConfiguracionPage } from '@/components/settings/ConfiguracionPage';
 import { RolesManager } from '@/components/roles/RolesManager';
 import { SidebarNav } from '@/components/navigation/SidebarNav';
+import { ProfileModal } from '@/components/modals/ProfileModal';
 import { Product } from '@/types';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -107,6 +110,7 @@ export function DashboardHome() {
     createPedido,
     ensureOwnerRole,
     fetchRoleDefinitions,
+    checkMidnightCorte,
   } = useDashboardStore();
 
   const toast = useToast();
@@ -124,6 +128,7 @@ export function DashboardHome() {
   const [searchValue, setSearchValue] = useState('');
   const [searchActive, setSearchActive] = useState(false);
   const [userMenuActive, setUserMenuActive] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { permissions, isLoaded: permissionsLoaded } = usePermissions();
 
@@ -146,6 +151,20 @@ export function DashboardHome() {
       ensureOwnerRole(user.uid, user.email || '', user.displayName || '');
     }
   }, [user, ensureOwnerRole]);
+
+  // Check for auto midnight corte on load
+  useEffect(() => {
+    checkMidnightCorte();
+    // Also schedule check at midnight
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 5, 0); // 12:00:05 AM next day
+    const msUntilMidnight = midnight.getTime() - now.getTime();
+    const timer = setTimeout(() => {
+      checkMidnightCorte();
+    }, msUntilMidnight);
+    return () => clearTimeout(timer);
+  }, [checkMidnightCorte]);
 
   const handleFiltersChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
@@ -308,6 +327,32 @@ export function DashboardHome() {
     const userMenuMarkup = (
       <TopBar.UserMenu
         actions={[
+          {
+            items: [
+              {
+                content: 'Mi Perfil',
+                icon: PersonIcon,
+                onAction: () => {
+                  setProfileModalOpen(true);
+                  setUserMenuActive(false);
+                },
+              },
+            ],
+          },
+          ...((!permissionsLoaded || permissions.length === 0 || permissions.includes('corte.create'))
+            ? [{
+                items: [
+                  {
+                    content: 'Corte de Caja',
+                    icon: CashDollarIcon,
+                    onAction: () => {
+                      setCorteModalOpen(true);
+                      setUserMenuActive(false);
+                    },
+                  },
+                ],
+              }]
+            : []),
           ...((!permissionsLoaded || permissions.length === 0 || permissions.includes('settings.view'))
             ? [{
                 items: [
@@ -750,6 +795,11 @@ export function DashboardHome() {
           </BlockStack>
         </Modal.Section>
       </Modal>
+
+      <ProfileModal
+        open={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+      />
     </Frame>
   );
 }

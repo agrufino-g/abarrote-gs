@@ -203,6 +203,8 @@ export const userRoles = pgTable('user_roles', {
   firebaseUid: text('firebase_uid').notNull(),
   email: text('email').notNull(),
   displayName: text('display_name').notNull().default(''),
+  avatarUrl: text('avatar_url').notNull().default(''),
+  employeeNumber: text('employee_number').notNull().default(''),
   roleId: text('role_id').notNull(), // references role_definitions.id
   assignedBy: text('assigned_by').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
