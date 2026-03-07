@@ -264,7 +264,7 @@ export function GastosManager() {
         {/* Gastos list */}
         {filteredGastos.length === 0 ? (
           <Card>
-            <EmptyState heading="Sin gastos registrados">
+            <EmptyState heading="Sin gastos registrados" image="">
               <p>Agrega tus gastos para llevar control de tus finanzas.</p>
             </EmptyState>
           </Card>

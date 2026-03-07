@@ -92,6 +92,7 @@ export function FiadoManager() {
       phone: newPhone.trim(),
       address: newAddress.trim(),
       creditLimit: parseFloat(newCreditLimit) || 500,
+      points: 0,
     });
     showSuccess(`Cliente "${newName}" agregado`);
     setNewName(''); setNewPhone(''); setNewAddress(''); setNewCreditLimit('500');

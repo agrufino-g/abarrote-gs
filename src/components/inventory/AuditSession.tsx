@@ -15,7 +15,7 @@ import {
     Layout,
     Divider,
 } from '@shopify/polaris';
-import { SearchIcon, CheckIcon, AlertIcon } from '@shopify/polaris-icons';
+import { SearchIcon, CheckIcon, AlertCircleIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { getInventoryAudit, saveAuditItem, completeInventoryAudit } from '@/app/actions/db-actions';
 import type { InventoryAudit, InventoryAuditItem } from '@/types';
