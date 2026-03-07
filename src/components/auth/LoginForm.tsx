@@ -141,14 +141,6 @@ export function LoginForm() {
           </Box>
         </BlockStack>
       </Card>
-
-      <Box paddingBlockStart="600">
-        <div style={{ textAlign: 'center' }}>
-          <Text as="p" variant="bodyXs" tone="subdued">
-            &copy; {new Date().getFullYear()}, Opendex Web Services, Inc. o sus empresas afiliadas. Todos los derechos reservados.
-          </Text>
-        </div>
-      </Box>
     </Box>
   );
 }

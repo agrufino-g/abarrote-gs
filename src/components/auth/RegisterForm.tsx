@@ -64,7 +64,7 @@ export function RegisterForm() {
                 </Text>
                 <List type="bullet">
                   <List.Item>Contacta a tu administrador de sistemas local.</List.Item>
-                  <List.Item>Presenta tu **GlobalID** corporativo válido.</List.Item>
+                  <List.Item>Presenta tu  <span style={{ color: '#005bd3', fontWeight: 'bold' }}>GlobalID</span> corporativo válido.</List.Item>
                   <List.Item>Confirma tus niveles de acceso requeridos.</List.Item>
                 </List>
               </BlockStack>
@@ -86,14 +86,7 @@ export function RegisterForm() {
           </BlockStack>
         </BlockStack>
       </Card>
-
-      <Box paddingBlockStart="600">
-        <div style={{ textAlign: 'center' }}>
-          <Text as="p" variant="bodyXs" tone="subdued">
-            &copy; {new Date().getFullYear()}, Opendex Web Services, Inc. o sus empresas afiliadas. Todos los derechos reservados.
-          </Text>
-        </div>
-      </Box>
     </Box>
   );
 }
+** GlobalID **
