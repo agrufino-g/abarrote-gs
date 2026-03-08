@@ -148,237 +148,247 @@ export function AnalyticsView() {
           <InlineStack gap="400" wrap>
             <Card>
               <BlockStack gap="200">
-                <Text as="p" variant="bodySm" tone="subdued">Ventas Hoy</Text>
-                <Text as="h2" variant="heading2xl" tone="success">
-                  {formatCurrency(ventasHoy)}
-                </Text>
-                <Text as="p" variant="bodySm">
-                  Ayer: {formatCurrency(ventasAyer)}
-                </Text>
-              </BlockStack>
-            </Card>
-
-            <Card>
-              <BlockStack gap="200">
-                <Text as="p" variant="bodySm" tone="subdued">Ventas del Mes</Text>
-                <Text as="h2" variant="heading2xl" tone="success">
-                  {formatCurrency(ventasMesActual)}
-                </Text>
-                <Text as="p" variant="bodySm">
-                  {new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
-                </Text>
-              </BlockStack>
-            </Card>
-
-            <Card>
-              <BlockStack gap="200">
-                <Text as="p" variant="bodySm" tone="subdued">Utilidad Bruta</Text>
-                <Text as="h2" variant="heading2xl" tone={utilidadBruta >= 0 ? 'success' : 'critical'}>
-                  {formatCurrency(utilidadBruta)}
-                </Text>
-                <Text as="p" variant="bodySm">Margen: {margenUtilidad.toFixed(1)}%</Text>
-              </BlockStack>
-            </Card>
-
-            <Card>
-              <BlockStack gap="200">
-                <Text as="p" variant="bodySm" tone="subdued">Ticket Promedio</Text>
-                <Text as="h2" variant="heading2xl">
-                  {formatCurrency(ticketPromedio)}
-                </Text>
-                <Text as="p" variant="bodySm">{saleRecords.length} transacciones</Text>
-              </BlockStack>
-            </Card>
-          </InlineStack>
-        </Layout.Section>
-
-        {/* Gráfica de Ventas */}
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text as="h3" variant="headingMd">Historial de Ventas</Text>
-                <Select
-                  label=""
-                  labelHidden
-                  options={[
-                    { label: 'Últimos 7 días', value: '7' },
-                    { label: 'Últimos 15 días', value: '15' },
-                    { label: 'Últimos 30 días', value: '30' },
-                    { label: 'Últimos 60 días', value: '60' },
-                    { label: 'Últimos 90 días', value: '90' },
-                  ]}
-                  value={periodo}
-                  onChange={setPeriodo}
-                />
-              </InlineStack>
-              <div style={{ height: 300 }}>
-                <LineChart
-                  data={[
-                    {
-                      name: 'Ventas',
-                      data: ventasPorDia,
-                    },
-                  ]}
-                  theme="Light"
-                  xAxisOptions={{
-                    labelFormatter: (value) => {
-                      const date = new Date(String(value ?? ''));
-                      return `${date.getDate()}/${date.getMonth() + 1}`;
-                    },
-                  }}
-                  yAxisOptions={{
-                    labelFormatter: (value) => formatCurrency(Number(value ?? 0)),
-                  }}
-                />
-              </div>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-
-        {/* Ventas por Método de Pago */}
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h3" variant="headingMd">Ventas por Método de Pago</Text>
-              <div style={{ height: 300 }}>
-                <LineChart
-                  data={ventasPorMetodo.map(({ metodo, total }) => ({
-                    name: metodo,
-                    data: [{ key: metodo, value: total }],
-                  }))}
-                  theme="Light"
-                  yAxisOptions={{
-                    labelFormatter: (value) => formatCurrency(Number(value ?? 0)),
-                  }}
-                />
-              </div>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-
-        {/* Top 10 Productos */}
-        <Layout.Section variant="oneHalf">
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h3" variant="headingMd">Top 10 Productos Más Vendidos</Text>
-              <BlockStack gap="300">
-                {topProductos.map((producto, index) => (
-                  <div key={producto.id}>
-                    <InlineStack align="space-between" blockAlign="center">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Badge tone={index < 3 ? 'success' : 'info'}>{`#${index + 1}`}</Badge>
-                        <BlockStack gap="100">
-                          <Text as="span" variant="bodyMd" fontWeight="semibold">
-                            {producto.name}
-                          </Text>
-                          <Text as="span" variant="bodySm" tone="subdued">
-                            {producto.quantity} unidades
-                          </Text>
-                        </BlockStack>
-                      </InlineStack>
-                      <Text as="span" variant="bodyMd" fontWeight="semibold">
-                        {formatCurrency(producto.total)}
+                <div style={{ flex: '1 1 280px', minWidth: 280 }}>
+                  <Card>
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodySm" tone="subdued">Ventas Hoy</Text>
+                      <Text as="h2" variant="heading2xl" tone="success">
+                        {formatCurrency(ventasHoy)}
                       </Text>
-                    </InlineStack>
-                    {index < topProductos.length - 1 && <Divider />}
-                  </div>
-                ))}
-              </BlockStack>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
+                      <Text as="p" variant="bodySm">
+                        Ayer: {formatCurrency(ventasAyer)}
+                      </Text>
+                    </BlockStack>
+                  </Card>
+                </div>
 
-        {/* Productos con Stock Bajo */}
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <Text as="h3" variant="headingMd">Productos con Stock Bajo</Text>
-                <Badge tone="critical">{String(productosStockBajo.length)}</Badge>
+                <div style={{ flex: '1 1 280px', minWidth: 280 }}>
+                  <Card>
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodySm" tone="subdued">Ventas del Mes</Text>
+                      <Text as="h2" variant="heading2xl" tone="success">
+                        {formatCurrency(ventasMesActual)}
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        {new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
+                      </Text>
+                    </BlockStack>
+                  </Card>
+                </div>
+
+                <div style={{ flex: '1 1 280px', minWidth: 280 }}>
+                  <Card>
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodySm" tone="subdued">Utilidad Bruta</Text>
+                      <Text as="h2" variant="heading2xl" tone={utilidadBruta >= 0 ? 'success' : 'critical'}>
+                        {formatCurrency(utilidadBruta)}
+                      </Text>
+                      <Text as="p" variant="bodySm">Margen: {margenUtilidad.toFixed(1)}%</Text>
+                    </BlockStack>
+                  </Card>
+                </div>
+
+                <div style={{ flex: '1 1 280px', minWidth: 280 }}>
+                  <Card>
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodySm" tone="subdued">Ticket Promedio</Text>
+                      <Text as="h2" variant="heading2xl">
+                        {formatCurrency(ticketPromedio)}
+                      </Text>
+                      <Text as="p" variant="bodySm">{saleRecords.length} transacciones</Text>
+                    </BlockStack>
+                  </Card>
+                </div>
               </InlineStack>
-              <BlockStack gap="300">
-                {productosStockBajo.length === 0 ? (
-                  <Text as="p" variant="bodyMd" tone="subdued">
-                    No hay productos con stock bajo
-                  </Text>
-                ) : (
-                  productosStockBajo.map((producto) => {
-                    const porcentaje = (producto.currentStock / producto.minStock) * 100;
-                    return (
-                      <BlockStack key={producto.id} gap="200">
-                        <InlineStack align="space-between">
+            </Layout.Section>
+
+            {/* Gráfica de Ventas */}
+            <Layout.Section>
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h3" variant="headingMd">Historial de Ventas</Text>
+                    <Select
+                      label=""
+                      labelHidden
+                      options={[
+                        { label: 'Últimos 7 días', value: '7' },
+                        { label: 'Últimos 15 días', value: '15' },
+                        { label: 'Últimos 30 días', value: '30' },
+                        { label: 'Últimos 60 días', value: '60' },
+                        { label: 'Últimos 90 días', value: '90' },
+                      ]}
+                      value={periodo}
+                      onChange={setPeriodo}
+                    />
+                  </InlineStack>
+                  <div style={{ height: 300 }}>
+                    <LineChart
+                      data={[
+                        {
+                          name: 'Ventas',
+                          data: ventasPorDia,
+                        },
+                      ]}
+                      theme="Light"
+                      xAxisOptions={{
+                        labelFormatter: (value) => {
+                          const date = new Date(String(value ?? ''));
+                          return `${date.getDate()}/${date.getMonth() + 1}`;
+                        },
+                      }}
+                      yAxisOptions={{
+                        labelFormatter: (value) => formatCurrency(Number(value ?? 0)),
+                      }}
+                    />
+                  </div>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+
+            {/* Ventas por Método de Pago */}
+            <Layout.Section>
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h3" variant="headingMd">Ventas por Método de Pago</Text>
+                  <div style={{ height: 300 }}>
+                    <LineChart
+                      data={ventasPorMetodo.map(({ metodo, total }) => ({
+                        name: metodo,
+                        data: [{ key: metodo, value: total }],
+                      }))}
+                      theme="Light"
+                      yAxisOptions={{
+                        labelFormatter: (value) => formatCurrency(Number(value ?? 0)),
+                      }}
+                    />
+                  </div>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+
+            {/* Top 10 Productos */}
+            <Layout.Section variant="oneHalf">
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h3" variant="headingMd">Top 10 Productos Más Vendidos</Text>
+                  <BlockStack gap="300">
+                    {topProductos.map((producto, index) => (
+                      <div key={producto.id}>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <InlineStack gap="200" blockAlign="center">
+                            <Badge tone={index < 3 ? 'success' : 'info'}>{`#${index + 1}`}</Badge>
+                            <BlockStack gap="100">
+                              <Text as="span" variant="bodyMd" fontWeight="semibold">
+                                {producto.name}
+                              </Text>
+                              <Text as="span" variant="bodySm" tone="subdued">
+                                {producto.quantity} unidades
+                              </Text>
+                            </BlockStack>
+                          </InlineStack>
                           <Text as="span" variant="bodyMd" fontWeight="semibold">
-                            {producto.name}
-                          </Text>
-                          <Text as="span" variant="bodyMd">
-                            {producto.currentStock} / {producto.minStock}
+                            {formatCurrency(producto.total)}
                           </Text>
                         </InlineStack>
-                        <ProgressBar
-                          progress={porcentaje}
-                          size="small"
-                          tone={porcentaje <= 25 ? 'critical' : 'highlight'}
-                        />
-                      </BlockStack>
-                    );
-                  })
-                )}
-              </BlockStack>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
+                        {index < topProductos.length - 1 && <Divider />}
+                      </div>
+                    ))}
+                  </BlockStack>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
 
-        {/* Resumen de Mermas */}
-        <Layout.Section variant="oneThird">
-          <Card>
-            <BlockStack gap="200">
-              <Text as="p" variant="bodySm" tone="subdued">Mermas Totales</Text>
-              <Text as="h2" variant="headingLg" tone="critical">
-                {formatCurrency(totalMermas)}
-              </Text>
-              <Text as="p" variant="bodySm">{mermaRecords.length} registros</Text>
-              <Text as="p" variant="bodySm" tone="subdued">
-                {totalVentas > 0 ? `${((totalMermas / totalVentas) * 100).toFixed(2)}% de ventas` : '0%'}
-              </Text>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
+            {/* Productos con Stock Bajo */}
+            <Layout.Section>
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between">
+                    <Text as="h3" variant="headingMd">Productos con Stock Bajo</Text>
+                    <Badge tone="critical">{String(productosStockBajo.length)}</Badge>
+                  </InlineStack>
+                  <BlockStack gap="300">
+                    {productosStockBajo.length === 0 ? (
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        No hay productos con stock bajo
+                      </Text>
+                    ) : (
+                      productosStockBajo.map((producto) => {
+                        const porcentaje = (producto.currentStock / producto.minStock) * 100;
+                        return (
+                          <BlockStack key={producto.id} gap="200">
+                            <InlineStack align="space-between">
+                              <Text as="span" variant="bodyMd" fontWeight="semibold">
+                                {producto.name}
+                              </Text>
+                              <Text as="span" variant="bodyMd">
+                                {producto.currentStock} / {producto.minStock}
+                              </Text>
+                            </InlineStack>
+                            <ProgressBar
+                              progress={porcentaje}
+                              size="small"
+                              tone={porcentaje <= 25 ? 'critical' : 'highlight'}
+                            />
+                          </BlockStack>
+                        );
+                      })
+                    )}
+                  </BlockStack>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
 
-        {/* Inventario Total */}
-        <Layout.Section variant="oneThird">
-          <Card>
-            <BlockStack gap="200">
-              <Text as="p" variant="bodySm" tone="subdued">Valor de Inventario</Text>
-              <Text as="h2" variant="headingLg">
-                {formatCurrency(
-                  products.reduce((sum, p) => sum + (p.currentStock * parseFloat(p.unitPrice.toString())), 0)
-                )}
-              </Text>
-              <Text as="p" variant="bodySm">{products.length} productos</Text>
-              <Text as="p" variant="bodySm" tone="subdued">
-                {products.reduce((sum, p) => sum + p.currentStock, 0)} unidades totales
-              </Text>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
+            {/* Resumen de Mermas */}
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" tone="subdued">Mermas Totales</Text>
+                  <Text as="h2" variant="headingLg" tone="critical">
+                    {formatCurrency(totalMermas)}
+                  </Text>
+                  <Text as="p" variant="bodySm">{mermaRecords.length} registros</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {totalVentas > 0 ? `${((totalMermas / totalVentas) * 100).toFixed(2)}% de ventas` : '0%'}
+                  </Text>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
 
-        {/* Productos Registrados */}
-        <Layout.Section variant="oneThird">
-          <Card>
-            <BlockStack gap="200">
-              <Text as="p" variant="bodySm" tone="subdued">Catálogo</Text>
-              <Text as="h2" variant="headingLg">
-                {products.length}
-              </Text>
-              <Text as="p" variant="bodySm">productos registrados</Text>
-              <Text as="p" variant="bodySm" tone="subdued">
-                {kpiData?.lowStockProducts || 0} con stock bajo
-              </Text>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-      </Layout>
-    </Page>
-  );
+            {/* Inventario Total */}
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" tone="subdued">Valor de Inventario</Text>
+                  <Text as="h2" variant="headingLg">
+                    {formatCurrency(
+                      products.reduce((sum, p) => sum + (p.currentStock * parseFloat(p.unitPrice.toString())), 0)
+                    )}
+                  </Text>
+                  <Text as="p" variant="bodySm">{products.length} productos</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {products.reduce((sum, p) => sum + p.currentStock, 0)} unidades totales
+                  </Text>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+
+            {/* Productos Registrados */}
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" tone="subdued">Catálogo</Text>
+                  <Text as="h2" variant="headingLg">
+                    {products.length}
+                  </Text>
+                  <Text as="p" variant="bodySm">productos registrados</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {kpiData?.lowStockProducts || 0} con stock bajo
+                  </Text>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          </Layout>
+        </Page>
+        );
 }

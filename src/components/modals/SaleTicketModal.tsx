@@ -802,9 +802,12 @@ ${centerLine(`TC: ${tcCode}`)}
               <InlineStack gap="200" align="end" blockAlign="end">
                 <Box minWidth="350px">
                   <div onKeyDown={(e) => {
-                    if (e.key === 'Enter' && barcodeInput.trim()) {
+                    if (e.key === 'Enter') {
                       e.preventDefault();
-                      handleBarcodeScan(barcodeInput);
+                      if (e.repeat || !barcodeInput.trim()) return;
+                      const code = barcodeInput;
+                      setBarcodeInput('');
+                      handleBarcodeScan(code);
                     }
                   }}>
                     <TextField

@@ -50,6 +50,7 @@ export const products = pgTable('products', {
   costPrice: numeric('cost_price', { precision: 10, scale: 2 }).notNull(),
   unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
   isPerishable: boolean('is_perishable').notNull().default(false),
+  imageUrl: text('image_url'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

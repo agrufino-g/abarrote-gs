@@ -299,7 +299,7 @@ export function DashboardHome() {
   );
 
   const topBarMarkup = (
-    <CustomTopBar userMenu={<UserMenu />} />
+    <CustomTopBar userMenu={<UserMenu />} onNavigationToggle={toggleMobileNav} />
   );
 
   const navigationMarkup = (
@@ -454,7 +454,7 @@ export function DashboardHome() {
               <Layout.Section>
                 <InlineStack gap="400" wrap={true}>
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} style={{ flex: '1 1 220px', minWidth: 220 }}>
+                    <div key={i} style={{ flex: '1 1 280px', minWidth: 280 }}>
                       <Card>
                         <BlockStack gap="200">
                           <SkeletonDisplayText size="small" />
@@ -529,7 +529,7 @@ export function DashboardHome() {
               {selectedSection === 'overview' && (
                 <Layout.Section>
                   <InlineStack gap="400" wrap={true}>
-                    <div style={{ flex: '1 1 220px', minWidth: 220 }}>
+                    <div style={{ flex: '1 1 280px', minWidth: 280 }}>
                       <KPICard
                         title="Ventas del Día"
                         value={kpiData?.dailySales || 0}
@@ -539,7 +539,7 @@ export function DashboardHome() {
                         icon={<MoneyIcon />}
                       />
                     </div>
-                    <div style={{ flex: '1 1 220px', minWidth: 220 }}>
+                    <div style={{ flex: '1 1 280px', minWidth: 280 }}>
                       <KPICard
                         title="Productos Stock Bajo"
                         value={kpiData?.lowStockProducts || 0}
@@ -547,7 +547,7 @@ export function DashboardHome() {
                         icon={<InventoryIcon />}
                       />
                     </div>
-                    <div style={{ flex: '1 1 220px', minWidth: 220 }}>
+                    <div style={{ flex: '1 1 280px', minWidth: 280 }}>
                       <KPICard
                         title="Productos por Vencer"
                         value={kpiData?.expiringProducts || 0}
@@ -555,7 +555,7 @@ export function DashboardHome() {
                         icon={<CalendarIcon />}
                       />
                     </div>
-                    <div style={{ flex: '1 1 220px', minWidth: 220 }}>
+                    <div style={{ flex: '1 1 280px', minWidth: 280 }}>
                       <KPICard
                         title="Tasa de Merma"
                         value={kpiData?.mermaRate || 0}

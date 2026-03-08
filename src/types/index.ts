@@ -66,6 +66,7 @@ export interface Product {
   costPrice: number;
   unitPrice: number;
   isPerishable: boolean;
+  imageUrl?: string;
 }
 
 export interface InventoryAlert {

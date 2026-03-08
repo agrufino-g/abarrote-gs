@@ -8,14 +8,16 @@ import {
   BlockStack,
   InlineStack,
   Text,
+  Box,
+  DropZone,
+  Thumbnail,
   Avatar,
-  Button,
+  Badge,
   Banner,
   Divider,
-  Badge,
-  Box,
 } from '@shopify/polaris';
 import { ImageIcon, EmailIcon, PersonIcon, PhoneIcon } from '@shopify/polaris-icons';
+import { uploadFile, getUserAvatarPath } from '@/lib/storage';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -35,6 +37,7 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -55,17 +58,30 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
     }
     setSaving(true);
     try {
+      let finalAvatarUrl = avatarUrl;
+      if (file) {
+        const path = getUserAvatarPath(user.uid, file.name);
+        finalAvatarUrl = await uploadFile(file, path);
+      }
+
       await updateUserProfile(user.uid, {
         displayName: displayName.trim(),
-        avatarUrl: avatarUrl.trim(),
+        avatarUrl: finalAvatarUrl.trim(),
       });
       showSuccess('Perfil actualizado correctamente');
+      setFile(null);
       onClose();
     } catch {
       showError('Error al actualizar el perfil');
     }
     setSaving(false);
-  }, [user, currentUserRole, displayName, avatarUrl, updateUserProfile, showSuccess, showError, onClose]);
+  }, [user, currentUserRole, displayName, avatarUrl, file, updateUserProfile, showSuccess, showError, onClose]);
+
+  const handleDropZoneDrop = useCallback(
+    (_dropFiles: File[], acceptedFiles: File[], _rejectedFiles: File[]) =>
+      setFile(acceptedFiles[0]),
+    [],
+  );
 
   const initials = displayName
     ? displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -100,45 +116,37 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
           {/* Header con avatar */}
           <InlineStack align="space-between" blockAlign="start">
             <InlineStack gap="400" blockAlign="center">
-              <div style={{ position: 'relative' }}>
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt="Avatar"
-                    style={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                      border: '3px solid #e1e3e5',
-                    }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #2c6ecb 0%, #1a4b8c 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                    fontSize: '28px',
-                    fontWeight: 700,
-                    border: '3px solid #e1e3e5',
-                  }}>
-                    {initials}
-                  </div>
-                )}
-              </div>
+              <Avatar
+                size="xl"
+                name={displayName}
+                initials={initials}
+                source={file ? window.URL.createObjectURL(file) : avatarUrl}
+              />
+              <Box minWidth="250px">
+                <DropZone
+                  onDrop={handleDropZoneDrop}
+                  variableHeight
+                  label="Cambiar foto de perfil"
+                  accept="image/*"
+                  type="image"
+                  disabled={saving}
+                >
+                  {!file && <DropZone.FileUpload actionTitle="Subir nueva foto" actionHint="JPG, PNG o GIF" />}
+                  {file && (
+                    <div style={{ padding: '8px' }}>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Thumbnail size="small" alt={file.name} source={window.URL.createObjectURL(file)} />
+                        <Text variant="bodySm" as="span">{file.name}</Text>
+                      </InlineStack>
+                    </div>
+                  )}
+                </DropZone>
+              </Box>
               <BlockStack gap="100">
                 <Text as="h2" variant="headingLg">{displayName || 'Sin nombre'}</Text>
                 <Text as="p" variant="bodySm" tone="subdued">{user?.email}</Text>
                 <InlineStack gap="200">
-                  <Badge tone="success">{roleName}</Badge>
+                  <Badge tone="success" progress="complete">{roleName}</Badge>
                   <Badge tone="info">{getAuthProvider()}</Badge>
                 </InlineStack>
               </BlockStack>

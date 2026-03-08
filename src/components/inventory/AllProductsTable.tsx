@@ -12,8 +12,9 @@ import {
   ButtonGroup,
   TextField,
   Icon,
+  Thumbnail,
 } from '@shopify/polaris';
-import { SearchIcon } from '@shopify/polaris-icons';
+import { SearchIcon, ImageIcon } from '@shopify/polaris-icons';
 import { Product } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
@@ -54,12 +55,21 @@ export function AllProductsTable({ products, onProductClick, onRegisterProduct, 
       onClick={() => onProductClick?.(product)}
     >
       <IndexTable.Cell>
-        <Text as="p" variant="bodyMd" fontWeight="semibold">
-          {product.name}
-        </Text>
-        <Text as="p" variant="bodySm" tone="subdued">
-          {product.sku}
-        </Text>
+        <InlineStack gap="300" blockAlign="center">
+          <Thumbnail
+            size="small"
+            source={product.imageUrl || ImageIcon}
+            alt={product.name}
+          />
+          <div>
+            <Text as="p" variant="bodyMd" fontWeight="semibold">
+              {product.name}
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              {product.sku}
+            </Text>
+          </div>
+        </InlineStack>
       </IndexTable.Cell>
 
       <IndexTable.Cell>
@@ -145,7 +155,7 @@ export function AllProductsTable({ products, onProductClick, onRegisterProduct, 
             </Text>
           </BlockStack>
 
-                    <ButtonGroup>
+          <ButtonGroup>
             <Button size="slim" onClick={onExport}>Exportar</Button>
             {onRegisterProduct && (
               <Button variant="primary" tone="success" size="slim" onClick={onRegisterProduct}>

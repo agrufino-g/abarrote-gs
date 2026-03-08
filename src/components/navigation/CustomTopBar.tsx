@@ -1,13 +1,15 @@
 'use client';
 
-import { InlineStack } from '@shopify/polaris';
+import { InlineStack, Icon } from '@shopify/polaris';
+import { MenuIcon } from '@shopify/polaris-icons';
 import Image from 'next/image';
 
 interface CustomTopBarProps {
   userMenu: React.ReactNode;
+  onNavigationToggle?: () => void;
 }
 
-export function CustomTopBar({ userMenu }: CustomTopBarProps) {
+export function CustomTopBar({ userMenu, onNavigationToggle }: CustomTopBarProps) {
   return (
     <div
       style={{
@@ -23,8 +25,27 @@ export function CustomTopBar({ userMenu }: CustomTopBarProps) {
         zIndex: 100,
       }}
     >
-      {/* Left side: Logo */}
+      {/* Left side: Logo & Mobile Nav Toggle */}
       <InlineStack gap="400" blockAlign="center">
+        {onNavigationToggle && (
+          <button
+            onClick={onNavigationToggle}
+            className="mobile-nav-toggle"
+            aria-label="Abrir menú"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '8px',
+              cursor: 'pointer',
+              color: '#e3e5e7',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon source={MenuIcon} tone="inherit" />
+          </button>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
           <Image
             src="/logo.svg"

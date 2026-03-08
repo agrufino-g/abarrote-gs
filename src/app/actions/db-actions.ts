@@ -120,6 +120,7 @@ export async function createProduct(data: Omit<Product, 'id'>): Promise<Product>
     costPrice: String(data.costPrice),
     unitPrice: String(data.unitPrice),
     isPerishable: data.isPerishable,
+    imageUrl: data.imageUrl,
   });
   return { ...data, id };
 }
@@ -1041,6 +1042,7 @@ export async function updateProduct(id: string, data: Partial<Product>): Promise
   if (data.currentStock !== undefined) updateData.currentStock = data.currentStock;
   if (data.isPerishable !== undefined) updateData.isPerishable = data.isPerishable;
   if (data.expirationDate !== undefined) updateData.expirationDate = data.expirationDate;
+  if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
   await db.update(products).set(updateData).where(eq(products.id, id));
 }
 

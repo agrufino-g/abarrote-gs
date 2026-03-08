@@ -51,6 +51,12 @@ export function CameraScanner({
     setIsOpen(true);
   }, []);
 
+  const onScanRef = useRef(onScan);
+
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+
   // Actually start the scanner once isOpen becomes true and the container is in the DOM
   useEffect(() => {
     if (!isOpen) return;
@@ -85,7 +91,7 @@ export function CameraScanner({
           (decodedText) => {
             setLastScanned((prev) => {
               if (prev === decodedText) return prev;
-              onScan(decodedText);
+              onScanRef.current(decodedText);
               return decodedText;
             });
             setTimeout(() => setLastScanned(''), 2000);
@@ -93,7 +99,7 @@ export function CameraScanner({
               setTimeout(() => stopScanner(), 300);
             }
           },
-          () => {}
+          () => { }
         );
       } catch (err: unknown) {
         if (cancelled) return;
@@ -111,8 +117,21 @@ export function CameraScanner({
 
     init();
 
-    return () => { cancelled = true; };
-  }, [isOpen, onScan, continuous, stopScanner]);
+    return () => {
+      cancelled = true;
+      // Stop the scanner dynamically to prevent runaway zombie scanner instances
+      if (html5QrCodeRef.current) {
+        try {
+          const state = html5QrCodeRef.current.getState();
+          if (state === 2 || state === 3) {
+            html5QrCodeRef.current.stop().catch(() => { }).finally(() => {
+              html5QrCodeRef.current?.clear();
+            });
+          }
+        } catch { /* ignore */ }
+      }
+    };
+  }, [isOpen, continuous, stopScanner]);
 
   // Cleanup on unmount
   useEffect(() => {

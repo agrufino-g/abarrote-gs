@@ -11,8 +11,13 @@ import {
   InlineStack,
   Text,
   Box,
+  DropZone,
+  Thumbnail,
+  Divider,
 } from '@shopify/polaris';
+import { NoteIcon } from '@shopify/polaris-icons';
 import { FormSelect } from '@/components/ui/FormSelect';
+import { uploadFile, getProductImagePath } from '@/lib/storage';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { CameraScanner } from '@/components/scanner/CameraScanner';
@@ -50,6 +55,8 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
   const [minStock, setMinStock] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
   const [isPerishable, setIsPerishable] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const resetForm = useCallback(() => {
@@ -63,8 +70,33 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
     setMinStock('');
     setExpirationDate('');
     setIsPerishable(false);
+    setFile(null);
+    setUploading(false);
     setErrors({});
   }, []);
+
+  const handleDropZoneDrop = useCallback(
+    (_dropFiles: File[], acceptedFiles: File[], _rejectedFiles: File[]) =>
+      setFile(acceptedFiles[0]),
+    [],
+  );
+
+  const fileUploadMarkup = !file && <DropZone.FileUpload actionHint="Archivos permitidos: .jpg, .png, .gif" />;
+  const uploadedFileMarkup = file && (
+    <InlineStack gap="300" blockAlign="center">
+      <Thumbnail
+        size="small"
+        alt={file.name}
+        source={window.URL.createObjectURL(file)}
+      />
+      <div>
+        {file.name}{' '}
+        <Text variant="bodySm" as="span" tone="subdued">
+          {file.size} bytes
+        </Text>
+      </div>
+    </InlineStack>
+  );
 
   const validate = useCallback(() => {
     const newErrors: Record<string, string> = {};
@@ -90,8 +122,15 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
 
   const handleSubmit = useCallback(async () => {
     if (!validate()) return;
+    setUploading(true);
 
     try {
+      let imageUrl = undefined;
+      if (file) {
+        const path = getProductImagePath(sku || Date.now().toString(), file.name);
+        imageUrl = await uploadFile(file, path);
+      }
+
       await registerProduct({
         name: name.trim(),
         sku: sku.trim(),
@@ -101,16 +140,20 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
         unitPrice: parseFloat(unitPrice),
         currentStock: parseInt(currentStock),
         minStock: parseInt(minStock),
-        expirationDate: expirationDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        expirationDate: isPerishable ? expirationDate : null,
         isPerishable,
+        imageUrl,
       });
-      showSuccess(`Producto "${name}" registrado exitosamente`);
-      resetForm();
+
+      showSuccess('Producto registrado correctamente');
       onClose();
-    } catch {
-      showError('Error al registrar el producto');
+      resetForm();
+    } catch (err: any) {
+      showError(err.message || 'Error al registrar el producto');
+    } finally {
+      setUploading(false);
     }
-  }, [name, sku, barcode, category, costPrice, unitPrice, currentStock, minStock, expirationDate, isPerishable, registerProduct, resetForm, onClose, showSuccess, showError, validate]);
+  }, [validate, file, name, sku, barcode, category, costPrice, unitPrice, currentStock, minStock, isPerishable, expirationDate, registerProduct, showSuccess, showError, onClose, resetForm]);
 
   const handleClose = useCallback(() => {
     resetForm();
@@ -125,15 +168,11 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
       onClose={handleClose}
       title="Registrar Nuevo Producto"
       primaryAction={{
-        content: 'Registrar Producto',
+        content: 'Registrar producto',
         onAction: handleSubmit,
+        loading: uploading,
       }}
-      secondaryActions={[
-        {
-          content: 'Cancelar',
-          onAction: handleClose,
-        },
-      ]}
+      secondaryActions={[{ content: 'Cancelar', onAction: onClose, disabled: uploading }]}
     >
       <Modal.Section>
         <BlockStack gap="400">
@@ -142,6 +181,26 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
               <p>Por favor corrige los errores antes de continuar.</p>
             </Banner>
           )}
+
+          <Text as="h3" variant="headingMd">Imagen del producto</Text>
+          <Box padding="200" borderStyle="dashed" borderWidth="025" borderColor="border" borderRadius="200">
+            <DropZone
+              onDrop={handleDropZoneDrop}
+              variableHeight
+              label="Foto del producto"
+              labelHidden
+              accept="image/*"
+              type="image"
+              disabled={uploading}
+            >
+              {uploadedFileMarkup}
+              {fileUploadMarkup}
+            </DropZone>
+          </Box>
+
+          <Divider />
+
+          <Text as="h3" variant="headingMd">Información básica</Text>
 
           <FormLayout>
             <FormLayout.Group>

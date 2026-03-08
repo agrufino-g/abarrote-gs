@@ -12,14 +12,17 @@ import {
   Button,
   TextField,
   Banner,
-  FormLayout,
   Checkbox,
+  DropZone,
+  Thumbnail,
+  Box,
 } from '@shopify/polaris';
 import { FormSelect } from '@/components/ui/FormSelect';
-import { DeleteIcon, EditIcon } from '@shopify/polaris-icons';
+import { DeleteIcon, EditIcon, ImageIcon } from '@shopify/polaris-icons';
 import { Product } from '@/types';
 import { formatCurrency, formatDate, getDaysUntil, getStockStatus } from '@/lib/utils';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { uploadFile, getProductImagePath } from '@/lib/storage';
 import { useToast } from '@/components/notifications/ToastProvider';
 
 interface ProductDetailModalProps {
@@ -61,6 +64,8 @@ export function ProductDetailModal({
   const [editMinStock, setEditMinStock] = useState('');
   const [editIsPerishable, setEditIsPerishable] = useState(false);
   const [editExpirationDate, setEditExpirationDate] = useState('');
+  const [editImageUrl, setEditImageUrl] = useState('');
+  const [editFile, setEditFile] = useState<File | null>(null);
 
   const stockStatus = product ? getStockStatus(product.currentStock, product.minStock) : null;
   const daysUntil = product?.expirationDate ? getDaysUntil(product.expirationDate) : null;
@@ -90,6 +95,8 @@ export function ProductDetailModal({
     setEditMinStock(String(product.minStock));
     setEditIsPerishable(product.isPerishable);
     setEditExpirationDate(product.expirationDate || '');
+    setEditImageUrl(product.imageUrl || '');
+    setEditFile(null);
     setEditProductMode(true);
   }, [product]);
 
@@ -99,16 +106,23 @@ export function ProductDetailModal({
     if (!editUnitPrice || parseFloat(editUnitPrice) <= 0) { showError('El precio de venta debe ser mayor a 0'); return; }
     setSaving(true);
     try {
+      let finalImageUrl = editImageUrl;
+      if (editFile) {
+        const path = getProductImagePath(editSku || product.id, editFile.name);
+        finalImageUrl = await uploadFile(editFile, path);
+      }
+
       await updateProduct(product.id, {
         name: editName.trim(),
         sku: editSku.trim(),
         barcode: editBarcode.trim(),
-        category: editCategory.trim(),
-        costPrice: parseFloat(editCostPrice) || 0,
-        unitPrice: parseFloat(editUnitPrice) || 0,
-        minStock: parseInt(editMinStock) || 0,
+        category: editCategory,
+        costPrice: parseFloat(editCostPrice),
+        unitPrice: parseFloat(editUnitPrice),
+        minStock: parseInt(editMinStock),
         isPerishable: editIsPerishable,
-        expirationDate: editExpirationDate || null,
+        expirationDate: editIsPerishable ? editExpirationDate : null,
+        imageUrl: finalImageUrl,
       });
       showSuccess(`"${editName}" actualizado correctamente`);
       setEditProductMode(false);
@@ -118,7 +132,7 @@ export function ProductDetailModal({
       showError('Error al guardar los cambios');
       setSaving(false);
     }
-  }, [product, editName, editSku, editBarcode, editCategory, editCostPrice, editUnitPrice, editMinStock, editIsPerishable, editExpirationDate, updateProduct, showSuccess, showError, onClose]);
+  }, [product, editName, editSku, editBarcode, editCategory, editCostPrice, editUnitPrice, editMinStock, editIsPerishable, editExpirationDate, editFile, editImageUrl, updateProduct, showSuccess, showError, onClose]);
 
   const handleDelete = async () => {
     if (!product) return;
@@ -182,26 +196,54 @@ export function ProductDetailModal({
       >
         <Modal.Section>
           <FormLayout>
-            <TextField label="Nombre del producto" value={editName} onChange={setEditName} autoComplete="off" requiredIndicator />
-            <FormLayout.Group>
-              <TextField label="SKU" value={editSku} onChange={setEditSku} autoComplete="off" />
-              <TextField label="Código de barras" value={editBarcode} onChange={setEditBarcode} autoComplete="off" />
-            </FormLayout.Group>
-            <FormSelect label="Categoría" options={categoryOptions} value={editCategory} onChange={setEditCategory} />
-            <FormLayout.Group>
-              <TextField label="Precio de costo (MXN)" type="number" value={editCostPrice} onChange={setEditCostPrice} autoComplete="off" prefix="$" />
-              <TextField label="Precio de venta (MXN)" type="number" value={editUnitPrice} onChange={setEditUnitPrice} autoComplete="off" prefix="$" requiredIndicator />
-            </FormLayout.Group>
-            <TextField label="Stock mínimo" type="number" value={editMinStock} onChange={setEditMinStock} autoComplete="off" helpText="Cuando el inventario baje de este número se mostrará alerta" />
-            <Checkbox label="Es producto perecedero" checked={editIsPerishable} onChange={setEditIsPerishable} />
-            {editIsPerishable && (
-              <TextField label="Fecha de caducidad" type="date" value={editExpirationDate} onChange={setEditExpirationDate} autoComplete="off" />
-            )}
-            {parseFloat(editUnitPrice) > 0 && parseFloat(editCostPrice) > 0 && (
-              <Banner tone="info">
-                <p>Margen de ganancia: {formatCurrency(parseFloat(editUnitPrice) - parseFloat(editCostPrice))} ({((parseFloat(editUnitPrice) - parseFloat(editCostPrice)) / parseFloat(editCostPrice) * 100).toFixed(1)}%)</p>
-              </Banner>
-            )}
+            <BlockStack gap="400">
+              <Text as="h3" variant="headingMd">Imagen del producto</Text>
+              <Box padding="200" borderStyle="dashed" borderWidth="025" borderColor="border" borderRadius="200">
+                <DropZone
+                  onDrop={(_d, accepted) => setEditFile(accepted[0])}
+                  variableHeight
+                  accept="image/*"
+                  type="image"
+                  disabled={saving}
+                >
+                  {editFile || editImageUrl ? (
+                    <div style={{ padding: '8px' }}>
+                      <InlineStack gap="300" blockAlign="center">
+                        <Thumbnail
+                          size="small"
+                          alt="Miniatura"
+                          source={editFile ? window.URL.createObjectURL(editFile) : editImageUrl}
+                        />
+                        <Text variant="bodySm" as="span">{editFile ? editFile.name : 'Imagen actual'}</Text>
+                      </InlineStack>
+                    </div>
+                  ) : (
+                    <DropZone.FileUpload actionHint="Acepta .jpg, .png" />
+                  )}
+                </DropZone>
+              </Box>
+              <Divider />
+              <TextField label="Nombre del producto" value={editName} onChange={setEditName} autoComplete="off" requiredIndicator />
+              <FormLayout.Group>
+                <TextField label="SKU" value={editSku} onChange={setEditSku} autoComplete="off" />
+                <TextField label="Código de barras" value={editBarcode} onChange={setEditBarcode} autoComplete="off" />
+              </FormLayout.Group>
+              <FormSelect label="Categoría" options={categoryOptions} value={editCategory} onChange={setEditCategory} />
+              <FormLayout.Group>
+                <TextField label="Precio de costo (MXN)" type="number" value={editCostPrice} onChange={setEditCostPrice} autoComplete="off" prefix="$" />
+                <TextField label="Precio de venta (MXN)" type="number" value={editUnitPrice} onChange={setEditUnitPrice} autoComplete="off" prefix="$" requiredIndicator />
+              </FormLayout.Group>
+              <TextField label="Stock mínimo" type="number" value={editMinStock} onChange={setEditMinStock} autoComplete="off" helpText="Cuando el inventario baje de este número se mostrará alerta" />
+              <Checkbox label="Es producto perecedero" checked={editIsPerishable} onChange={setEditIsPerishable} />
+              {editIsPerishable && (
+                <TextField label="Fecha de caducidad" type="date" value={editExpirationDate} onChange={setEditExpirationDate} autoComplete="off" />
+              )}
+              {parseFloat(editUnitPrice) > 0 && parseFloat(editCostPrice) > 0 && (
+                <Banner tone="info">
+                  <p>Margen de ganancia: {formatCurrency(parseFloat(editUnitPrice) - parseFloat(editCostPrice))} ({((parseFloat(editUnitPrice) - parseFloat(editCostPrice)) / parseFloat(editCostPrice) * 100).toFixed(1)}%)</p>
+                </Banner>
+              )}
+            </BlockStack>
           </FormLayout>
         </Modal.Section>
       </Modal>
@@ -244,24 +286,24 @@ export function ProductDetailModal({
       <Modal.Section>
         <BlockStack gap="400">
           {/* Header con info básica */}
-          <InlineStack align="space-between">
+          <InlineStack gap="400" blockAlign="center">
+            <Thumbnail
+              size="large"
+              source={product.imageUrl || ImageIcon}
+              alt={product.name}
+            />
             <BlockStack gap="100">
-              <Text as="p" variant="bodySm" tone="subdued">
-                SKU: {product.sku}
-              </Text>
-              <Text as="p" variant="bodySm" tone="subdued">
-                Categoría: {product.category}
-              </Text>
+              <Text variant="headingLg" as="h2">{product.name}</Text>
+              <InlineStack gap="200">
+                <Badge tone="info">{product.category}</Badge>
+                {stockStatus && <Badge tone={stockStatus.tone}>{stockStatus.label}</Badge>}
+              </InlineStack>
             </BlockStack>
-            <InlineStack gap="200">
-              {product.isPerishable && <Badge>Perecedero</Badge>}
-              {getExpirationBadge()}
-            </InlineStack>
           </InlineStack>
 
           <Divider />
 
-          {/* Estado del Stock */}
+          {/* Estado del Inventario */}
           <BlockStack gap="200">
             <Text as="h4" variant="headingSm">
               Estado del Inventario
