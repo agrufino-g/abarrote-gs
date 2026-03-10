@@ -28,7 +28,8 @@ import {
   CalendarIcon,
   RefreshIcon,
   MaximizeIcon,
-  EditIcon
+  EditIcon,
+  ChartVerticalFilledIcon
 } from '@shopify/polaris-icons';
 import { LineChart, DonutChart } from '@shopify/polaris-viz';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -160,14 +161,19 @@ export function AnalyticsView() {
   return (
     <div style={{ background: '#f4f6f8', minHeight: '100%', paddingBottom: '2rem' }}>
       <Page
-        title="Informes y estadísticas"
+        title={(
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Icon source={ChartVerticalFilledIcon} tone="base" />
+            <span>Informes y estadísticas</span>
+          </div>
+        ) as any}
         subtitle={`Última actualización: ${new Date().toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })}`}
         fullWidth
         primaryAction={{ content: 'Nueva exploración' }}
         secondaryActions={[
-          { content: '', icon: RefreshIcon },
-          { content: '', icon: MaximizeIcon },
-          { content: '', icon: EditIcon },
+          { id: 'analytics-refresh', content: 'Actualizar', icon: RefreshIcon, accessibilityLabel: 'Actualizar' },
+          { id: 'analytics-maximize', content: 'Maximizar', icon: MaximizeIcon, accessibilityLabel: 'Maximizar' },
+          { id: 'analytics-edit', content: 'Editar', icon: EditIcon, accessibilityLabel: 'Editar' },
         ]}
       >
         <BlockStack gap="400">

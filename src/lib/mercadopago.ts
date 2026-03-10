@@ -3,6 +3,7 @@
 
 export interface MercadoPagoConfig {
   accessToken: string;
+  publicKey?: string;
   deviceId: string;
   enabled: boolean;
 }
@@ -28,61 +29,56 @@ export interface PaymentIntentRequest {
   print_on_terminal?: boolean;
 }
 
-const MP_API_BASE = 'https://api.mercadopago.com';
+const MP_BACKEND_URL = '/api/mercadopago';
 
 /**
- * Crea un intento de cobro en la terminal Mercado Pago Point
- * La terminal mostrará el monto y esperará que se pase la tarjeta
+ * Crea un intento de cobro a través del Backend seguro de Next.js
  */
 export async function createPaymentIntent(
   config: MercadoPagoConfig,
   request: PaymentIntentRequest
 ): Promise<PaymentIntent> {
-  const response = await fetch(
-    `${MP_API_BASE}/point/integration-api/devices/${config.deviceId}/payment-intents`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        amount: Math.round(request.amount * 100) / 100, // 2 decimales
-        description: request.description,
-        external_reference: request.external_reference,
-        print_on_terminal: request.print_on_terminal ?? true,
-      }),
-    }
-  );
+  const response = await fetch(MP_BACKEND_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'create_point_intent',
+      accessToken: config.accessToken,
+      deviceId: config.deviceId,
+      amount: request.amount,
+      description: request.description,
+      external_reference: request.external_reference,
+      print_on_terminal: request.print_on_terminal ?? true,
+    }),
+  });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.message || `Error al crear cobro en terminal: ${response.status}`
-    );
+    throw new Error(error.error || `Error al crear cobro en Kiosco Backend: ${response.status}`);
   }
 
   return response.json();
 }
 
 /**
- * Consulta el estado de un intento de cobro
+ * Consulta el estado de un intento de cobro usando el Kiosco Backend
  */
 export async function getPaymentIntentStatus(
   config: MercadoPagoConfig,
   paymentIntentId: string
 ): Promise<PaymentIntent> {
-  const response = await fetch(
-    `${MP_API_BASE}/point/integration-api/payment-intents/${paymentIntentId}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${config.accessToken}`,
-      },
-    }
-  );
+  const response = await fetch(MP_BACKEND_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'get_point_status',
+      accessToken: config.accessToken,
+      paymentIntentId,
+    }),
+  });
 
   if (!response.ok) {
-    throw new Error(`Error al consultar estado: ${response.status}`);
+    throw new Error(`Error Kiosco Backend (${response.status}) status`);
   }
 
   return response.json();
@@ -95,18 +91,18 @@ export async function cancelPaymentIntent(
   config: MercadoPagoConfig,
   deviceId: string
 ): Promise<void> {
-  const response = await fetch(
-    `${MP_API_BASE}/point/integration-api/devices/${deviceId}/payment-intents`,
-    {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${config.accessToken}`,
-      },
-    }
-  );
+  const response = await fetch(MP_BACKEND_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'cancel_point_intent',
+      accessToken: config.accessToken,
+      deviceId,
+    }),
+  });
 
   if (!response.ok) {
-    throw new Error(`Error al cancelar cobro: ${response.status}`);
+    throw new Error(`Error al cancelar cobro desde Kiosco Backend: ${response.status}`);
   }
 }
 
@@ -116,17 +112,17 @@ export async function cancelPaymentIntent(
 export async function getDevices(
   accessToken: string
 ): Promise<{ id: string; operating_mode: string; pos_id: number }[]> {
-  const response = await fetch(
-    `${MP_API_BASE}/point/integration-api/devices`,
-    {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    }
-  );
+  const response = await fetch(MP_BACKEND_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'get_devices',
+      accessToken,
+    }),
+  });
 
   if (!response.ok) {
-    throw new Error(`Error al obtener dispositivos: ${response.status}`);
+    throw new Error(`Error al obtener dispositivos desde Kiosco Backend: ${response.status}`);
   }
 
   const data = await response.json();
@@ -138,7 +134,7 @@ export async function getDevices(
  */
 export function getMPConfig(): MercadoPagoConfig {
   if (typeof window === 'undefined') {
-    return { accessToken: '', deviceId: '', enabled: false };
+    return { accessToken: '', publicKey: '', deviceId: '', enabled: false };
   }
   try {
     const stored = localStorage.getItem('mp_config');
@@ -146,7 +142,7 @@ export function getMPConfig(): MercadoPagoConfig {
   } catch {
     // ignore
   }
-  return { accessToken: '', deviceId: '', enabled: false };
+  return { accessToken: '', publicKey: '', deviceId: '', enabled: false };
 }
 
 /**

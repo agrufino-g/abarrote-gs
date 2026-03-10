@@ -3,13 +3,21 @@
 import { Navigation } from '@shopify/polaris';
 import {
   HomeIcon,
+  HomeFilledIcon,
   OrderIcon,
+  OrderFilledIcon,
   ProductIcon,
+  ProductFilledIcon,
   PersonIcon,
+  PersonFilledIcon,
   FinanceIcon,
+  FinanceFilledIcon,
   ChartVerticalIcon,
+  ChartVerticalFilledIcon,
   SettingsIcon,
+  SettingsFilledIcon,
   PersonLockIcon,
+  PersonLockFilledIcon,
   NotificationIcon,
 } from '@shopify/polaris-icons';
 import type { PermissionKey } from '@/types';
@@ -42,10 +50,12 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
   const mainItems = [];
 
   if (can(permissions, 'dashboard.view')) {
+    const isSel = selected === 'overview';
     mainItems.push({
+      url: '#',
       label: 'Inicio',
-      icon: HomeIcon,
-      selected: selected === 'overview',
+      icon: isSel ? HomeIcon : HomeFilledIcon,
+      selected: isSel,
       onClick: () => onSelect('overview'),
     });
   }
@@ -56,6 +66,7 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
       subNav.push({
         url: '#',
         label: 'Historial',
+        matches: selected === 'sales-history',
         onClick: () => onSelect('sales-history'),
       });
     }
@@ -63,40 +74,55 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
       subNav.push({
         url: '#',
         label: 'Corte de Caja',
+        matches: selected === 'sales-corte',
         onClick: () => onSelect('sales-corte'),
       });
     }
+    const isSel = SALES_SECTIONS.includes(selected);
     mainItems.push({
+      url: '#',
       label: 'Pedidos',
-      icon: OrderIcon,
-      selected: SALES_SECTIONS.includes(selected),
+      icon: isSel ? OrderIcon : OrderFilledIcon,
+      selected: isSel,
       onClick: () => onSelect('sales'),
       ...(subNav.length > 0 ? { subNavigationItems: subNav } : {}),
     });
   }
 
   if (can(permissions, 'inventory.view')) {
+    const isSel = PRODUCT_SECTIONS.includes(selected);
     mainItems.push({
+      url: '#',
       label: 'Productos',
-      icon: ProductIcon,
+      icon: isSel ? ProductIcon : ProductFilledIcon,
       badge: badges?.lowStock ? String(badges.lowStock) : undefined,
-      selected: PRODUCT_SECTIONS.includes(selected),
+      selected: isSel,
+      expanded: isSel,
       onClick: () => onSelect('inventory'),
       subNavigationItems: [
         {
           url: '#',
           label: 'Colecciones',
+          matches: selected === 'catalog',
           onClick: () => onSelect('catalog'),
         },
         {
           url: '#',
           label: 'Inventario',
+          matches: selected === 'inventory',
           onClick: () => onSelect('inventory'),
         },
         {
           url: '#',
           label: 'Órdenes de compra',
+          matches: selected === 'pedidos',
           onClick: () => onSelect('pedidos'),
+        },
+        {
+          url: '#',
+          label: 'Prioridad',
+          matches: selected === 'inventory-priority',
+          onClick: () => onSelect('inventory-priority'),
         },
       ],
     });
@@ -112,10 +138,13 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
         onClick: () => onSelect('fiado'),
       });
     }
+    const isSel = CUSTOMER_SECTIONS.includes(selected);
     mainItems.push({
+      url: '#',
       label: 'Clientes',
-      icon: PersonIcon,
-      selected: CUSTOMER_SECTIONS.includes(selected),
+      icon: isSel ? PersonIcon : PersonFilledIcon,
+      selected: isSel,
+      expanded: isSel,
       onClick: () => onSelect('customers'),
       ...(subNav.length > 0 ? { subNavigationItems: subNav } : {}),
     });
@@ -130,6 +159,7 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
       subNav.push({
         url: '#',
         label: 'Proveedores',
+        matches: selected === 'suppliers',
         onClick: () => onSelect('suppliers'),
       });
     }
@@ -137,13 +167,17 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
       subNav.push({
         url: '#',
         label: 'Pedidos',
+        matches: selected === 'pedidos',
         onClick: () => onSelect('pedidos'),
       });
     }
+    const isSel = FINANCE_SECTIONS.includes(selected);
     adminItems.push({
+      url: '#',
       label: 'Finanzas',
-      icon: FinanceIcon,
-      selected: FINANCE_SECTIONS.includes(selected),
+      icon: isSel ? FinanceIcon : FinanceFilledIcon,
+      selected: isSel,
+      expanded: isSel,
       onClick: () => onSelect('expenses'),
       ...(subNav.length > 0 ? { subNavigationItems: subNav } : {}),
     });
@@ -159,10 +193,13 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
         onClick: () => onSelect('reports'),
       });
     }
+    const isSel = ANALYTICS_SECTIONS.includes(selected);
     adminItems.push({
+      url: '#',
       label: 'Análisis Integral',
-      icon: ChartVerticalIcon,
-      selected: ANALYTICS_SECTIONS.includes(selected),
+      icon: isSel ? ChartVerticalIcon : ChartVerticalFilledIcon,
+      selected: isSel,
+      expanded: isSel,
       onClick: () => onSelect('analytics'),
       ...(subNav.length > 0 ? { subNavigationItems: subNav } : {}),
     });
@@ -172,19 +209,23 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
   const systemItems = [];
 
   if (can(permissions, 'roles.manage')) {
+    const isSel = selected === 'roles';
     systemItems.push({
+      url: '#',
       label: 'Usuarios y Accesos',
-      icon: PersonLockIcon,
-      selected: selected === 'roles',
+      icon: isSel ? PersonLockIcon : PersonLockFilledIcon,
+      selected: isSel,
       onClick: () => onSelect('roles'),
     });
   }
 
   if (can(permissions, 'settings.view')) {
+    const isSel = selected === 'settings';
     systemItems.push({
+      url: '#',
       label: 'Configuración Avanzada',
-      icon: SettingsIcon,
-      selected: selected === 'settings',
+      icon: isSel ? SettingsIcon : SettingsFilledIcon,
+      selected: isSel,
       onClick: () => onSelect('settings'),
     });
   }

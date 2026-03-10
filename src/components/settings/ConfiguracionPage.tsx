@@ -40,6 +40,7 @@ import {
   MoneyIcon,
   PrintIcon,
   StarFilledIcon,
+  SettingsFilledIcon
 } from '@shopify/polaris-icons';
 
 const SETTINGS_CATEGORIES = [
@@ -67,7 +68,7 @@ export function ConfiguracionPage() {
   const isDirty = JSON.stringify(config) !== JSON.stringify(storeConfig);
 
   // Mercado Pago config
-  const [mpConfig, setMpConfig] = useState<MercadoPagoConfig>({ accessToken: '', deviceId: '', enabled: false });
+  const [mpConfig, setMpConfig] = useState<MercadoPagoConfig>({ accessToken: '', publicKey: '', deviceId: '', enabled: false });
   const [mpSaved, setMpSaved] = useState(false);
   const [mpTesting, setMpTesting] = useState(false);
   const [mpTestResult, setMpTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -468,6 +469,7 @@ ${center(`Vigencia ${config.ticketVigencia || 'N/A'}`)}
               <Box paddingBlockStart="300">
                 <FormLayout>
                   <TextField label="Access Token del Negocio" value={mpConfig.accessToken} onChange={(v) => setMpConfig(prev => ({ ...prev, accessToken: v }))} autoComplete="off" type="password" placeholder="APP_USR-..." helpText="Token secreto de Producción. No lo compartas con el personal." />
+                  <TextField label="Public Key (Checkout & QR)" value={mpConfig.publicKey || ''} onChange={(v) => setMpConfig(prev => ({ ...prev, publicKey: v }))} autoComplete="off" placeholder="APP_USR-..." helpText="Llave Pública para renderizar Tarjetas e invocar Checkouts web." />
                   <TextField label="Device ID (Hardware)" value={mpConfig.deviceId} onChange={(v) => setMpConfig(prev => ({ ...prev, deviceId: v }))} autoComplete="off" placeholder="Ej: PAX_A910__..." helpText="ID interno del lector físico. Usa el botón de descubrir para detectarlo automáticamente en tu misma red WiFi." />
 
                   <Divider />
@@ -574,7 +576,12 @@ ${center(`Vigencia ${config.ticketVigencia || 'N/A'}`)}
 
   return (
     <Page
-      title="Configuración"
+      title={(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Icon source={SettingsFilledIcon} tone="base" />
+          <span>Configuración</span>
+        </div>
+      ) as any}
       subtitle="Administra las políticas operativas, la identidad fiscal y la infraestructura de tu negocio."
     >
       {saved && (

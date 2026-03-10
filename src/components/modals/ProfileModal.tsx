@@ -15,6 +15,7 @@ import {
   Badge,
   Banner,
   Divider,
+  Button
 } from '@shopify/polaris';
 import { ImageIcon, EmailIcon, PersonIcon, PhoneIcon } from '@shopify/polaris-icons';
 import { uploadFile, getUserAvatarPath } from '@/lib/storage';
@@ -22,6 +23,7 @@ import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { usePermissions } from '@/lib/usePermissions';
+import { OAuthProvider, linkWithPopup } from 'firebase/auth';
 
 interface ProfileModalProps {
   open: boolean;
@@ -76,6 +78,27 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
     }
     setSaving(false);
   }, [user, currentUserRole, displayName, avatarUrl, file, updateUserProfile, showSuccess, showError, onClose]);
+
+  const handleLinkMicrosoft = useCallback(async () => {
+    if (!user) return;
+    try {
+      const provider = new OAuthProvider('microsoft.com');
+      const customParams: Record<string, string> = { prompt: 'select_account' };
+      if (process.env.NEXT_PUBLIC_MICROSOFT_TENANT_ID) {
+        customParams.tenant = process.env.NEXT_PUBLIC_MICROSOFT_TENANT_ID;
+      }
+      provider.setCustomParameters(customParams);
+      await linkWithPopup(user, provider);
+      showSuccess('Cuenta de Microsoft vinculada correctamente');
+    } catch (error: any) {
+      console.error('Error linking Microsoft:', error);
+      if (error?.code === 'auth/credential-already-in-use') {
+        showError('Esta cuenta de Microsoft ya está ligada a otro usuario.');
+      } else {
+        showError('Error al vincular con Microsoft.');
+      }
+    }
+  }, [user, showSuccess, showError]);
 
   const handleDropZoneDrop = useCallback(
     (_dropFiles: File[], acceptedFiles: File[], _rejectedFiles: File[]) =>
@@ -245,7 +268,14 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
 
                 <InlineStack align="space-between" blockAlign="center">
                   <Text as="span" variant="bodyMd" tone="subdued">Método de autenticación</Text>
-                  <Badge tone="info" size="large">{getAuthProvider()}</Badge>
+                  <InlineStack gap="200" align="center">
+                    <Badge tone="info" size="large">{getAuthProvider()}</Badge>
+                    {getAuthProvider() !== 'Microsoft' && (
+                      <Button size="micro" onClick={handleLinkMicrosoft}>
+                        Vincular Microsoft
+                      </Button>
+                    )}
+                  </InlineStack>
                 </InlineStack>
 
                 <InlineStack align="space-between" blockAlign="center">

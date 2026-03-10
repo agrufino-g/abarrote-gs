@@ -399,24 +399,26 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
         </div>
         <div style={{ color: '#e3e5e7', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', position: 'relative' }}>
           <Icon source={NotificationIcon} tone="inherit" />
-          <div style={{
-            position: 'absolute',
-            top: '4px',
-            right: '4px',
-            backgroundColor: '#d82c0d',
-            color: 'white',
-            borderRadius: '50%',
-            width: '16px',
-            height: '16px',
-            fontSize: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 'bold',
-            border: '2px solid #0b0b0b'
-          }}>
-            1
-          </div>
+          {useDashboardStore.getState().inventoryAlerts?.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: '4px',
+              right: '4px',
+              backgroundColor: '#d82c0d',
+              color: 'white',
+              borderRadius: '50%',
+              width: '16px',
+              height: '16px',
+              fontSize: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              border: '2px solid #0b0b0b'
+            }}>
+              {useDashboardStore.getState().inventoryAlerts.length}
+            </div>
+          )}
         </div>
         <div style={{ marginLeft: '8px' }}>
           {userMenu}

@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@neondatabase/auth-ui/tailwind";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
@@ -181,20 +180,7 @@
   fill: #0518d2 !important;
 }
 
-/* Polaris Navigation Overrides */
-.Polaris-Navigation__Item--selected {
-  background-color: rgba(5, 24, 210, 0.08) !important;
-  color: #0518d2 !important;
-}
 
-.Polaris-Navigation__Item--selected .Polaris-Navigation__Icon svg {
-  fill: #0518d2 !important;
-}
-
-.Polaris-Navigation__Item--selected .Polaris-Navigation__Text {
-  color: #0518d2 !important;
-  font-weight: 600 !important;
-}
 
 /* Fix sidebar position below custom TopBar */
 .Polaris-Frame {

@@ -60,6 +60,39 @@ import { CustomTopBar } from '@/components/navigation/CustomTopBar';
 import { AnalyticsView } from '@/components/analytics/AnalyticsView';
 import { UserMenu } from '@/components/auth/UserMenu';
 import { deleteProduct, updateProduct } from '@/app/actions/db-actions';
+import {
+  HomeFilledIcon,
+  OrderFilledIcon,
+  ProductFilledIcon,
+  PersonFilledIcon,
+  FinanceFilledIcon,
+  ChartVerticalFilledIcon,
+  SettingsFilledIcon,
+  PersonLockFilledIcon,
+  NotificationFilledIcon,
+} from '@shopify/polaris-icons';
+import { Icon } from '@shopify/polaris';
+
+const SECTION_ICONS: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
+  overview: HomeFilledIcon,
+  sales: OrderFilledIcon,
+  'sales-history': OrderFilledIcon,
+  'sales-corte': OrderFilledIcon,
+  inventory: ProductFilledIcon,
+  'inventory-audit': ProductFilledIcon,
+  catalog: ProductFilledIcon,
+  'inventory-priority': ProductFilledIcon,
+  customers: PersonFilledIcon,
+  fiado: PersonFilledIcon,
+  expenses: FinanceFilledIcon,
+  suppliers: FinanceFilledIcon,
+  pedidos: FinanceFilledIcon,
+  analytics: ChartVerticalFilledIcon,
+  reports: ChartVerticalFilledIcon,
+  settings: SettingsFilledIcon,
+  roles: PersonLockFilledIcon,
+  notifications: NotificationFilledIcon,
+};
 
 const SECTION_PERMISSIONS: Record<string, PermissionKey[]> = {
   overview: ['dashboard.view'],
@@ -352,7 +385,6 @@ export function DashboardHome() {
       case 'sales':
         return (
           <BlockStack gap="400">
-            <QuickActions />
             <SalesHistory />
           </BlockStack>
         );
@@ -406,10 +438,21 @@ export function DashboardHome() {
   };
 
   const wrapWithPage = (content: React.ReactNode) => {
+    const rawTitle = SECTION_TITLES[selectedSection] || 'Dashboard';
+    const SectionIcon = SECTION_ICONS[selectedSection];
+
+    // Convertimos el string a un InlineStack the Polaris o simple div para inyectar el ícono a la izquierda 
+    const fancyTitle = SectionIcon ? (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Icon source={SectionIcon} tone="base" />
+        <span>{rawTitle}</span>
+      </div>
+    ) : rawTitle;
+
     return (
       <Page
         fullWidth
-        title={SECTION_TITLES[selectedSection] || 'Dashboard'}
+        title={fancyTitle as any}
         secondaryActions={[
           { content: 'Actualizar', icon: RefreshIcon, onAction: fetchDashboardData },
           { content: 'Exportar', icon: ExportIcon, onAction: () => setExportModalOpen(true) },

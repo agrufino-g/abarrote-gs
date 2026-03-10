@@ -22,6 +22,7 @@ import {
   ProductIcon,
   CartIcon,
   MobileIcon,
+  CashDollarIcon,
 } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
@@ -29,9 +30,10 @@ import { usePermissions } from '@/lib/usePermissions';
 import { RegisterProductModal } from '@/components/modals/RegisterProductModal';
 import { SaleTicketModal } from '@/components/modals/SaleTicketModal';
 import { ServiciosModal } from '@/components/modals/ServiciosModal';
+import { formatCurrency } from '@/lib/utils';
 
 export function QuickActions() {
-  const { inventoryAlerts, registerMerma, adjustStock, createPedido } = useDashboardStore();
+  const { inventoryAlerts, registerMerma, adjustStock, createPedido, clientes, registerAbono } = useDashboardStore();
   const toast = useToast();
   const { hasPermission, isLoaded: permsLoaded } = usePermissions();
 
@@ -39,6 +41,7 @@ export function QuickActions() {
   const canCreateSales = !permsLoaded || hasPermission('sales.create');
   const canManagePedidos = !permsLoaded || hasPermission('pedidos.create');
   const canManageServicios = !permsLoaded || hasPermission('servicios.create');
+  const canCreateFiado = !permsLoaded || hasPermission('fiado.create');
 
   const [mermaModalOpen, setMermaModalOpen] = useState(false);
   const [pedidoModalOpen, setPedidoModalOpen] = useState(false);
@@ -46,6 +49,11 @@ export function QuickActions() {
   const [registerProductOpen, setRegisterProductOpen] = useState(false);
   const [saleTicketOpen, setSaleTicketOpen] = useState(false);
   const [serviciosOpen, setServiciosOpen] = useState(false);
+
+  const [abonoOpen, setAbonoOpen] = useState(false);
+  const [abonoClienteId, setAbonoClienteId] = useState('');
+  const [abonoAmount, setAbonoAmount] = useState('');
+  const [abonoDescription, setAbonoDescription] = useState('');
 
   // Form states for Merma
   const [mermaProducto, setMermaProducto] = useState('');
@@ -153,6 +161,25 @@ export function QuickActions() {
     setAjusteRazon('');
   }, [ajusteProducto, ajusteNuevaCantidad, ajusteRazon, selectedAjusteProduct, adjustStock, toast]);
 
+  const handleAbono = useCallback(async () => {
+    if (!abonoClienteId || !abonoAmount) return;
+    await registerAbono(abonoClienteId, parseFloat(abonoAmount), abonoDescription.trim() || 'Abono');
+    toast.showSuccess(`Abono de ${formatCurrency(parseFloat(abonoAmount))} registrado`);
+    setAbonoClienteId('');
+    setAbonoAmount('');
+    setAbonoDescription('');
+    setAbonoOpen(false);
+  }, [abonoClienteId, abonoAmount, abonoDescription, registerAbono, toast]);
+
+  const clientesWithDebt = clientes.filter((c) => c.balance > 0);
+  const clientesWithDebtOptions = [
+    { label: 'Seleccionar cliente...', value: '' },
+    ...clientesWithDebt.map((c) => ({
+      label: `${c.name} — Debe: ${formatCurrency(c.balance)}`,
+      value: c.id,
+    })),
+  ];
+
   const lowStockCount = inventoryAlerts.filter(
     (a) => a.product.currentStock < a.product.minStock
   ).length;
@@ -166,16 +193,6 @@ export function QuickActions() {
           </Text>
 
           <ButtonGroup>
-            {canManageInventory && (
-              <Button
-                icon={ProductIcon}
-                variant="primary"
-                tone="success"
-                onClick={() => setRegisterProductOpen(true)}
-              >
-                Registrar Producto
-              </Button>
-            )}
             {canCreateSales && (
               <Button
                 icon={CartIcon}
@@ -192,6 +209,14 @@ export function QuickActions() {
                 onClick={() => setServiciosOpen(true)}
               >
                 Recargas y Servicios
+              </Button>
+            )}
+            {canCreateFiado && (
+              <Button
+                icon={CashDollarIcon}
+                onClick={() => setAbonoOpen(true)}
+              >
+                Registrar Abono
               </Button>
             )}
             {canManageInventory && (
@@ -438,6 +463,32 @@ export function QuickActions() {
               value={ajusteRazon}
               onChange={setAjusteRazon}
             />
+          </FormLayout>
+        </Modal.Section>
+      </Modal>
+
+      {/* Modal para Registrar Abono */}
+      <Modal
+        open={abonoOpen}
+        onClose={() => setAbonoOpen(false)}
+        title="Registrar Abono"
+        primaryAction={{ content: 'Registrar Abono', onAction: handleAbono, disabled: !abonoClienteId || !abonoAmount }}
+        secondaryActions={[{ content: 'Cancelar', onAction: () => setAbonoOpen(false) }]}
+      >
+        <Modal.Section>
+          <FormLayout>
+            <Banner tone="success"><p>El abono reducirá la deuda del cliente dado de alta.</p></Banner>
+            <FormSelect label="Cliente" options={clientesWithDebtOptions} value={abonoClienteId} onChange={setAbonoClienteId} />
+            {abonoClienteId && (() => {
+              const c = clientes.find((cl) => cl.id === abonoClienteId);
+              return c ? (
+                <Text as="p" variant="bodySm" tone="critical">
+                  Deuda actual: {formatCurrency(c.balance)}
+                </Text>
+              ) : null;
+            })()}
+            <TextField label="Monto del abono (MXN)" type="number" value={abonoAmount} onChange={setAbonoAmount} autoComplete="off" prefix="$" placeholder="0.00" />
+            <TextField label="Descripción (opcional)" value={abonoDescription} onChange={setAbonoDescription} autoComplete="off" placeholder="Ej: Abono semanal" />
           </FormLayout>
         </Modal.Section>
       </Modal>

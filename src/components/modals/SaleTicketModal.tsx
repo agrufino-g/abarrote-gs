@@ -37,6 +37,7 @@ import {
 import type { MercadoPagoConfig, PaymentIntent } from '@/lib/mercadopago';
 import type { SaleItem, SaleRecord, PermissionKey } from '@/types';
 import { PinPadModal } from './PinPadModal';
+import { MercadoPagoPaymentBrick } from '@/components/mercadopago/MercadoPagoPaymentBrick';
 
 interface SaleTicketModalProps {
   open: boolean;
@@ -46,6 +47,7 @@ interface SaleTicketModalProps {
 const paymentMethodOptions = [
   { label: 'Efectivo', value: 'efectivo' },
   { label: 'Tarjeta (Terminal Mercado Pago)', value: 'tarjeta' },
+  { label: 'Mercado Pago Web (Lector Blando / QR)', value: 'tarjeta_web' },
   { label: 'Tarjeta (manual sin terminal)', value: 'tarjeta_manual' },
   { label: 'Transferencia', value: 'transferencia' },
   { label: 'Fiado (crédito a cliente)', value: 'fiado' },
@@ -101,7 +103,7 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
   const [items, setItems] = useState<SaleItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'tarjeta' | 'tarjeta_manual' | 'transferencia' | 'fiado' | 'puntos'>('efectivo');
+  const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'tarjeta' | 'tarjeta_manual' | 'tarjeta_web' | 'transferencia' | 'fiado' | 'puntos'>('efectivo');
   const [amountPaid, setAmountPaid] = useState('');
   const [clienteId, setClienteId] = useState(''); // Shared for loyalty/fiado
   const [completedSale, setCompletedSale] = useState<SaleRecord | null>(null);
@@ -118,6 +120,7 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
   const [mpError, setMpError] = useState('');
   const mpPollingRef = useRef<NodeJS.Timeout | null>(null);
   const handleMPTerminalPaymentRef = useRef<(() => Promise<void>) | null>(null);
+  const [mpWebSuccess, setMpWebSuccess] = useState(false);
 
   // Load MP config from localStorage
   useEffect(() => {
@@ -139,7 +142,7 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
   const iva = useMemo(() => subtotal * IVA_RATE, [subtotal]);
   // No card surcharge for fiado
   const cardSurcharge = useMemo(() => {
-    if (paymentMethod !== 'tarjeta' && paymentMethod !== 'tarjeta_manual') return 0;
+    if (paymentMethod !== 'tarjeta' && paymentMethod !== 'tarjeta_manual' && paymentMethod !== 'tarjeta_web') return 0;
     const surcharge = subtotal * CARD_SURCHARGE_RATE;
     const surchargeIva = surcharge * IVA_RATE;
     return surcharge + surchargeIva;
@@ -185,6 +188,7 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
     setMpStatus('');
     setMpPaymentIntent(null);
     setMpError('');
+    setMpWebSuccess(false);
     if (mpPollingRef.current) {
       clearInterval(mpPollingRef.current);
       mpPollingRef.current = null;
@@ -306,6 +310,37 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
     setPinPadAction(null);
   }, [pinPadAction, showSuccess]);
 
+  const finishSale = useCallback(async (pmOverride?: string) => {
+    try {
+      const pMethod = pmOverride || (paymentMethod === 'tarjeta_manual' ? 'tarjeta' : paymentMethod);
+      const sale = await registerSale({
+        items,
+        subtotal,
+        iva,
+        cardSurcharge,
+        total,
+        paymentMethod: pMethod,
+        amountPaid: paymentMethod === 'efectivo' ? parseFloat(amountPaid) || 0 : total,
+        change: paymentMethod === 'efectivo' ? change : 0,
+        cajero: currentUserRole?.globalId || currentUserRole?.employeeNumber || '',
+        pointsEarned,
+        pointsUsed,
+      } as any);
+
+      if (paymentMethod === 'fiado') {
+        const itemDescriptions = items.map((i) => `${i.productName} x${i.quantity}`).join(', ');
+        await registerFiado(clienteId, total, itemDescriptions, sale.folio, items);
+        const cliente = clientes.find((c) => c.id === clienteId);
+        showSuccess(`Venta ${sale.folio} registrada como fiado para ${cliente?.name || 'cliente'}. Total: ${formatCurrency(sale.total)}`);
+      } else {
+        showSuccess(`Venta ${sale.folio} registrada. Total: ${formatCurrency(sale.total)}`);
+      }
+      setCompletedSale(sale);
+    } catch (error) {
+      showError('Error al registrar la venta');
+    }
+  }, [items, paymentMethod, amountPaid, total, subtotal, iva, cardSurcharge, change, registerSale, currentUserRole, pointsEarned, pointsUsed, registerFiado, clienteId, clientes, showSuccess, showError]);
+
   const handleSale = useCallback(async () => {
     if (items.length === 0) {
       showError('Agrega al menos un producto a la venta');
@@ -341,38 +376,14 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
       handleMPTerminalPaymentRef.current?.();
       return;
     }
-
-    try {
-      // Register the sale
-      const sale = await registerSale({
-        items,
-        subtotal,
-        iva,
-        cardSurcharge,
-        total,
-        paymentMethod: paymentMethod === 'tarjeta_manual' ? 'tarjeta' : paymentMethod,
-        amountPaid: paymentMethod === 'efectivo' ? parseFloat(amountPaid) || 0 : total,
-        change: paymentMethod === 'efectivo' ? change : 0,
-        cajero: currentUserRole?.globalId || currentUserRole?.employeeNumber || '',
-        pointsEarned,
-        pointsUsed,
-      } as any); // cast as any to include points in Omit type temporarily or update Omit
-
-      // If fiado, also register the fiado transaction with itemized products
-      if (paymentMethod === 'fiado') {
-        const itemDescriptions = items.map((i) => `${i.productName} x${i.quantity}`).join(', ');
-        await registerFiado(clienteId, total, itemDescriptions, sale.folio, items);
-        const cliente = clientes.find((c) => c.id === clienteId);
-        showSuccess(`Venta ${sale.folio} registrada como fiado para ${cliente?.name || 'cliente'}. Total: ${formatCurrency(sale.total)}`);
-      } else {
-        showSuccess(`Venta ${sale.folio} registrada. Total: ${formatCurrency(sale.total)}`);
-      }
-
-      setCompletedSale(sale);
-    } catch (error) {
-      showError('Error al registrar la venta');
+    // If Web payment, the Brick handles it and onSuccess will call finishSale automatically
+    if (paymentMethod === 'tarjeta_web') {
+      showError('Por favor completa el pago interactivo en pantalla.');
+      return;
     }
-  }, [items, paymentMethod, amountPaid, total, subtotal, iva, cardSurcharge, change, registerSale, registerFiado, clienteId, clientes, showSuccess, showError, mpConfig, currentUserRole?.employeeNumber]);
+
+    await finishSale();
+  }, [items, paymentMethod, amountPaid, total, clienteId, clientes, pointsAvailable, mpConfig.enabled, showError, finishSale]);
 
   // ===== Mercado Pago Terminal Flow =====
   const handleMPTerminalPayment = useCallback(async () => {
@@ -1142,6 +1153,38 @@ ${centerLine(`TC: ${tcCode}`)}
                         <Text as="span" fontWeight="bold">Cambio:</Text>
                         <Text as="span" variant="headingMd" fontWeight="bold">{formatCurrency(change)}</Text>
                       </InlineStack>
+                    </Banner>
+                  )}
+                </BlockStack>
+              )}
+              {paymentMethod === 'tarjeta_web' && (
+                <BlockStack gap="400">
+                  <Banner tone="info">
+                    <p>
+                      El cliente puede pasar su tarjeta, pagar con saldo MercadoPago o usar código QR sin necesidad de terminal física.
+                    </p>
+                  </Banner>
+                  {!mpConfig.publicKey && (
+                    <Banner tone="critical">
+                      <p>Para usar esta función, necesitas configurar tu 'Public Key' de Mercado Pago en Configuración.</p>
+                    </Banner>
+                  )}
+                  {mpConfig.publicKey && mpConfig.accessToken && total > 0 && !mpWebSuccess && (
+                    <MercadoPagoPaymentBrick
+                      amount={total}
+                      externalReference={`venta-${Date.now()}`}
+                      publicKey={mpConfig.publicKey}
+                      accessToken={mpConfig.accessToken}
+                      onSuccess={() => {
+                        setMpWebSuccess(true);
+                        finishSale('tarjeta_web');
+                      }}
+                      onError={(e) => showError(e)}
+                    />
+                  )}
+                  {mpWebSuccess && (
+                    <Banner tone="success">
+                      <p>Pago procesado correctamente mediante Mercado Pago Web.</p>
                     </Banner>
                   )}
                 </BlockStack>

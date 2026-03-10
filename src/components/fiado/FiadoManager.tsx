@@ -38,6 +38,7 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
   RefreshIcon,
+  PersonFilledIcon,
 } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { CustomerProfile } from './CustomerProfile';
@@ -199,8 +200,12 @@ export function FiadoManager() {
   return (
     <Page
       fullWidth
-      title="Clientes"
-      titleMetadata={<Icon source={PersonIcon} tone="subdued" />}
+      title={(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Icon source={PersonFilledIcon} tone="base" />
+          <span>Clientes</span>
+        </div>
+      ) as any}
       primaryAction={
         canEditClients ? {
           content: 'Agregar cliente',

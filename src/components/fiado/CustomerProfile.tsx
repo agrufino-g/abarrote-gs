@@ -36,6 +36,7 @@ import {
     ImportIcon,
     ArchiveIcon,
     CashDollarIcon,
+    PersonFilledIcon,
 } from '@shopify/polaris-icons';
 import { useState, useMemo } from 'react';
 import { formatCurrency } from '@/lib/utils';
@@ -82,8 +83,12 @@ export function CustomerProfile({ cliente, transactions, onBack }: CustomerProfi
         <Page
             fullWidth
             backAction={{ content: 'Clientes', onAction: onBack }}
-            title={cliente.name.toUpperCase()}
-            titleMetadata={<Icon source={PersonIcon} tone="subdued" />}
+            title={(
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Icon source={PersonFilledIcon} tone="base" />
+                    <span>{cliente.name.toUpperCase()}</span>
+                </div>
+            ) as any}
             actionGroups={[
                 {
                     title: 'Más acciones',

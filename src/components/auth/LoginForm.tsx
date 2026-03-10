@@ -49,7 +49,7 @@ export function LoginForm() {
     } catch (error: any) {
       console.error('Microsoft SignIn error:', error);
       if (error?.code === 'auth/account-exists-with-different-credential') {
-        toast.showError('Esta cuenta ya requiere contraseña o otro método. Inicia sesión con correo primero.');
+        toast.showError('Ya existe una cuenta con este correo. Inicia sesión con contraseña y ve a "Perfil" para vincular.');
       } else if (error?.message?.includes('not configured as a multi-tenant application')) {
         toast.showError('Error: Configura el NEXT_PUBLIC_MICROSOFT_TENANT_ID en tu archivo .env.local, o convierte tu app de Azure en Multi-Tenant.');
       } else {
@@ -170,16 +170,16 @@ export function LoginForm() {
                 loading={isMicrosoftLoading}
                 disabled={isLoading}
                 size="large"
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                icon={
                   <svg width="18" height="18" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
                     <path fill="#f25022" d="M1 1h9v9H1z" />
                     <path fill="#00a4ef" d="M1 11h9v9H1z" />
                     <path fill="#7fba00" d="M11 1h9v9h-9z" />
                     <path fill="#ffb900" d="M11 11h9v9h-9z" />
                   </svg>
-                  <span>Iniciar sesión con Microsoft</span>
-                </div>
+                }
+              >
+                Iniciar sesión con Microsoft
               </Button>
             </BlockStack>
           </Box>
