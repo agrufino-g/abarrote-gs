@@ -19,10 +19,12 @@ import {
   Checkbox,
   Banner,
 } from '@shopify/polaris';
-import { PlusIcon } from '@shopify/polaris-icons';
+import { PlusIcon, ExportIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { formatCurrency } from '@/lib/utils';
+import { GenericExportModal } from '@/components/inventory/ShopifyModals';
+import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
 import type { GastoCategoria } from '@/types';
 
 const categoriaOptions: { label: string; value: GastoCategoria | '' }[] = [
@@ -53,6 +55,7 @@ export function GastosManager() {
   const { showSuccess, showError } = useToast();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [filterCategoria, setFilterCategoria] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
 
@@ -235,9 +238,14 @@ export function GastosManager() {
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="h2" variant="headingMd">Registro de Gastos</Text>
-              <Button icon={PlusIcon} variant="primary" onClick={() => setAddOpen(true)}>
-                Nuevo Gasto
-              </Button>
+              <InlineStack gap="200">
+                <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>
+                  Exportar
+                </Button>
+                <Button icon={PlusIcon} variant="primary" onClick={() => setAddOpen(true)}>
+                  Nuevo Gasto
+                </Button>
+              </InlineStack>
             </InlineStack>
 
             <InlineStack gap="200" align="start" blockAlign="end">
@@ -405,6 +413,31 @@ export function GastosManager() {
           </FormLayout>
         </Modal.Section>
       </Modal>
+
+      <GenericExportModal
+        open={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        title="Exportar gastos"
+        exportName="gastos"
+        onExport={(format) => {
+          const exportData = filteredGastos.map(g => ({
+            "Fecha": new Date(g.fecha).toLocaleDateString('es-MX'),
+            "Concepto": g.concepto,
+            "Categoría": categoriaBadge[g.categoria]?.label || g.categoria,
+            "Monto": g.monto,
+            "Notas": g.notas || 'N/A',
+            "Comprobante": g.comprobante ? 'Sí' : 'No'
+          }));
+          const filename = `Gastos_Kiosco_${new Date().toISOString().split('T')[0]}`;
+          if (format === 'pdf') {
+            generatePDF('Reporte de Gastos', exportData as Record<string, unknown>[], `${filename}.pdf`);
+          } else {
+            const csvContent = generateCSV(exportData as Record<string, unknown>[], true);
+            const mime = format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/vnd.ms-excel;charset=utf-8;';
+            downloadFile(csvContent, `${filename}.csv`, mime);
+          }
+        }}
+      />
     </>
   );
 }

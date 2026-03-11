@@ -45,6 +45,8 @@ import { CustomerProfile } from './CustomerProfile';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { formatCurrency } from '@/lib/utils';
 import { usePermissions } from '@/lib/usePermissions';
+import { GenericExportModal, ClientImportModal } from '@/components/inventory/ShopifyModals';
+import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
 import type { Cliente, FiadoTransaction } from '@/types';
 
 export function FiadoManager() {
@@ -58,6 +60,8 @@ export function FiadoManager() {
   const [addClienteOpen, setAddClienteOpen] = useState(false);
   const [fiadoOpen, setFiadoOpen] = useState(false);
   const [abonoOpen, setAbonoOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [viewingProfile, setViewingProfile] = useState<Cliente | null>(null);
 
   // Sort state
@@ -220,8 +224,8 @@ export function FiadoManager() {
             useDashboardStore.getState().fetchDashboardData();
           },
         },
-        { content: 'Exportar', icon: ExportIcon },
-        { content: 'Importar', icon: ImportIcon },
+        { content: 'Exportar', icon: ExportIcon, onAction: () => setIsExportOpen(true) },
+        { content: 'Importar', icon: ImportIcon, onAction: () => setIsImportOpen(true) },
       ]}
     >
       <BlockStack gap="400">
@@ -510,6 +514,37 @@ export function FiadoManager() {
           </FormLayout>
         </Modal.Section>
       </Modal>
+
+      <GenericExportModal
+        open={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        title="Exportar clientes"
+        exportName="clientes"
+        onExport={(format) => {
+          const exportData = filteredClientes.map(c => ({
+            "Nombre Completo": c.name,
+            "Teléfono": c.phone || 'N/A',
+            "Dirección": c.address || 'N/A',
+            "Límite de Crédito": c.creditLimit,
+            "Crédito Utilizado": c.currentBalance,
+            "Crédito Disponible": Math.max(0, c.creditLimit - c.currentBalance)
+          }));
+          const filename = `Clientes_Kiosco_${new Date().toISOString().split('T')[0]}`;
+          if (format === 'pdf') {
+            generatePDF('Reporte de Clientes y Créditos', exportData as Record<string, unknown>[], `${filename}.pdf`);
+          } else {
+            const csvContent = generateCSV(exportData as Record<string, unknown>[], true);
+            const mime = format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/vnd.ms-excel;charset=utf-8;';
+            downloadFile(csvContent, `${filename}.csv`, mime);
+          }
+        }}
+      />
+
+      <ClientImportModal
+        open={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onImportSuccess={() => useDashboardStore.getState().fetchDashboardData()}
+      />
     </Page>
   );
 }

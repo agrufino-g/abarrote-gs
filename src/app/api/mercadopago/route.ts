@@ -71,9 +71,13 @@ export async function POST(req: Request) {
             // 3. Procesar Tarjetas por Software (Payment Brick React SDK)
             case 'process_payment': {
                 const payment = new Payment(client);
+
+                // Formateamos correctamente el monto por si frontend lo manda sin decimales o nulo
+                const amountVal = Number(data.transaction_amount || 0);
+
                 const response = await payment.create({
                     body: {
-                        transaction_amount: Number(data.transaction_amount.toFixed(2)),
+                        transaction_amount: amountVal,
                         description: data.description || 'Venta Kiosco Software',
                         payment_method_id: data.payment_method_id,
                         payer: data.payer,

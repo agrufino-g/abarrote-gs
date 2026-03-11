@@ -14,8 +14,11 @@ import {
   Banner,
   Divider,
 } from '@shopify/polaris';
+import { ExportIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
+import { GenericExportModal } from '@/components/inventory/ShopifyModals';
+import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
 import type { PedidoRecord } from '@/types';
 
 const estadoBadge: Record<PedidoRecord['estado'], { tone: 'attention' | 'info' | 'success'; label: string }> = {
@@ -31,6 +34,7 @@ export function PedidosManager() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedPedido, setSelectedPedido] = useState<PedidoRecord | null>(null);
   const [receiving, setReceiving] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
   const sortedPedidos = useMemo(() => {
     const order = { pendiente: 0, enviado: 1, recibido: 2 };
@@ -69,10 +73,13 @@ export function PedidosManager() {
         <Card>
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">Pedidos a Proveedores</Text>
-              {pendingCount > 0 && (
-                <Badge tone="attention">{`${pendingCount} pendientes`}</Badge>
-              )}
+              <InlineStack gap="300" blockAlign="center">
+                <Text as="h2" variant="headingMd">Pedidos a Proveedores</Text>
+                {pendingCount > 0 && (
+                  <Badge tone="attention">{`${pendingCount} pendientes`}</Badge>
+                )}
+              </InlineStack>
+              <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>Exportar</Button>
             </InlineStack>
             <Text as="p" variant="bodySm" tone="subdued">
               Administra el estado de tus pedidos. Al marcar como &quot;Recibido&quot; se actualiza automáticamente el inventario.
@@ -191,6 +198,31 @@ export function PedidosManager() {
           </Modal.Section>
         </Modal>
       )}
+
+      <GenericExportModal
+        open={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        title="Exportar pedidos"
+        exportName="pedidos"
+        onExport={(format) => {
+          const exportData = sortedPedidos.map(p => ({
+            "Proveedor": p.proveedor,
+            "Fecha": new Date(p.fecha).toLocaleDateString('es-MX'),
+            "Productos Solicitados": p.productos.length,
+            "Unidades Totales": p.productos.reduce((sum, pr) => sum + pr.cantidad, 0),
+            "Estado": estadoBadge[p.estado].label,
+            "Notas Especiales": p.notas || 'N/A'
+          }));
+          const filename = `Pedidos_Kiosco_${new Date().toISOString().split('T')[0]}`;
+          if (format === 'pdf') {
+            generatePDF('Reporte de Pedidos', exportData as Record<string, unknown>[], `${filename}.pdf`);
+          } else {
+            const csvContent = generateCSV(exportData as Record<string, unknown>[], true);
+            const mime = format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/vnd.ms-excel;charset=utf-8;';
+            downloadFile(csvContent, `${filename}.csv`, mime);
+          }
+        }}
+      />
     </>
   );
 }

@@ -147,26 +147,61 @@ export function downloadFile(content: string, filename: string, mimeType: string
 }
 
 // Utilidad para generar PDF
-export function generatePDF(
+export async function generatePDF(
   title: string,
   data: Record<string, unknown>[],
   filename: string
-): void {
-  const doc = new jsPDF();
+): Promise<void> {
+  const doc = new jsPDF({ orientation: 'landscape' });
 
-  // Título y Metadatos
-  doc.setFontSize(18);
-  doc.setTextColor(5, 24, 210); // Color azul solicitado #0518d2
-  doc.text(title, 14, 22);
+  // 1. Cargar el Logo desde la red y convertirlo a PNG mediante canvas
+  try {
+    const img = new Image();
+    img.src = '/logo_for_kiosko_login.svg';
+    await new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve; // Si falla, continuamos sin logo
+    });
 
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(`Reporte generado el: ${new Date().toLocaleString()}`, 14, 30);
+    if (img.width > 0) {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const imgData = canvas.toDataURL('image/png');
+        doc.addImage(imgData, 'PNG', 14, 15, 30, (30 * img.height) / img.width);
+      }
+    }
+  } catch (err) {
+    console.error('Error cargando el logo en el PDF', err);
+  }
+
+  // Título y Metadatos al estilo Shopify (Minimalista y Limpio)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15); // Tamaño mucho más profesional y sobrio
+  doc.setTextColor(33, 35, 38); // Color gris oscuro carbón de Shopify
+
+  // Dibujamos el texto un poco más a la derecha para dejar espacio al logo
+  doc.text(title, 50, 22);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(109, 113, 117); // Texto secundario gris claro
+  doc.text(`Generado el: ${new Date().toLocaleString()}`, 283, 22, { align: 'right' });
+
+  // Línea separadora elegante más compactada
+  doc.setDrawColor(228, 229, 231);
+  doc.setLineWidth(0.5);
+  doc.line(14, 30, 283, 30);
 
   if (data.length > 0) {
     const headers = Object.keys(data[0]);
-    // Mapear headers a nombres más legibles si es necesario, pero por ahora usamos las llaves
-    const tableHeaders = headers.map(h => h.charAt(0).toUpperCase() + h.slice(1).replace(/([A-Z])/g, ' $1'));
+    // Transformamos los títulos a MAYÚSCULAS
+    const tableHeaders = headers.map(h =>
+      (h.charAt(0).toUpperCase() + h.slice(1).replace(/([A-Z])/g, ' $1')).toUpperCase()
+    );
 
     const body = data.map((item) =>
       headers.map((h) => {
@@ -177,13 +212,29 @@ export function generatePDF(
     );
 
     autoTable(doc, {
-      startY: 35,
+      startY: 35, // La tabla empieza más alto, ahorrando espacio
       head: [tableHeaders],
       body: body,
-      theme: 'striped',
-      headStyles: { fillColor: [5, 24, 210] }, // #0518d2
-      styles: { fontSize: 8, cellPadding: 2 },
-      margin: { top: 35 },
+      theme: 'plain', // Quitamos el estilo antiguo
+      styles: {
+        fontSize: 8, // Letra un poco más pequeña para ahorrar espacio
+        cellPadding: 1.5, // Padding hiper reducido para filas delgadas
+        font: 'helvetica',
+        textColor: [33, 35, 38], // Texto oscuro para el cuerpo
+        lineColor: [228, 229, 231],
+        lineWidth: 0.1,
+      },
+      headStyles: {
+        fillColor: [244, 246, 248], // Fondo azul-grisáceo muy sutil para destacar
+        textColor: [0, 68, 148], // Azul oscuro corporativo y profesional
+        fontStyle: 'bold',
+        lineColor: [228, 229, 231],
+        lineWidth: { bottom: 0.5 } // Solo línea debajo del header
+      },
+      alternateRowStyles: {
+        fillColor: [252, 252, 252], // Estilo cebra hiper suave
+      },
+      margin: { top: 40, left: 14, right: 14, bottom: 20 },
     });
   }
 
@@ -211,6 +262,7 @@ export function exportDashboardData(
 
       if (options.format === 'pdf') {
         const titleLabel = sectionOptions.find(o => o.value === section)?.label || section;
+        // As it's async now, we call it in background (void) or handle properly, but here we can just fire and forget.
         generatePDF(titleLabel, sectionData as Record<string, unknown>[], filename);
       } else {
         const csv = generateCSV(sectionData as Record<string, unknown>[], options.includeHeaders);

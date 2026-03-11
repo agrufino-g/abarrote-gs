@@ -65,8 +65,8 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
     if (can(permissions, 'sales.view')) {
       subNav.push({
         url: '#',
-        label: 'Historial',
-        matches: selected === 'sales-history',
+        label: 'Lista de folios',
+        matches: selected === 'sales-history' || selected === 'sales',
         onClick: () => onSelect('sales-history'),
       });
     }
@@ -81,10 +81,11 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
     const isSel = SALES_SECTIONS.includes(selected);
     mainItems.push({
       url: '#',
-      label: 'Pedidos',
+      label: 'Ventas',
       icon: isSel ? OrderIcon : OrderFilledIcon,
       selected: isSel,
-      onClick: () => onSelect('sales'),
+      expanded: isSel,
+      onClick: () => onSelect('sales-history'),
       ...(subNav.length > 0 ? { subNavigationItems: subNav } : {}),
     });
   }
@@ -102,19 +103,13 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
       subNavigationItems: [
         {
           url: '#',
-          label: 'Colecciones',
-          matches: selected === 'catalog',
-          onClick: () => onSelect('catalog'),
-        },
-        {
-          url: '#',
-          label: 'Inventario',
+          label: 'Inventario General',
           matches: selected === 'inventory',
           onClick: () => onSelect('inventory'),
         },
         {
           url: '#',
-          label: 'Órdenes de compra',
+          label: 'Reposición (Pedidos)',
           matches: selected === 'pedidos',
           onClick: () => onSelect('pedidos'),
         },
@@ -166,7 +161,7 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
     if (can(permissions, 'pedidos.view')) {
       subNav.push({
         url: '#',
-        label: 'Pedidos',
+        label: 'Pedidos a Proveedor',
         matches: selected === 'pedidos',
         onClick: () => onSelect('pedidos'),
       });

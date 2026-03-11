@@ -17,10 +17,12 @@ import {
   Banner,
 } from '@shopify/polaris';
 import { FormSelect } from '@/components/ui/FormSelect';
-import { SearchIcon, PrintIcon, DeleteIcon } from '@shopify/polaris-icons';
+import { SearchIcon, PrintIcon, DeleteIcon, ExportIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/components/notifications/ToastProvider';
+import { GenericExportModal } from '@/components/inventory/ShopifyModals';
+import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
 import type { SaleRecord } from '@/types';
 
 function paymentBadge(method: string) {
@@ -48,6 +50,7 @@ export function SalesHistory() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
   const filteredSales = useMemo(() => {
     return saleRecords
@@ -128,8 +131,11 @@ export function SalesHistory() {
       <Card>
         <BlockStack gap="400">
           <InlineStack align="space-between" blockAlign="center">
-            <Text as="h2" variant="headingMd">Historial de Ventas</Text>
-            <Badge tone="info">{`${filteredSales.length} ventas — Total: ${formatCurrency(totalFiltered)}`}</Badge>
+            <InlineStack gap="300" blockAlign="center">
+              <Text as="h2" variant="headingMd">Historial de Ventas</Text>
+              <Badge tone="info">{`${filteredSales.length} ventas — Total: ${formatCurrency(totalFiltered)}`}</Badge>
+            </InlineStack>
+            <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>Exportar</Button>
           </InlineStack>
 
           {/* Filters */}
@@ -305,6 +311,35 @@ export function SalesHistory() {
           </Modal.Section>
         </Modal>
       )}
+
+      <GenericExportModal
+        open={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        title="Exportar ventas"
+        exportName="ventas"
+        onExport={(format) => {
+          const exportData = filteredSales.map(s => ({
+            "Folio": s.folio,
+            "Fecha": new Date(s.date).toLocaleDateString('es-MX'),
+            "Hora": new Date(s.date).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+            "Cajero": s.cajero,
+            "Total Artículos": s.items.length,
+            "Subtotal": s.subtotal,
+            "IVA": s.iva,
+            "Total": s.total,
+            "Método de Pago": s.paymentMethod,
+            "Cancelada / Devuelta": 'No' // Si hubiera flag sería aquí
+          }));
+          const filename = `Ventas_Kiosco_${new Date().toISOString().split('T')[0]}`;
+          if (format === 'pdf') {
+            generatePDF('Reporte de Ventas', exportData as Record<string, unknown>[], `${filename}.pdf`);
+          } else {
+            const csvContent = generateCSV(exportData as Record<string, unknown>[], true);
+            const mime = format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/vnd.ms-excel;charset=utf-8;';
+            downloadFile(csvContent, `${filename}.csv`, mime);
+          }
+        }}
+      />
     </>
   );
 }

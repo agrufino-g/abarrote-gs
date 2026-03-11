@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Card,
   IndexTable,
@@ -9,33 +9,93 @@ import {
   BlockStack,
   InlineStack,
   Button,
-  ButtonGroup,
-  TextField,
   Icon,
   Thumbnail,
+  IndexFilters,
+  useSetIndexFiltersMode,
+  IndexFiltersMode,
+  TabProps,
+  ChoiceList,
+  RangeSlider,
+  useIndexResourceState,
 } from '@shopify/polaris';
-import { SearchIcon, ImageIcon } from '@shopify/polaris-icons';
+import { ProductIcon, ImageIcon } from '@shopify/polaris-icons';
 import { Product } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { ProductExportModal, ProductImportModal } from './ShopifyModals';
+import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
 
 interface AllProductsTableProps {
   products: Product[];
   onProductClick?: (product: Product) => void;
   onRegisterProduct?: () => void;
-  onExport?: () => void;
   onCreatePedido?: () => void;
   onDeleteProduct?: (product: Product) => void;
   onUpdateProduct?: (product: Product) => void;
+  onImportSuccess?: () => void;
 }
 
-export function AllProductsTable({ products, onProductClick, onRegisterProduct, onExport, onCreatePedido, onDeleteProduct, onUpdateProduct }: AllProductsTableProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+export function AllProductsTable({ products, onProductClick, onRegisterProduct, onCreatePedido, onDeleteProduct, onUpdateProduct, onImportSuccess }: AllProductsTableProps) {
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [itemStrings, setItemStrings] = useState([
+    'Todos',
+    'Activos',
+    'Borradores',
+    'Archivados',
+  ]);
+  const [selected, setSelected] = useState(0);
+
+  const tabs: TabProps[] = itemStrings.map((item, index) => ({
+    content: item,
+    index,
+    onAction: () => { },
+    id: `${item}-${index}`,
+    isLocked: index === 0,
+    actions:
+      index === 0
+        ? []
+        : [
+          {
+            type: 'rename',
+            onAction: () => { },
+            onPrimaryAction: async (value: string): Promise<boolean> => {
+              const newItemsStrings = tabs.map((item, idx) => {
+                if (idx === index) return value;
+                return item.content;
+              });
+              setItemStrings(newItemsStrings);
+              return true;
+            },
+          },
+          {
+            type: 'delete',
+            onPrimaryAction: async () => {
+              setItemStrings((prev) => prev.filter((_, idx) => idx !== index));
+              setSelected(0);
+              return true;
+            },
+          },
+        ],
+  }));
+
+  const [sortSelected, setSortSelected] = useState(['Producto asc']);
+  const { mode, setMode } = useSetIndexFiltersMode(IndexFiltersMode.Filtering);
+  const [queryValue, setQueryValue] = useState('');
 
   const filteredProducts = products.filter((product) =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.barcode.includes(searchQuery)
+    product.name.toLowerCase().includes(queryValue.toLowerCase()) ||
+    product.sku.toLowerCase().includes(queryValue.toLowerCase()) ||
+    product.barcode.includes(queryValue)
   );
+
+  const resourceName = {
+    singular: 'producto',
+    plural: 'productos',
+  };
+
+  const { selectedResources, allResourcesSelected, handleSelectionChange } =
+    useIndexResourceState(filteredProducts);
 
   const getStockBadge = (product: Product) => {
     if (product.currentStock === 0) {
@@ -52,6 +112,7 @@ export function AllProductsTable({ products, onProductClick, onRegisterProduct, 
       id={product.id}
       key={product.id}
       position={index}
+      selected={selectedResources.includes(product.id)}
       onClick={() => onProductClick?.(product)}
     >
       <IndexTable.Cell>
@@ -123,86 +184,133 @@ export function AllProductsTable({ products, onProductClick, onRegisterProduct, 
       </IndexTable.Cell>
 
       <IndexTable.Cell>
-        <InlineStack gap="200">
-          <Button
-            size="slim"
-            onClick={() => onUpdateProduct?.(product)}
-          >
-            Actualizar
-          </Button>
-          <Button
-            size="slim"
-            tone="critical"
-            onClick={() => onDeleteProduct?.(product)}
-          >
-            Eliminar
-          </Button>
-        </InlineStack>
+        <div onClick={(e) => e.stopPropagation()}>
+          <InlineStack gap="200">
+            <Button size="slim" onClick={() => onUpdateProduct?.(product)}>Actualizar</Button>
+            <Button size="slim" tone="critical" onClick={() => onDeleteProduct?.(product)}>Eliminar</Button>
+          </InlineStack>
+        </div>
       </IndexTable.Cell>
     </IndexTable.Row>
   ));
 
   return (
-    <Card>
-      <BlockStack gap="400">
-        <InlineStack align="space-between">
-          <BlockStack gap="100">
-            <Text as="h3" variant="headingMd">
-              Todos los Productos
-            </Text>
-            <Text as="p" variant="bodySm" tone="subdued">
-              {products.length} productos agregados
-            </Text>
-          </BlockStack>
-
-          <ButtonGroup>
-            <Button size="slim" onClick={onExport}>Exportar</Button>
-            {onRegisterProduct && (
-              <Button variant="primary" tone="success" size="slim" onClick={onRegisterProduct}>
-                Registrar Producto
-              </Button>
-            )}
-            <Button variant="primary" size="slim" onClick={onCreatePedido}>
-              Crear pedido
-            </Button>
-          </ButtonGroup>
+    <BlockStack gap="500">
+      {/* HEADER IDÉNTICO A SHOPIFY */}
+      <InlineStack align="space-between" blockAlign="center">
+        <InlineStack gap="200" blockAlign="center">
+          <Icon source={ProductIcon} tone="base" />
+          <Text as="h2" variant="headingLg" fontWeight="bold">
+            Productos
+          </Text>
         </InlineStack>
 
-        <TextField
-          label=""
-          labelHidden
-          placeholder="Buscar por nombre, SKU o código de barras..."
-          value={searchQuery}
-          onChange={setSearchQuery}
-          prefix={<Icon source={SearchIcon} />}
-          autoComplete="off"
+        <InlineStack gap="200">
+          <Button onClick={() => setIsExportOpen(true)}>Exportar</Button>
+          <Button onClick={() => setIsImportOpen(true)}>Importar</Button>
+          <Button disclosure>Más acciones</Button>
+          {onRegisterProduct && (
+            <Button variant="primary" tone="success" onClick={onRegisterProduct}>
+              Agregar producto
+            </Button>
+          )}
+        </InlineStack>
+      </InlineStack>
+
+      <Card padding="0">
+        <IndexFilters
+          sortOptions={[
+            { label: 'Producto', value: 'Producto asc', directionLabel: 'A-Z' },
+            { label: 'Producto', value: 'Producto desc', directionLabel: 'Z-A' },
+            { label: 'Categoría', value: 'Categoría asc', directionLabel: 'A-Z' },
+          ]}
+          sortSelected={sortSelected}
+          queryValue={queryValue}
+          queryPlaceholder="Buscar productos..."
+          onQueryChange={setQueryValue}
+          onQueryClear={() => setQueryValue('')}
+          onSort={setSortSelected}
+          cancelAction={{
+            onAction: () => { },
+            disabled: false,
+            loading: false,
+          }}
+          tabs={tabs}
+          selected={selected}
+          onSelect={setSelected}
+          canCreateNewView
+          onCreateNewView={async (value) => {
+            setItemStrings([...itemStrings, value]);
+            setSelected(itemStrings.length);
+            return true;
+          }}
+          mode={mode}
+          setMode={setMode}
+          filters={[]}
+          appliedFilters={[]}
+          onClearAll={() => { }}
         />
 
-        {filteredProducts.length === 0 ? (
-          <BlockStack gap="200" inlineAlign="center">
-            <Text as="p" variant="bodyMd" tone="subdued">
-              {searchQuery ? 'No se encontraron productos' : 'No hay productos registrados'}
-            </Text>
-          </BlockStack>
-        ) : (
-          <IndexTable
-            itemCount={filteredProducts.length}
-            headings={[
-              { title: 'Producto' },
-              { title: 'Código de Barras' },
-              { title: 'Categoría' },
-              { title: 'Stock' },
-              { title: 'Precios' },
-              { title: 'Vencimiento' },
-              { title: 'Estado' },
-              { title: 'Acciones' },
-            ]}
-            selectable={false}
-          >
-            {rowMarkup}
-          </IndexTable>
-        )}
-      </BlockStack>
-    </Card>
+        <IndexTable
+          resourceName={resourceName}
+          itemCount={filteredProducts.length}
+          selectedItemsCount={
+            allResourcesSelected ? 'All' : selectedResources.length
+          }
+          onSelectionChange={handleSelectionChange}
+          headings={[
+            { title: 'Producto' },
+            { title: 'Código de Barras' },
+            { title: 'Categoría' },
+            { title: 'Stock' },
+            { title: 'Precios' },
+            { title: 'Vencimiento' },
+            { title: 'Estado' },
+            { title: 'Acciones' },
+          ]}
+        >
+          {rowMarkup}
+        </IndexTable>
+      </Card>
+
+      <InlineStack align="center">
+        <Button variant="monochromePlain">Más información sobre productos</Button>
+      </InlineStack>
+
+      {/* MODALES DE SHOPIFY */}
+      <ProductExportModal
+        open={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        onExport={(format) => {
+          const exportData = filteredProducts.map(p => ({
+            "Nombre Corto": p.name,
+            "SKU": p.sku,
+            "Código de Barras": p.barcode,
+            "Categoría": p.category,
+            "Inventario Actual": p.currentStock,
+            "Inventario Mínimo": p.minStock,
+            "Costo Inicial": p.costPrice,
+            "Precio Público": p.unitPrice,
+            "Vencimiento": p.expirationDate ? formatDate(p.expirationDate) : 'N/A'
+          }));
+
+          const filename = `Inventario_Productos_${new Date().toISOString().split('T')[0]}`;
+
+          if (format === 'pdf') {
+            generatePDF('Reporte de Inventario Kiosco', exportData as Record<string, unknown>[], `${filename}.pdf`);
+          } else {
+            const csvContent = generateCSV(exportData as Record<string, unknown>[], true);
+            const mime = format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/vnd.ms-excel;charset=utf-8;';
+            downloadFile(csvContent, `${filename}.csv`, mime);
+          }
+        }}
+      />
+
+      <ProductImportModal
+        open={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onImportSuccess={onImportSuccess}
+      />
+    </BlockStack>
   );
 }

@@ -400,8 +400,7 @@ export function DashboardHome() {
         return (
           <BlockStack gap="400">
             <AdvancedFilters onFiltersChange={handleFiltersChange} />
-            <InventoryTable alerts={filteredAlerts} onProductClick={handleProductClick} />
-            <AllProductsTable products={products} onProductClick={handleProductClick} onRegisterProduct={() => setRegisterProductOpen(true)} onExport={handleTableExport} onCreatePedido={handleTableCreatePedido} onDeleteProduct={handleDeleteProduct} onUpdateProduct={handleOpenUpdateProduct} />
+            <AllProductsTable products={products} onProductClick={handleProductClick} onRegisterProduct={() => setRegisterProductOpen(true)} onCreatePedido={handleTableCreatePedido} onDeleteProduct={handleDeleteProduct} onUpdateProduct={handleOpenUpdateProduct} onImportSuccess={fetchDashboardData} />
           </BlockStack>
         );
       case 'inventory-audit': return <InventoryAuditView />;

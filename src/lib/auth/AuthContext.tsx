@@ -54,6 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(user);
       setLoading(false);
       await syncSessionCookie(user);
+
+      if (user) {
+        if (!localStorage.getItem('kiosko_login_time')) {
+          localStorage.setItem('kiosko_login_time', Date.now().toString());
+        }
+      } else {
+        localStorage.removeItem('kiosko_login_time');
+      }
     });
     return unsubscribe;
   }, []);
@@ -74,9 +82,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     document.cookie = '__session=; path=/; max-age=0';
+    localStorage.removeItem('kiosko_login_time');
     await firebaseSignOut(auth);
     router.push('/auth/login');
   }, [router]);
+
+  // Checar la expiración de sesión cada minuto (6 horas = 21600000 ms)
+  useEffect(() => {
+    if (!user) return;
+
+    const checkExpiration = () => {
+      const loginTimeStr = localStorage.getItem('kiosko_login_time');
+      if (loginTimeStr) {
+        const loginTime = parseInt(loginTimeStr, 10);
+        const SIX_HOURS = 6 * 60 * 60 * 1000;
+
+        if (Date.now() - loginTime > SIX_HOURS) {
+          console.warn('La sesión ha expirado por tiempo máximo (6 horas). Cerrando sesión...');
+          handleSignOut();
+        }
+      }
+    };
+
+    checkExpiration();
+    const expInterval = setInterval(checkExpiration, 60 * 1000); // 1 min check
+
+    return () => clearInterval(expInterval);
+  }, [user, handleSignOut]);
 
   const getIdToken = useCallback(async (): Promise<string | null> => {
     if (!user) return null;

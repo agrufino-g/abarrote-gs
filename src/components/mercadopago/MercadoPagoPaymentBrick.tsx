@@ -36,11 +36,34 @@ export function MercadoPagoPaymentBrick({
         preferenceId: undefined, // Si quisiéramos usar preferenceId
     };
 
-    const customization = {
+    const customization: any = {
+        visual: {
+            style: {
+                theme: 'default' as const, // Tema claro por defecto (Flat/Clean)
+                customVariables: {
+                    baseColor: '#005bd3', // Azul Polaris (Botón principal típico de Shopify Checkout)
+                    formBackgroundColor: '#ffffff', // Fondo completamente blanco y limpio
+                    textPrimaryColor: '#202223', // Texto principal (Negro/Gris muy oscuro de Shopify)
+                    textSecondaryColor: '#6d7175', // Texto secundario/ayuda (Gris atenuado de Shopify)
+                    outlinePrimaryColor: '#c9cccf', // Bordes sutiles grises de las tarjetas y los inputs de Shopify
+                    buttonTextColor: '#ffffff', // Letra blanca en el botón principal
+                    errorColor: '#d82c0d', // Rojo Polaris para errores
+                    successColor: '#008060' // Verde Polaris de validaciones (Aprobado)
+                }
+            },
+            texts: {
+                payButton: 'Pagar ahora', // Texto clásico de Shopify
+                formTitle: 'Registro de cobro (Checkout)',
+                emailSectionTitle: 'Contacto',
+                installmentsSectionTitle: 'Pago',
+            }
+        },
         paymentMethods: {
             creditCard: 'all',
             debitCard: 'all',
-            mercadoPago: ['all'],
+            ticket: 'all',          // Activa OXXO, PayCash, etc (que muestran código de barras)
+            bankTransfer: 'all',    // Activa transferencias SPEI
+            mercadoPago: ['all'],   // Activa pago directo con la App de MP / Código QR de la app
         },
     };
 
@@ -54,12 +77,12 @@ export function MercadoPagoPaymentBrick({
                 body: JSON.stringify({
                     action: 'process_payment',
                     accessToken: accessToken,
-                    transaction_amount: formData.transaction_amount,
+                    transaction_amount: formData.transaction_amount || amount,
                     description: `Venta Kiosco (${formatCurrency(amount)})`,
-                    payment_method_id: formData.payment_method_id,
+                    payment_method_id: formData.payment_method_id || 'mercado_pago',
                     payer: formData.payer,
                     token: formData.token,
-                    installments: formData.installments,
+                    installments: formData.installments || 1,
                     issuer_id: formData.issuer_id,
                     external_reference: externalReference,
                 }),
@@ -98,14 +121,28 @@ export function MercadoPagoPaymentBrick({
         <div style={{ width: '100%', minHeight: '350px' }}>
             <Payment
                 initialization={initialization}
-                customization={customization}
+                customization={customization as any}
                 onSubmit={onSubmit}
                 onReady={onReady}
-                onError={(err: any) => {
-                    console.error(err);
-                    // Omit errors showing repeatedly when brick is destroyed/remounted
-                    if (!err.message?.includes('destroy')) {
-                        onError('Tuvimos un error cargando el Brick de pago');
+                onError={(rawError: any) => {
+                    // ULTRASAFE: En Turbopack, cualquier intento de Next.js u overlay de acceder 
+                    // a un objeto Cross-Origin de iframe (como Window) lanza "$$typeof Permission denied".
+                    // ¡POR LO TANTO NO DEBEMOS PASARLO A CONSOLE.ERROR() TAMPOCO!
+                    try {
+                        let errMsg = '';
+                        // Intentamos leer el mensaje bajo un trycatch bloqueado
+                        try {
+                            errMsg = rawError?.message || rawError?.type || String(rawError);
+                        } catch (_) {
+                            errMsg = 'cross-origin-error';
+                        }
+
+                        // Ignorar errores fantasma de desmonte
+                        if (errMsg && !errMsg.includes('destroy')) {
+                            onError('No pudimos cargar la pasarela segura. Revisa tu conexión.');
+                        }
+                    } catch (fatal) {
+                        // Ignorar falla silenciosamente para que la caja registradora no crashee
                     }
                 }}
             />
