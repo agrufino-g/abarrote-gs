@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { InlineStack, Icon, Text, Thumbnail } from '@shopify/polaris';
+import { Badge, BlockStack, Box, Button, Divider, InlineStack, Icon, Popover, Scrollable, Text, Thumbnail } from '@shopify/polaris';
 import {
+  CheckCircleIcon,
+  FilterIcon,
   MenuIcon,
   SearchIcon,
   GlobeIcon,
@@ -30,7 +32,7 @@ const QUICK_ACTIONS = [
   { label: 'Inicio', section: 'overview', icon: HomeIcon, keywords: 'inicio dashboard resumen principal' },
   { label: 'Punto de Venta', section: 'sales', icon: OrderIcon, keywords: 'venta cobrar ticket pos punto' },
   { label: 'Inventario', section: 'inventory', icon: ProductIcon, keywords: 'inventario stock productos almacen' },
-  { label: 'Catálogo', section: 'catalog', icon: ProductIcon, keywords: 'catalogo colecciones productos lista' },
+  { label: 'Productos', section: 'catalog', icon: ProductIcon, keywords: 'catalogo productos lista articulos' },
   { label: 'Historial de Ventas', section: 'sales-history', icon: OrderIcon, keywords: 'historial ventas registros transacciones' },
   { label: 'Gastos', section: 'expenses', icon: FinanceIcon, keywords: 'gastos egresos pagos finanzas' },
   { label: 'Proveedores', section: 'suppliers', icon: FinanceIcon, keywords: 'proveedores distribuidores compras' },
@@ -43,9 +45,12 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const products = useDashboardStore((s) => s.products);
+  const inventoryAlerts = useDashboardStore((s) => s.inventoryAlerts);
+  const shortcutLabel = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? 'CMD' : 'CTRL';
 
   // Filter products by query
   const filteredProducts = useMemo(() => {
@@ -91,6 +96,7 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
       if (e.key === 'Escape') {
         inputRef.current?.blur();
         setIsFocused(false);
+        setIsNotificationsOpen(false);
       }
     };
     window.addEventListener('keydown', handler);
@@ -109,6 +115,66 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
     }
     return () => document.removeEventListener('mousedown', handler);
   }, [isFocused]);
+
+  const formatNotificationTime = useCallback((createdAt: string) => {
+    const date = new Date(createdAt);
+    if (Number.isNaN(date.getTime())) return 'Fecha desconocida';
+    return date.toLocaleString('es-MX', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }, []);
+
+  const alertTypeLabel: Record<'low_stock' | 'expiration' | 'expired' | 'merma', string> = {
+    low_stock: 'Inventario',
+    expiration: 'Caducidad',
+    expired: 'Caducado',
+    merma: 'Merma',
+  };
+
+  const alertSeverityColor: Record<'critical' | 'warning' | 'info', string> = {
+    critical: '#d72c0d',
+    warning: '#b98900',
+    info: '#0a66e2',
+  };
+
+  const alertSeverityTone: Record<'critical' | 'warning' | 'info', 'critical' | 'warning' | 'info'> = {
+    critical: 'critical',
+    warning: 'warning',
+    info: 'info',
+  };
+
+  const alertHeadingLabel: Record<'low_stock' | 'expiration' | 'expired' | 'merma', string> = {
+    low_stock: 'Stock bajo detectado',
+    expiration: 'Producto por vencer',
+    expired: 'Producto vencido',
+    merma: 'Merma registrada',
+  };
+
+  const buildAlertDescription = useCallback((alert: typeof inventoryAlerts[number]) => {
+    const detail: string[] = [];
+
+    if (alert.product.sku) {
+      detail.push(`SKU ${alert.product.sku}`);
+    }
+
+    if (alert.alertType === 'low_stock') {
+      detail.push(`Stock actual ${alert.product.currentStock}`);
+      detail.push(`minimo ${alert.product.minStock}`);
+    }
+
+    if ((alert.alertType === 'expiration' || alert.alertType === 'expired') && alert.product.expirationDate) {
+      detail.push(`caduca ${new Date(alert.product.expirationDate).toLocaleDateString('es-MX', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })}`);
+    }
+
+    return `${alert.message}. ${detail.join(' · ')}`;
+  }, []);
 
   const handleSelect = useCallback(
     (type: 'product' | 'action', index: number) => {
@@ -203,19 +269,24 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
           <div
             style={{
               width: '100%',
-              height: '32px',
-              backgroundColor: isFocused ? '#222' : '#1a1a1a',
-              borderRadius: showDropdown && (totalResults > 0 || query.length > 0) ? '6px 6px 0 0' : '6px',
+              height: '38px',
+              background: isFocused
+                ? 'linear-gradient(180deg, #30343c 0%, #292d35 100%)'
+                : 'linear-gradient(180deg, #2b2f36 0%, #242830 100%)',
+              borderRadius: showDropdown && (totalResults > 0 || query.length > 0) ? '12px 12px 0 0' : '12px',
               display: 'flex',
               alignItems: 'center',
-              padding: '0 10px',
-              border: `1px solid ${isFocused ? '#555' : '#333'}`,
+              padding: '0 12px',
+              border: `1px solid ${isFocused ? '#5a606a' : '#454b56'}`,
+              boxShadow: isFocused
+                ? '0 0 0 1px rgba(130, 140, 160, 0.2), inset 0 1px 0 rgba(255,255,255,0.06)'
+                : 'inset 0 1px 0 rgba(255,255,255,0.04)',
               transition: 'all 0.15s ease',
               cursor: 'text',
             }}
             onClick={() => inputRef.current?.focus()}
           >
-            <div style={{ color: isFocused ? '#aaa' : '#666', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <div style={{ color: isFocused ? '#c5ccd6' : '#9ca4b1', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               <Icon source={SearchIcon} tone="inherit" />
             </div>
             <input
@@ -225,36 +296,39 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setIsFocused(true)}
               onKeyDown={handleKeyDown}
-              placeholder="Buscar productos, secciones..."
+              placeholder="Buscar"
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#e3e5e7',
-                padding: '0 8px',
+                color: '#e8ebf0',
+                padding: '0 10px',
                 width: '100%',
                 outline: 'none',
-                fontSize: '13px',
-                lineHeight: '32px',
-                height: '32px',
+                fontSize: '14px',
+                lineHeight: '38px',
+                height: '38px',
+                fontWeight: 500,
+                letterSpacing: '0.1px',
               }}
             />
             {!isFocused && (
               <div
                 style={{
                   display: 'flex',
-                  gap: '2px',
+                  gap: '4px',
                   fontSize: '10px',
-                  fontWeight: '600',
-                  backgroundColor: '#2a2a2a',
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                  color: '#777',
-                  border: '1px solid #3a3a3a',
+                  fontWeight: '700',
+                  backgroundColor: '#2f343d',
+                  padding: '2px 7px',
+                  borderRadius: '6px',
+                  color: '#c0c7d2',
+                  border: '1px solid #4d5460',
                   flexShrink: 0,
-                  lineHeight: '16px',
+                  lineHeight: '14px',
+                  letterSpacing: '0.25px',
                 }}
               >
-                <span>⌘</span>
+                <span>{shortcutLabel}</span>
                 <span>K</span>
               </div>
             )}
@@ -265,7 +339,7 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
             <div
               style={{
                 position: 'absolute',
-                top: '32px',
+                top: '38px',
                 left: 0,
                 right: 0,
                 backgroundColor: '#1e1e1e',
@@ -397,29 +471,171 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
         <div style={{ color: '#e3e5e7', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center' }}>
           <Icon source={GlobeIcon} tone="inherit" />
         </div>
-        <div style={{ color: '#e3e5e7', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', position: 'relative' }}>
-          <Icon source={NotificationIcon} tone="inherit" />
-          {useDashboardStore.getState().inventoryAlerts?.length > 0 && (
-            <div style={{
-              position: 'absolute',
-              top: '4px',
-              right: '4px',
-              backgroundColor: '#d82c0d',
-              color: 'white',
-              borderRadius: '50%',
-              width: '16px',
-              height: '16px',
-              fontSize: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              border: '2px solid #0b0b0b'
-            }}>
-              {useDashboardStore.getState().inventoryAlerts.length}
-            </div>
+        <Popover
+          active={isNotificationsOpen}
+          onClose={() => setIsNotificationsOpen(false)}
+          preferredAlignment="right"
+          preferredPosition="below"
+          activator={(
+            <button
+              onClick={() => setIsNotificationsOpen((prev) => !prev)}
+              aria-label="Abrir alertas"
+              style={{
+                color: '#f2f4f7',
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                border: '1px solid #2f3440',
+                borderRadius: '2px',
+                backgroundColor: isNotificationsOpen ? '#1a1f26' : '#111418',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+                padding: 0,
+              }}
+            >
+              <Icon source={NotificationIcon} tone="inherit" />
+              {inventoryAlerts.length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  backgroundColor: '#d82c0d',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  fontSize: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  border: '2px solid #0b0b0b'
+                }}>
+                  {inventoryAlerts.length}
+                </div>
+              )}
+            </button>
           )}
-        </div>
+        >
+          <Box minWidth="360px" maxWidth="360px">
+            <BlockStack gap="0">
+              <Box padding="400" background="bg-surface">
+                <InlineStack align="space-between" blockAlign="start">
+                  <BlockStack gap="050">
+                    <Text as="h3" variant="headingSm">Alertas</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {inventoryAlerts.length > 0 ? `${inventoryAlerts.length} activas` : 'Sin alertas'}
+                    </Text>
+                  </BlockStack>
+                  <InlineStack gap="100" blockAlign="center">
+                    <Button
+                      accessibilityLabel="Filtrar alertas"
+                      icon={FilterIcon}
+                      size="micro"
+                      variant="plain"
+                    />
+                    <Button
+                      accessibilityLabel="Marcar revisadas"
+                      icon={CheckCircleIcon}
+                      size="micro"
+                      variant="plain"
+                    />
+                  </InlineStack>
+                </InlineStack>
+              </Box>
+              <Divider />
+
+              {inventoryAlerts.length === 0 ? (
+                <Box padding="600" background="bg-surface">
+                  <BlockStack gap="200" inlineAlign="center">
+                    <Text as="p" variant="headingSm" alignment="center">No hay alertas</Text>
+                    <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+                      Cuando se detecten productos con stock bajo, caducidad o mermas, apareceran aqui.
+                    </Text>
+                  </BlockStack>
+                </Box>
+              ) : (
+                <>
+                  <Scrollable shadow style={{ maxHeight: '420px', background: 'var(--p-color-bg-surface)' }}>
+                    <BlockStack gap="0">
+                      {inventoryAlerts.slice(0, 8).map((alert, index) => (
+                        <Box key={alert.id} background="bg-surface">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsNotificationsOpen(false);
+                              onProductClick?.(alert.product);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '16px',
+                              border: 'none',
+                              background: 'transparent',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <BlockStack gap="300">
+                              <InlineStack align="space-between" blockAlign="center">
+                                <InlineStack gap="200" blockAlign="center">
+                                  <div
+                                    style={{
+                                      width: '8px',
+                                      height: '8px',
+                                      borderRadius: '999px',
+                                      backgroundColor: alertSeverityColor[alert.severity],
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    {alertTypeLabel[alert.alertType]} • {formatNotificationTime(alert.createdAt)}
+                                  </Text>
+                                </InlineStack>
+                                <Badge tone={alertSeverityTone[alert.severity]} size="small">
+                                  {alert.severity === 'critical' ? 'Urgente' : alert.severity === 'warning' ? 'Atencion' : 'Info'}
+                                </Badge>
+                              </InlineStack>
+
+                              <BlockStack gap="100">
+                                <Text as="p" variant="bodyMd" fontWeight="semibold">
+                                  {alertHeadingLabel[alert.alertType]}
+                                </Text>
+                                <Text as="p" variant="bodyMd">{alert.product.name}</Text>
+                                <Text as="p" variant="bodySm" tone="subdued">
+                                  {buildAlertDescription(alert)}
+                                </Text>
+                              </BlockStack>
+                            </BlockStack>
+                          </button>
+                          {index < Math.min(inventoryAlerts.length, 8) - 1 && <Divider />}
+                        </Box>
+                      ))}
+                    </BlockStack>
+                  </Scrollable>
+
+                  <Divider />
+                  <Box padding="400" background="bg-surface-secondary">
+                    <InlineStack align="center">
+                      <Button
+                        size="micro"
+                        variant="plain"
+                        onClick={() => {
+                          setIsNotificationsOpen(false);
+                          onSectionSelect?.('notifications');
+                        }}
+                      >
+                        {inventoryAlerts.length > 8 ? `Ver las ${inventoryAlerts.length} alertas` : 'No hay mas alertas'}
+                      </Button>
+                    </InlineStack>
+                  </Box>
+                </>
+              )}
+            </BlockStack>
+          </Box>
+        </Popover>
         <div style={{ marginLeft: '8px' }}>
           {userMenu}
         </div>

@@ -99,8 +99,14 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
       badge: badges?.lowStock ? String(badges.lowStock) : undefined,
       selected: isSel,
       expanded: isSel,
-      onClick: () => onSelect('inventory'),
+      onClick: () => onSelect('catalog'),
       subNavigationItems: [
+        {
+          url: '#',
+          label: 'Productos',
+          matches: selected === 'catalog',
+          onClick: () => onSelect('catalog'),
+        },
         {
           url: '#',
           label: 'Inventario General',

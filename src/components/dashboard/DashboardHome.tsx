@@ -37,6 +37,7 @@ import { SalesChart } from '@/components/charts/SalesChart';
 import { HourlySalesChart } from '@/components/charts/HourlySalesChart';
 import { InventoryTable } from '@/components/inventory/InventoryTable';
 import { AllProductsTable } from '@/components/inventory/AllProductsTable';
+import { InventoryGeneralView } from '@/components/inventory/InventoryGeneralView';
 import { InventoryAuditView } from '@/components/inventory/InventoryAuditView';
 import { QuickActions } from '@/components/actions/QuickActions';
 import { AdvancedFilters, FilterState } from '@/components/filters/AdvancedFilters';
@@ -59,6 +60,7 @@ import { useToast } from '@/components/notifications/ToastProvider';
 import { CustomTopBar } from '@/components/navigation/CustomTopBar';
 import { AnalyticsView } from '@/components/analytics/AnalyticsView';
 import { UserMenu } from '@/components/auth/UserMenu';
+import { NotificationsCenter } from '@/components/notifications/NotificationsCenter';
 import { deleteProduct, updateProduct } from '@/app/actions/db-actions';
 import {
   HomeFilledIcon,
@@ -122,7 +124,7 @@ const SECTION_TITLES: Record<string, string> = {
   'sales-corte': 'Corte de Caja',
   inventory: 'Inventario',
   'inventory-audit': 'Auditoría de Inventario',
-  catalog: 'Catálogo de Productos',
+  catalog: 'Productos',
   customers: 'Clientes',
   fiado: 'Fiado / Crédito',
   expenses: 'Gastos',
@@ -149,6 +151,7 @@ export function DashboardHome() {
     createPedido,
     currentUserRole,
     roleDefinitions,
+    storeConfig,
   } = useDashboardStore();
 
   const userPermissions = currentUserRole
@@ -228,10 +231,6 @@ export function DashboardHome() {
       toast.showSuccess(`Stock de ${product.name} actualizado a ${changes.newStock} unidades`);
     }
   }, [adjustStock, toast]);
-
-  const handleTableExport = useCallback(() => {
-    setExportModalOpen(true);
-  }, []);
 
   const handleTableCreatePedido = useCallback(() => {
     setPedidoModalOpen(true);
@@ -398,14 +397,20 @@ export function DashboardHome() {
         );
       case 'inventory':
         return (
+          <InventoryGeneralView
+            products={products}
+            onProductClick={handleProductClick}
+            onImportSuccess={fetchDashboardData}
+          />
+        );
+      case 'inventory-audit': return <InventoryAuditView />;
+      case 'catalog':
+        return (
           <BlockStack gap="400">
             <AdvancedFilters onFiltersChange={handleFiltersChange} />
             <AllProductsTable products={products} onProductClick={handleProductClick} onRegisterProduct={() => setRegisterProductOpen(true)} onCreatePedido={handleTableCreatePedido} onDeleteProduct={handleDeleteProduct} onUpdateProduct={handleOpenUpdateProduct} onImportSuccess={fetchDashboardData} />
           </BlockStack>
         );
-      case 'inventory-audit': return <InventoryAuditView />;
-      case 'catalog':
-        return <AllProductsTable products={products} onProductClick={handleProductClick} onRegisterProduct={() => setRegisterProductOpen(true)} onExport={handleTableExport} onCreatePedido={handleTableCreatePedido} onDeleteProduct={handleDeleteProduct} onUpdateProduct={handleOpenUpdateProduct} />;
       case 'inventory-priority':
         return (
           <BlockStack gap="400">
@@ -424,13 +429,12 @@ export function DashboardHome() {
       case 'roles': return <RolesManager />;
       case 'notifications':
         return (
-          <BlockStack gap="400">
-            {criticalAlerts.length > 0 ? (
-              <InventoryTable alerts={criticalAlerts} onProductClick={handleProductClick} />
-            ) : (
-              <Card><EmptyState heading="Sin notificaciones" image=""><p>Todo está en orden.</p></EmptyState></Card>
-            )}
-          </BlockStack>
+          <NotificationsCenter
+            alerts={inventoryAlerts}
+            storeConfig={storeConfig}
+            onProductClick={handleProductClick}
+            onOpenSettings={() => handleSectionSelect('settings')}
+          />
         );
       default: return null;
     }
@@ -439,6 +443,7 @@ export function DashboardHome() {
   const wrapWithPage = (content: React.ReactNode) => {
     const rawTitle = SECTION_TITLES[selectedSection] || 'Dashboard';
     const SectionIcon = SECTION_ICONS[selectedSection];
+    const hidePageHeader = selectedSection === 'inventory' || selectedSection === 'catalog';
 
     // Convertimos el string a un InlineStack the Polaris o simple div para inyectar el ícono a la izquierda 
     const fancyTitle = SectionIcon ? (
@@ -451,8 +456,8 @@ export function DashboardHome() {
     return (
       <Page
         fullWidth
-        title={fancyTitle as any}
-        secondaryActions={[
+        title={hidePageHeader ? undefined : fancyTitle as any}
+        secondaryActions={hidePageHeader ? [] : [
           { content: 'Actualizar', icon: RefreshIcon, onAction: fetchDashboardData },
           { content: 'Exportar', icon: ExportIcon, onAction: () => setExportModalOpen(true) },
         ]}

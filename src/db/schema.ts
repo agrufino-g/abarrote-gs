@@ -41,6 +41,7 @@ export const storeConfig = pgTable('store_config', {
   pointsPerPeso: integer('points_per_peso').notNull().default(100),
   pointsValue: integer('points_value').notNull().default(1),
   logoUrl: text('logo_url'),
+  inventoryGeneralColumns: text('inventory_general_columns').notNull().default('["title","sku","available","onHand"]'),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 

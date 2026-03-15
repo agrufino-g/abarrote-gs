@@ -37,6 +37,7 @@ export interface StoreConfig {
   pointsValue: number;
   // Branding
   logoUrl?: string;
+  inventoryGeneralColumns: string;
 }
 
 export const DEFAULT_STORE_CONFIG: StoreConfig = {
@@ -65,6 +66,7 @@ export const DEFAULT_STORE_CONFIG: StoreConfig = {
   loyaltyEnabled: false,
   pointsPerPeso: 100, // $100 spent = 1 point
   pointsValue: 1, // 1 point = $1 discount
+  inventoryGeneralColumns: '["title","sku","available","onHand"]',
 };
 
 export interface Product {

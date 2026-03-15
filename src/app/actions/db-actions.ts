@@ -153,57 +153,135 @@ export async function deleteProduct(productId: string): Promise<void> {
 }
 
 // ==================== STORE CONFIG ====================
-export async function fetchStoreConfig(): Promise<StoreConfig> {
-  const rows = await db.select().from(storeConfig).limit(1);
-  if (rows.length === 0) {
-    // Create default config if none exists
-    await db.insert(storeConfig).values({ id: 'main' });
-    return DEFAULT_STORE_CONFIG;
+function isMissingInventoryGeneralColumnsError(error: unknown): boolean {
+  return String(error).includes('inventory_general_columns');
+}
+
+function mapStoreConfigRow(
+  row: Omit<StoreConfig, 'telegramToken' | 'telegramChatId' | 'printerIp' | 'cashDrawerPort' | 'scalePort' | 'logoUrl' | 'inventoryGeneralColumns'> & {
+    telegramToken?: string | null;
+    telegramChatId?: string | null;
+    printerIp?: string | null;
+    cashDrawerPort?: string | null;
+    scalePort?: string | null;
+    logoUrl?: string | null;
+    inventoryGeneralColumns?: string | null;
   }
-  const r = rows[0];
+): StoreConfig {
   return {
-    id: r.id,
-    storeName: r.storeName,
-    legalName: r.legalName,
-    address: r.address,
-    city: r.city,
-    postalCode: r.postalCode,
-    phone: r.phone,
-    rfc: r.rfc,
-    regimenFiscal: r.regimenFiscal,
-    regimenDescription: r.regimenDescription,
-    ivaRate: r.ivaRate,
-    currency: r.currency,
-    lowStockThreshold: r.lowStockThreshold,
-    expirationWarningDays: r.expirationWarningDays,
-    printReceipts: r.printReceipts,
-    autoBackup: r.autoBackup,
-    ticketFooter: r.ticketFooter,
-    ticketServicePhone: r.ticketServicePhone,
-    ticketVigencia: r.ticketVigencia,
-    storeNumber: r.storeNumber,
-    ticketBarcodeFormat: r.ticketBarcodeFormat,
-    enableNotifications: r.enableNotifications,
-    telegramToken: r.telegramToken ?? undefined,
-    telegramChatId: r.telegramChatId ?? undefined,
-    printerIp: r.printerIp ?? undefined,
-    cashDrawerPort: r.cashDrawerPort ?? undefined,
-    scalePort: r.scalePort ?? undefined,
-    loyaltyEnabled: r.loyaltyEnabled,
-    pointsPerPeso: r.pointsPerPeso,
-    pointsValue: r.pointsValue,
-    logoUrl: r.logoUrl ?? undefined,
+    id: row.id,
+    storeName: row.storeName,
+    legalName: row.legalName,
+    address: row.address,
+    city: row.city,
+    postalCode: row.postalCode,
+    phone: row.phone,
+    rfc: row.rfc,
+    regimenFiscal: row.regimenFiscal,
+    regimenDescription: row.regimenDescription,
+    ivaRate: row.ivaRate,
+    currency: row.currency,
+    lowStockThreshold: row.lowStockThreshold,
+    expirationWarningDays: row.expirationWarningDays,
+    printReceipts: row.printReceipts,
+    autoBackup: row.autoBackup,
+    ticketFooter: row.ticketFooter,
+    ticketServicePhone: row.ticketServicePhone,
+    ticketVigencia: row.ticketVigencia,
+    storeNumber: row.storeNumber,
+    ticketBarcodeFormat: row.ticketBarcodeFormat,
+    enableNotifications: row.enableNotifications,
+    telegramToken: row.telegramToken ?? undefined,
+    telegramChatId: row.telegramChatId ?? undefined,
+    printerIp: row.printerIp ?? undefined,
+    cashDrawerPort: row.cashDrawerPort ?? undefined,
+    scalePort: row.scalePort ?? undefined,
+    loyaltyEnabled: row.loyaltyEnabled,
+    pointsPerPeso: row.pointsPerPeso,
+    pointsValue: row.pointsValue,
+    logoUrl: row.logoUrl ?? undefined,
+    inventoryGeneralColumns: row.inventoryGeneralColumns ?? DEFAULT_STORE_CONFIG.inventoryGeneralColumns,
   };
+}
+
+export async function fetchStoreConfig(): Promise<StoreConfig> {
+  try {
+    const rows = await db.select().from(storeConfig).limit(1);
+    if (rows.length === 0) {
+      await db.insert(storeConfig).values({ id: 'main' });
+      return DEFAULT_STORE_CONFIG;
+    }
+
+    return mapStoreConfigRow(rows[0]);
+  } catch (error) {
+    if (!isMissingInventoryGeneralColumnsError(error)) {
+      throw error;
+    }
+
+    const rows = await db.select({
+      id: storeConfig.id,
+      storeName: storeConfig.storeName,
+      legalName: storeConfig.legalName,
+      address: storeConfig.address,
+      city: storeConfig.city,
+      postalCode: storeConfig.postalCode,
+      phone: storeConfig.phone,
+      rfc: storeConfig.rfc,
+      regimenFiscal: storeConfig.regimenFiscal,
+      regimenDescription: storeConfig.regimenDescription,
+      ivaRate: storeConfig.ivaRate,
+      currency: storeConfig.currency,
+      lowStockThreshold: storeConfig.lowStockThreshold,
+      expirationWarningDays: storeConfig.expirationWarningDays,
+      printReceipts: storeConfig.printReceipts,
+      autoBackup: storeConfig.autoBackup,
+      ticketFooter: storeConfig.ticketFooter,
+      ticketServicePhone: storeConfig.ticketServicePhone,
+      ticketVigencia: storeConfig.ticketVigencia,
+      storeNumber: storeConfig.storeNumber,
+      ticketBarcodeFormat: storeConfig.ticketBarcodeFormat,
+      enableNotifications: storeConfig.enableNotifications,
+      telegramToken: storeConfig.telegramToken,
+      telegramChatId: storeConfig.telegramChatId,
+      printerIp: storeConfig.printerIp,
+      cashDrawerPort: storeConfig.cashDrawerPort,
+      scalePort: storeConfig.scalePort,
+      loyaltyEnabled: storeConfig.loyaltyEnabled,
+      pointsPerPeso: storeConfig.pointsPerPeso,
+      pointsValue: storeConfig.pointsValue,
+      logoUrl: storeConfig.logoUrl,
+    }).from(storeConfig).limit(1);
+
+    if (rows.length === 0) {
+      await db.insert(storeConfig).values({ id: 'main' });
+      return DEFAULT_STORE_CONFIG;
+    }
+
+    return mapStoreConfigRow(rows[0]);
+  }
 }
 
 export async function saveStoreConfig(data: Partial<StoreConfig>): Promise<StoreConfig> {
   await requireOwner();
   const { id, ...rest } = data;
-  // Upsert: try update, if 0 rows affected then insert
-  const result = await db.update(storeConfig).set({ ...rest, updatedAt: new Date() }).where(eq(storeConfig.id, 'main'));
-  if (!result.rowCount || result.rowCount === 0) {
-    await db.insert(storeConfig).values({ id: 'main', ...rest });
+  const persist = async (values: Partial<StoreConfig>) => {
+    const result = await db.update(storeConfig).set({ ...values, updatedAt: new Date() }).where(eq(storeConfig.id, 'main'));
+    if (!result.rowCount || result.rowCount === 0) {
+      await db.insert(storeConfig).values({ id: 'main', ...values });
+    }
+  };
+
+  try {
+    await persist(rest);
+  } catch (error) {
+    if (!isMissingInventoryGeneralColumnsError(error)) {
+      throw error;
+    }
+
+    const { inventoryGeneralColumns: _ignoredInventoryGeneralColumns, ...legacyRest } = rest;
+    await persist(legacyRest);
   }
+
   return fetchStoreConfig();
 }
 
