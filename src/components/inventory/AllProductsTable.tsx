@@ -18,8 +18,11 @@ import {
   ChoiceList,
   RangeSlider,
   useIndexResourceState,
+  Box,
+  Popover,
+  ActionList,
 } from '@shopify/polaris';
-import { ProductIcon, ImageIcon } from '@shopify/polaris-icons';
+import { ProductIcon, ImageIcon, ViewIcon, EmailIcon, CalendarIcon } from '@shopify/polaris-icons';
 import { Product } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ProductExportModal, ProductImportModal } from './ShopifyModals';
@@ -38,6 +41,14 @@ interface AllProductsTableProps {
 export function AllProductsTable({ products, onProductClick, onRegisterProduct, onCreatePedido, onDeleteProduct, onUpdateProduct, onImportSuccess }: AllProductsTableProps) {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
+
+  const toggleActions = useCallback(() => setIsActionsOpen((active) => !active), []);
+  const toggleInsights = useCallback(() => {
+    setShowInsights((active) => !active);
+    setIsActionsOpen(false);
+  }, []);
   const [itemStrings, setItemStrings] = useState([
     'Todos',
     'Activos',
@@ -95,7 +106,7 @@ export function AllProductsTable({ products, onProductClick, onRegisterProduct, 
   };
 
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(filteredProducts);
+    useIndexResourceState(filteredProducts as any);
 
   const getStockBadge = (product: Product) => {
     if (product.currentStock === 0) {
@@ -208,7 +219,27 @@ export function AllProductsTable({ products, onProductClick, onRegisterProduct, 
         <InlineStack gap="200">
           <Button onClick={() => setIsExportOpen(true)}>Exportar</Button>
           <Button onClick={() => setIsImportOpen(true)}>Importar</Button>
-          <Button disclosure>Más acciones</Button>
+          <Popover
+            active={isActionsOpen}
+            activator={<Button onClick={toggleActions} disclosure>Más acciones</Button>}
+            onClose={toggleActions}
+            autofocusTarget="first-node"
+          >
+            <ActionList
+              actionRole="menuitem"
+              items={[
+                {
+                  content: showInsights ? 'Ocultar barra de informes y estadísticas' : 'Mostrar barra de informes y estadísticas',
+                  icon: ViewIcon,
+                  onAction: toggleInsights,
+                },
+                {
+                  content: 'Crear campaña por correo electrónico',
+                  icon: EmailIcon,
+                },
+              ]}
+            />
+          </Popover>
           {onRegisterProduct && (
             <Button variant="primary" tone="success" onClick={onRegisterProduct}>
               Agregar producto
@@ -216,6 +247,79 @@ export function AllProductsTable({ products, onProductClick, onRegisterProduct, 
           )}
         </InlineStack>
       </InlineStack>
+
+      {showInsights && (
+        <Box
+          background="bg-surface"
+          padding="0"
+          borderRadius="300"
+          borderWidth="025"
+          borderColor="border"
+          overflowX="hidden"
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, auto) 1fr 1fr 1fr' }}>
+            {/* 30 days section */}
+            <div style={{
+              padding: '16px',
+              borderRight: '1px solid var(--p-color-border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              backgroundColor: 'var(--p-color-bg-surface-secondary)'
+            }}>
+              <Icon source={CalendarIcon} tone="subdued" />
+              <Text as="span" variant="bodyMd" tone="subdued">30 días</Text>
+            </div>
+
+            {/* Sales Rate */}
+            <div style={{ padding: '12px 20px', borderRight: '1px solid var(--p-color-border)' }}>
+              <BlockStack gap="100">
+                <Text as="p" variant="bodySm" fontWeight="semibold" tone="base">
+                  Tasa media de ventas directas
+                </Text>
+                <Text as="p" variant="bodyMd" fontWeight="bold">
+                  0 % <Text as="span" tone="subdued">—</Text>
+                </Text>
+              </BlockStack>
+            </div>
+
+            {/* Inventory Health */}
+            <div style={{ padding: '12px 20px', borderRight: '1px solid var(--p-color-border)' }}>
+              <BlockStack gap="100">
+                <Text as="p" variant="bodySm" fontWeight="semibold" tone="base">
+                  Productos por días de inventario restante
+                </Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Sin datos
+                </Text>
+              </BlockStack>
+            </div>
+
+            {/* ABC Analysis */}
+            <div style={{ padding: '12px 20px', position: 'relative' }}>
+              <BlockStack gap="100">
+                <Text as="p" variant="bodySm" fontWeight="semibold" tone="base">
+                  Análisis ABC de productos
+                </Text>
+                <div style={{ display: 'inline-block', position: 'relative', width: 'fit-content', paddingBottom: '4px' }}>
+                  <Text as="p" variant="bodyMd" fontWeight="bold">
+                    0,00 MXN C
+                  </Text>
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: '2px',
+                    backgroundColor: 'var(--p-color-text-info)',
+                    borderRadius: '1px'
+                  }} />
+                </div>
+              </BlockStack>
+            </div>
+          </div>
+        </Box>
+      )}
 
       <Card padding="0">
         <IndexFilters

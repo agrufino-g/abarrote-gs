@@ -17,6 +17,9 @@ import {
   Thumbnail,
   Box,
   FormLayout,
+  Grid,
+  Icon,
+  Popover,
 } from '@shopify/polaris';
 import { FormSelect } from '@/components/ui/FormSelect';
 import { DeleteIcon, EditIcon, ImageIcon } from '@shopify/polaris-icons';
@@ -31,6 +34,7 @@ interface ProductDetailModalProps {
   open: boolean;
   onClose: () => void;
   onSave?: (product: Product, changes: ProductChanges) => void;
+  isInline?: boolean;
 }
 
 interface ProductChanges {
@@ -43,6 +47,7 @@ export function ProductDetailModal({
   open,
   onClose,
   onSave,
+  isInline = false,
 }: ProductDetailModalProps) {
   const [editMode, setEditMode] = useState(false);
   const [editProductMode, setEditProductMode] = useState(false);
@@ -101,7 +106,7 @@ export function ProductDetailModal({
     setEditProductMode(true);
   }, [product]);
 
-  const handleSaveProduct = useCallback(async () => {
+  const handleSaveProduct = useCallback(async (shouldClose = true) => {
     if (!product) return;
     if (!editName.trim()) { showError('El nombre es obligatorio'); return; }
     if (!editUnitPrice || parseFloat(editUnitPrice) <= 0) { showError('El precio de venta debe ser mayor a 0'); return; }
@@ -125,10 +130,15 @@ export function ProductDetailModal({
         expirationDate: editIsPerishable ? editExpirationDate : null,
         imageUrl: finalImageUrl,
       });
-      showSuccess(`"${editName}" actualizado correctamente`);
-      setEditProductMode(false);
+      
+      if (shouldClose) {
+        showSuccess(`"${editName}" actualizado correctamente`);
+        setEditProductMode(false);
+        onClose();
+      } else {
+        // Silent success for immediate sync or different notification
+      }
       setSaving(false);
-      onClose();
     } catch {
       showError('Error al guardar los cambios');
       setSaving(false);
@@ -184,332 +194,104 @@ export function ProductDetailModal({
 
   if (!product) return null;
 
-  // Edit product mode
-  if (editProductMode) {
-    return (
-      <Modal
-        open={open}
-        onClose={() => { setEditProductMode(false); onClose(); }}
-        title={`Editar: ${product.name}`}
-        primaryAction={{ content: 'Guardar Cambios', onAction: handleSaveProduct, loading: saving, disabled: !editName.trim() }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => setEditProductMode(false) }]}
-        size="large"
-      >
-        <Modal.Section>
-          <FormLayout>
-            <BlockStack gap="400">
-              <Text as="h3" variant="headingMd">Imagen del producto</Text>
-              <Box padding="200" borderStyle="dashed" borderWidth="025" borderColor="border" borderRadius="200">
-                <DropZone
-                  onDrop={(_d, accepted) => setEditFile(accepted[0])}
-                  variableHeight
-                  accept="image/*"
-                  type="image"
-                  disabled={saving}
-                >
-                  {editFile || editImageUrl ? (
-                    <div style={{ padding: '8px' }}>
-                      <InlineStack gap="300" blockAlign="center">
-                        <Thumbnail
-                          size="small"
-                          alt="Miniatura"
-                          source={editFile ? window.URL.createObjectURL(editFile) : editImageUrl}
-                        />
-                        <Text variant="bodySm" as="span">{editFile ? editFile.name : 'Imagen actual'}</Text>
-                      </InlineStack>
-                    </div>
-                  ) : (
-                    <DropZone.FileUpload actionHint="Acepta .jpg, .png" />
-                  )}
-                </DropZone>
+  const renderEditContent = () => (
+    <div style={{ backgroundColor: '#f1f2f4', minHeight: '100%', padding: isInline ? '0' : '20px' }}>
+      <Box maxWidth="1200px" margin="auto">
+        <FormLayout>
+          {isInline && (
+            <Box paddingBlockEnd="400">
+              <InlineStack align="space-between">
+                <Button variant="plain" onClick={() => setEditProductMode(false)}>← Volver a detalles</Button>
+                <InlineStack gap="200">
+                  <Button onClick={() => setEditProductMode(false)}>Cancelar</Button>
+                  <Button variant="primary" onClick={() => handleSaveProduct(true)} loading={saving}>Guardar</Button>
+                </InlineStack>
+              </InlineStack>
+            </Box>
+          )}
+          <Grid>
+            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 8, lg: 8 }}>
+              <BlockStack gap="400">
+                <Box background="bg-surface" padding="400" borderRadius="300" shadow="shadowMd">
+                  <BlockStack gap="400">
+                    <TextField label="Título" value={editName} onChange={setEditName} onBlur={() => handleSaveProduct(false)} autoComplete="off" requiredIndicator />
+                    <TextField label="Descripción" multiline={4} value="Descripción del producto..." onChange={() => {}} autoComplete="off" />
+                  </BlockStack>
+                </Box>
+                <Box background="bg-surface" padding="400" borderRadius="300" shadow="shadowMd">
+                  <Text as="h3" variant="headingSm">Multimedia</Text>
+                  <Box borderStyle="solid" borderColor="border-subdued" borderWidth="025" borderRadius="200" background="bg-surface-secondary" style={{ width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {product!.imageUrl ? <img src={product!.imageUrl} alt="Thumbnail" style={{ maxWidth: '100%', maxHeight: '100%' }} /> : <Icon source={ImageIcon} tone="subdued" />}
+                  </Box>
+                </Box>
+              </BlockStack>
+            </Grid.Cell>
+            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 4, lg: 4 }}>
+              <Box background="bg-surface" padding="400" borderRadius="300" shadow="shadowMd">
+                <BlockStack gap="400">
+                  <Text as="h3" variant="headingSm">Estado</Text>
+                  <Badge tone="success">Activo</Badge>
+                  <FormSelect options={categoryOptions} value={editCategory} onChange={setEditCategory} label="Categoría" />
+                  <TextField label="Precio" type="number" value={editUnitPrice} onChange={setEditUnitPrice} prefix="$" autoComplete="off" />
+                </BlockStack>
               </Box>
-              <Divider />
-              <TextField label="Nombre del producto" value={editName} onChange={setEditName} autoComplete="off" requiredIndicator />
-              <FormLayout.Group>
-                <TextField label="SKU" value={editSku} onChange={setEditSku} autoComplete="off" />
-                <TextField label="Código de barras" value={editBarcode} onChange={setEditBarcode} autoComplete="off" />
-              </FormLayout.Group>
-              <FormSelect label="Categoría" options={categoryOptions} value={editCategory} onChange={setEditCategory} />
-              <FormLayout.Group>
-                <TextField label="Precio de costo (MXN)" type="number" value={editCostPrice} onChange={setEditCostPrice} autoComplete="off" prefix="$" />
-                <TextField label="Precio de venta (MXN)" type="number" value={editUnitPrice} onChange={setEditUnitPrice} autoComplete="off" prefix="$" requiredIndicator />
-              </FormLayout.Group>
-              <TextField label="Stock mínimo" type="number" value={editMinStock} onChange={setEditMinStock} autoComplete="off" helpText="Cuando el inventario baje de este número se mostrará alerta" />
-              <Checkbox label="Es producto perecedero" checked={editIsPerishable} onChange={setEditIsPerishable} />
-              {editIsPerishable && (
-                <TextField label="Fecha de caducidad" type="date" value={editExpirationDate} onChange={setEditExpirationDate} autoComplete="off" />
-              )}
-              {parseFloat(editUnitPrice) > 0 && parseFloat(editCostPrice) > 0 && (
-                <Banner tone="info">
-                  <p>Margen de ganancia: {formatCurrency(parseFloat(editUnitPrice) - parseFloat(editCostPrice))} ({((parseFloat(editUnitPrice) - parseFloat(editCostPrice)) / parseFloat(editCostPrice) * 100).toFixed(1)}%)</p>
-                </Banner>
-              )}
-            </BlockStack>
-          </FormLayout>
-        </Modal.Section>
-      </Modal>
-    );
+            </Grid.Cell>
+          </Grid>
+        </FormLayout>
+      </Box>
+    </div>
+  );
+
+  const renderViewContent = () => (
+    <BlockStack gap="500">
+      {isInline && (
+        <Box paddingBlockEnd="400">
+          <InlineStack align="space-between" blockAlign="center">
+            <Button variant="plain" onClick={onClose}>← Volver a la lista</Button>
+            <Button onClick={handleStartEdit}>Editar Producto</Button>
+          </InlineStack>
+        </Box>
+      )}
+      <InlineStack gap="400" blockAlign="center">
+        <Thumbnail size="medium" source={product!.imageUrl || ImageIcon} alt={product!.name} />
+        <BlockStack gap="100">
+          <Text variant="headingXl" as="h2" fontWeight="bold">{product!.name?.toUpperCase()}</Text>
+          <Badge tone="info">{product!.category}</Badge>
+        </BlockStack>
+      </InlineStack>
+      <Divider />
+      <Grid>
+        <Grid.Cell columnSpan={{ xs: 12, md: 6 }}>
+          <BlockStack gap="200">
+            <Text as="h3" variant="headingMd">Inventario</Text>
+            <Text variant="bodyLg">{product!.currentStock} unidades disponibles</Text>
+            <ProgressBar progress={stockStatus?.percentage || 0} tone={stockStatus?.status === 'critical' ? 'critical' : 'primary'} />
+          </BlockStack>
+        </Grid.Cell>
+        <Grid.Cell columnSpan={{ xs: 12, md: 6 }}>
+          <BlockStack gap="200">
+            <Text as="h3" variant="headingMd">Precio</Text>
+            <Text variant="headingLg" fontWeight="bold">{formatCurrency(product!.unitPrice)}</Text>
+            <Text variant="bodySm" tone="subdued">Costo: {formatCurrency(product!.costPrice)}</Text>
+          </BlockStack>
+        </Grid.Cell>
+      </Grid>
+      {!isInline && (
+        <InlineStack align="end" gap="200">
+          <Button onClick={handleStartEdit}>Editar</Button>
+          <Button tone="critical" onClick={() => setShowDeleteConfirm(true)}>Eliminar</Button>
+        </InlineStack>
+      )}
+    </BlockStack>
+  );
+
+  if (isInline) {
+    return editProductMode ? renderEditContent() : renderViewContent();
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={product.name}
-      primaryAction={
-        editMode
-          ? {
-            content: 'Guardar Cambios',
-            onAction: handleSave,
-            disabled: !newStock || !adjustmentReason,
-          }
-          : {
-            content: 'Ajustar Stock',
-            onAction: () => setEditMode(true),
-          }
-      }
-      secondaryActions={[
-        {
-          content: editMode ? 'Cancelar' : 'Cerrar',
-          onAction: () => {
-            if (editMode) {
-              setEditMode(false);
-              setNewStock('');
-              setAdjustmentReason('');
-            } else {
-              onClose();
-            }
-          },
-        },
-      ]}
-      size="large"
-    >
-      <Modal.Section>
-        <BlockStack gap="400">
-          {/* Header con info básica */}
-          <InlineStack gap="400" blockAlign="center">
-            <Thumbnail
-              size="large"
-              source={product.imageUrl || ImageIcon}
-              alt={product.name}
-            />
-            <BlockStack gap="100">
-              <Text variant="headingLg" as="h2">{product.name}</Text>
-              <InlineStack gap="200">
-                <Badge tone="info">{product.category}</Badge>
-                {stockStatus && <Badge tone={stockStatus.status === 'critical' ? 'critical' : stockStatus.status === 'low' ? 'warning' : 'success'}>{stockStatus.status === 'critical' ? 'Crítico' : stockStatus.status === 'low' ? 'Bajo' : 'Normal'}</Badge>}
-              </InlineStack>
-            </BlockStack>
-          </InlineStack>
-
-          <Divider />
-
-          {/* Estado del Inventario */}
-          <BlockStack gap="200">
-            <Text as="h4" variant="headingSm">
-              Estado del Inventario
-            </Text>
-            <InlineStack gap="400">
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Stock Actual
-                </Text>
-                <Text as="p" variant="headingLg">
-                  {product.currentStock} unidades
-                </Text>
-              </BlockStack>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Stock Mínimo
-                </Text>
-                <Text as="p" variant="headingLg">
-                  {product.minStock} unidades
-                </Text>
-              </BlockStack>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Nivel
-                </Text>
-                <Badge
-                  tone={
-                    stockStatus?.status === 'critical'
-                      ? 'critical'
-                      : stockStatus?.status === 'low'
-                        ? 'warning'
-                        : 'success'
-                  }
-                >
-                  {`${Math.round(stockStatus?.percentage ?? 0)}%`}
-                </Badge>
-              </BlockStack>
-            </InlineStack>
-            <ProgressBar
-              progress={stockStatus?.percentage ?? 0}
-              tone={stockStatus?.status === 'critical' ? 'critical' : undefined}
-              size="small"
-            />
-          </BlockStack>
-
-          <Divider />
-
-          {/* Información de Precio */}
-          <BlockStack gap="200">
-            <Text as="h4" variant="headingSm">
-              Información de Precio
-            </Text>
-            <InlineStack gap="400">
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Costo
-                </Text>
-                <Text as="p" variant="headingLg">
-                  {formatCurrency(product.costPrice)}
-                </Text>
-              </BlockStack>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Precio Venta
-                </Text>
-                <Text as="p" variant="headingLg">
-                  {formatCurrency(product.unitPrice)}
-                </Text>
-              </BlockStack>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Margen
-                </Text>
-                <Text as="p" variant="headingLg" tone="success">
-                  {product.costPrice > 0 ? `${(((product.unitPrice - product.costPrice) / product.costPrice) * 100).toFixed(0)}%` : '—'}
-                </Text>
-              </BlockStack>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Valor en Inventario
-                </Text>
-                <Text as="p" variant="headingLg">
-                  {formatCurrency(product.unitPrice * product.currentStock)}
-                </Text>
-              </BlockStack>
-            </InlineStack>
-          </BlockStack>
-
-          {product.expirationDate && (
-            <>
-              <Divider />
-              <BlockStack gap="200">
-                <Text as="h4" variant="headingSm">
-                  Información de Caducidad
-                </Text>
-                <InlineStack gap="400">
-                  <BlockStack gap="100">
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Fecha de Vencimiento
-                    </Text>
-                    <Text as="p" variant="bodyMd">
-                      {formatDate(product.expirationDate)}
-                    </Text>
-                  </BlockStack>
-                </InlineStack>
-                {daysUntil !== null && daysUntil <= 7 && (
-                  <Banner
-                    tone={daysUntil <= 2 ? 'critical' : 'warning'}
-                    title={daysUntil <= 0 ? 'Producto Vencido' : 'Próximo a Vencer'}
-                  >
-                    <p>
-                      {daysUntil <= 0
-                        ? 'Este producto ya venció y debe ser retirado del inventario.'
-                        : `Quedan ${daysUntil} día(s) para el vencimiento. Considera aplicar promociones.`}
-                    </p>
-                  </Banner>
-                )}
-              </BlockStack>
-            </>
-          )}
-
-          {/* Modo de edición */}
-          {editMode && (
-            <>
-              <Divider />
-              <BlockStack gap="300">
-                <Text as="h4" variant="headingSm">
-                  Ajustar Inventario
-                </Text>
-                <Banner tone="warning">
-                  <p>Los ajustes de inventario quedarán registrados en el historial.</p>
-                </Banner>
-                <InlineStack gap="400">
-                  <TextField
-                    label="Nueva Cantidad"
-                    type="number"
-                    value={newStock}
-                    onChange={setNewStock}
-                    autoComplete="off"
-                    placeholder={product.currentStock.toString()}
-                  />
-                  <div style={{ minWidth: 250 }}>
-                    <FormSelect
-                      label="Razón del Ajuste"
-                      options={adjustmentReasons}
-                      value={adjustmentReason}
-                      onChange={setAdjustmentReason}
-                    />
-                  </div>
-                </InlineStack>
-                {newStock && (
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    Diferencia: {parseInt(newStock, 10) - product.currentStock} unidades
-                  </Text>
-                )}
-              </BlockStack>
-            </>
-          )}
-
-          {/* Eliminar Producto */}
-          <Divider />
-          {showDeleteConfirm ? (
-            <Banner
-              tone="critical"
-              title="¿Estás seguro de eliminar este producto?"
-              onDismiss={() => setShowDeleteConfirm(false)}
-            >
-              <p style={{ marginBottom: 12 }}>
-                Se eliminará <strong>{product.name}</strong> permanentemente del inventario. Esta acción no se puede deshacer.
-              </p>
-              <InlineStack gap="200">
-                <Button
-                  variant="primary"
-                  tone="critical"
-                  onClick={handleDelete}
-                  loading={deleting}
-                >
-                  Sí, Eliminar
-                </Button>
-                <Button onClick={() => setShowDeleteConfirm(false)}>
-                  Cancelar
-                </Button>
-              </InlineStack>
-            </Banner>
-          ) : (
-            <InlineStack align="end" gap="300">
-              <Button
-                variant="plain"
-                icon={EditIcon}
-                onClick={handleStartEdit}
-              >
-                Editar Producto
-              </Button>
-              <Button
-                variant="plain"
-                tone="critical"
-                icon={DeleteIcon}
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                Eliminar Producto
-              </Button>
-            </InlineStack>
-          )}
-        </BlockStack>
-      </Modal.Section>
+    <Modal open={open} onClose={() => { setEditProductMode(false); onClose(); }} title={product!.name.toUpperCase()} size="large">
+       <Modal.Section>{editProductMode ? renderEditContent() : renderViewContent()}</Modal.Section>
     </Modal>
   );
 }

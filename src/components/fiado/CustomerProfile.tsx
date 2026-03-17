@@ -37,9 +37,11 @@ import {
     ArchiveIcon,
     CashDollarIcon,
     PersonFilledIcon,
+    ReceiptIcon,
+    OrderFilledIcon,
 } from '@shopify/polaris-icons';
 import { useState, useMemo } from 'react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Cliente, FiadoTransaction } from '@/types';
 
 interface CustomerProfileProps {
@@ -52,13 +54,12 @@ export function CustomerProfile({ cliente, transactions, onBack }: CustomerProfi
     const [comment, setComment] = useState('');
 
     const stats = useMemo(() => {
-        // In a real app, these would come from the database
-        // Here we estimate from transactions and profile
         const totalSpent = transactions
-            .filter(t => t.type === 'fiado' && t.saleFolio)
+            .filter(t => t.type === 'fiado')
             .reduce((sum, t) => sum + t.amount, 0);
 
-        const ordersCount = new Set(transactions.map(t => t.saleFolio).filter(Boolean)).size;
+        const ordersCount = transactions.filter(t => t.type === 'fiado' && t.saleFolio).length;
+        const lastOrder = transactions.filter(t => t.type === 'fiado').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
         // Calculate time since creation
         const createdDate = new Date(cliente.createdAt);
@@ -66,15 +67,22 @@ export function CustomerProfile({ cliente, transactions, onBack }: CustomerProfi
         const diffMs = now.getTime() - createdDate.getTime();
         const diffSec = Math.floor(diffMs / 1000);
 
-        let timeSince = "Menos de 5 segundos";
-        if (diffSec > 60) timeSince = `${Math.floor(diffSec / 60)} minutos`;
-        if (diffSec > 3600) timeSince = `${Math.floor(diffSec / 3600)} horas`;
-        if (diffSec > 86400) timeSince = `${Math.floor(diffSec / 86400)} días`;
+        let timeSince = "Menos de 1 minuto";
+        if (diffSec > 60) timeSince = `${Math.floor(diffSec / 60)} min`;
+        if (diffSec > 3600) timeSince = `${Math.floor(diffSec / 3600)} h`;
+        if (diffSec > 86400) timeSince = `${Math.floor(diffSec / 86400)} d`;
+
+        // Sort transactions by date descending for timeline
+        const sortedTransactions = [...transactions].sort((a, b) => 
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
 
         return {
             totalSpent,
             ordersCount,
             timeSince,
+            lastOrder,
+            sortedTransactions,
             rfmGroup: '—'
         };
     }, [cliente, transactions]);
@@ -158,21 +166,37 @@ export function CustomerProfile({ cliente, transactions, onBack }: CustomerProfi
                             <Card>
                                 <BlockStack gap="400">
                                     <Text as="h2" variant="headingSm">Último pedido realizado</Text>
-                                    <Box padding="400" borderStyle="dashed" borderWidth="025" borderColor="border-secondary" borderRadius="200">
-                                        <BlockStack gap="400" align="center">
-                                            <Box maxWidth="80px">
-                                                {/* Inline placeholder for illustration */}
-                                                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <rect width="100" height="100" rx="10" fill="#f4f6f8" />
-                                                    <path d="M30 40H70V70H30V40Z" fill="#dfe3e8" />
-                                                    <rect x="35" y="45" width="30" height="2" fill="#c4cdd5" />
-                                                    <rect x="35" y="50" width="20" height="2" fill="#c4cdd5" />
-                                                </svg>
-                                            </Box>
-                                            <Text as="p" tone="subdued">Este cliente aún no ha realizado ningún pedido</Text>
-                                            <Button>Crear pedido</Button>
-                                        </BlockStack>
-                                    </Box>
+                                    {stats.lastOrder ? (
+                                        <Box padding="400" borderRadius="200" background="bg-surface-secondary">
+                                            <InlineStack align="space-between" blockAlign="center">
+                                                <InlineStack gap="300" blockAlign="center">
+                                                    <Box padding="200" background="bg-surface" borderRadius="200">
+                                                        <Icon source={ReceiptIcon} tone="base" />
+                                                    </Box>
+                                                    <BlockStack gap="050">
+                                                        <Text as="p" variant="bodyMd" fontWeight="bold">
+                                                            {stats.lastOrder.description || `Ticket ${stats.lastOrder.saleFolio || 'S/N'}`}
+                                                        </Text>
+                                                        <Text as="p" variant="bodySm" tone="subdued">
+                                                            {formatDate(stats.lastOrder.date)} • {stats.lastOrder.items?.length || 0} artículos
+                                                        </Text>
+                                                    </BlockStack>
+                                                </InlineStack>
+                                                <Text as="p" variant="bodyLg" fontWeight="bold">
+                                                    {formatCurrency(stats.lastOrder.amount)}
+                                                </Text>
+                                            </InlineStack>
+                                        </Box>
+                                    ) : (
+                                        <Box padding="400" borderStyle="dashed" borderWidth="025" borderColor="border-secondary" borderRadius="200">
+                                            <BlockStack gap="400" align="center">
+                                                <Box maxWidth="80px">
+                                                    <Icon source={OrderFilledIcon} tone="subdued" />
+                                                </Box>
+                                                <Text as="p" tone="subdued">Este cliente aún no ha realizado ningún pedido</Text>
+                                            </BlockStack>
+                                        </Box>
+                                    )}
                                 </BlockStack>
                             </Card>
 
@@ -213,7 +237,51 @@ export function CustomerProfile({ cliente, transactions, onBack }: CustomerProfi
 
                                     {/* Timeline Feed */}
                                     <div style={{ paddingLeft: '12px', borderLeft: '1px solid #e1e3e5', marginLeft: '12px', marginTop: '20px' }}>
-                                        <BlockStack gap="400">
+                                        <BlockStack gap="600">
+                                            {stats.sortedTransactions.map((t) => (
+                                                <div key={t.id} style={{ position: 'relative' }}>
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        left: '-17px',
+                                                        top: '4px',
+                                                        width: '9px',
+                                                        height: '9px',
+                                                        borderRadius: '50%',
+                                                        background: t.type === 'fiado' ? '#e51c00' : '#008060',
+                                                        border: '2px solid white',
+                                                        boxShadow: '0 0 0 1px #e1e3e5'
+                                                    }} />
+                                                    <BlockStack gap="200">
+                                                        <InlineStack align="space-between">
+                                                            <BlockStack gap="050">
+                                                                <Text as="span" variant="bodySm" tone="subdued">{formatDate(t.date)}</Text>
+                                                                <Text as="span" variant="bodyMd" fontWeight="semibold">
+                                                                    {t.type === 'fiado' ? 'Compra a crédito (Fiado)' : 'Abono realizado'}
+                                                                </Text>
+                                                                <Text as="span" variant="bodyMd">{t.description}</Text>
+                                                            </BlockStack>
+                                                            <Text as="span" variant="bodyMd" fontWeight="bold" tone={t.type === 'fiado' ? 'critical' : 'success'}>
+                                                                {t.type === 'fiado' ? '-' : '+'}{formatCurrency(t.amount)}
+                                                            </Text>
+                                                        </InlineStack>
+
+                                                        {t.items && t.items.length > 0 && (
+                                                            <Box padding="200" background="bg-surface-secondary" borderRadius="100">
+                                                                <BlockStack gap="100">
+                                                                    <Text as="p" variant="bodySm" fontWeight="semibold">Artículos:</Text>
+                                                                    {t.items.map((item, i) => (
+                                                                        <InlineStack key={i} align="space-between">
+                                                                            <Text as="span" variant="bodySm">{item.quantity}x {item.productName}</Text>
+                                                                            <Text as="span" variant="bodySm" tone="subdued">{formatCurrency(item.subtotal)}</Text>
+                                                                        </InlineStack>
+                                                                    ))}
+                                                                </BlockStack>
+                                                            </Box>
+                                                        )}
+                                                    </BlockStack>
+                                                </div>
+                                            ))}
+
                                             <div style={{ position: 'relative' }}>
                                                 <div style={{
                                                     position: 'absolute',
@@ -222,14 +290,14 @@ export function CustomerProfile({ cliente, transactions, onBack }: CustomerProfi
                                                     width: '9px',
                                                     height: '9px',
                                                     borderRadius: '50%',
-                                                    background: '#5c5f62'
+                                                    background: '#5c5f62',
+                                                    border: '2px solid white'
                                                 }} />
                                                 <InlineStack align="space-between">
                                                     <BlockStack gap="050">
-                                                        <Text as="span" variant="bodySm" tone="subdued">Hoy</Text>
-                                                        <Text as="span" variant="bodyMd">Tú has creado este cliente.</Text>
+                                                        <Text as="span" variant="bodySm" tone="subdued">{formatDate(cliente.createdAt)}</Text>
+                                                        <Text as="span" variant="bodyMd">Registro de cliente creado.</Text>
                                                     </BlockStack>
-                                                    <Text as="span" variant="bodySm" tone="subdued">Ahora mismo</Text>
                                                 </InlineStack>
                                             </div>
                                         </BlockStack>
@@ -314,14 +382,30 @@ export function CustomerProfile({ cliente, transactions, onBack }: CustomerProfi
 
                             {/* Fiado / Credit Card */}
                             <Card>
-                                <BlockStack gap="200">
+                                <BlockStack gap="300">
                                     <InlineStack align="space-between">
-                                        <Text as="h2" variant="headingSm">Crédito en tienda (Fiado)</Text>
-                                        <Icon source={EditIcon} tone="subdued" />
+                                        <Text as="h2" variant="headingSm">Estado de Cuenta</Text>
+                                        <Icon source={CreditCardIcon} tone="subdued" />
                                     </InlineStack>
-                                    <Text as="p" variant="bodyMd" tone={cliente.balance > 0 ? 'critical' : 'subdued'}>
-                                        {cliente.balance > 0 ? `Debe ${formatCurrency(cliente.balance)}` : 'Ninguno'}
-                                    </Text>
+                                    <BlockStack gap="200">
+                                        <InlineStack align="space-between">
+                                            <Text as="p" variant="bodyMd" tone="subdued">Límite de crédito:</Text>
+                                            <Text as="p" variant="bodyMd" fontWeight="semibold">{formatCurrency(cliente.creditLimit)}</Text>
+                                        </InlineStack>
+                                        <InlineStack align="space-between">
+                                            <Text as="p" variant="bodyMd" tone="subdued">Deuda actual:</Text>
+                                            <Text as="p" variant="bodyMd" fontWeight="bold" tone={cliente.balance > 0 ? 'critical' : 'success'}>
+                                                {formatCurrency(cliente.balance)}
+                                            </Text>
+                                        </InlineStack>
+                                        <Divider />
+                                        <InlineStack align="space-between">
+                                            <Text as="p" variant="bodyMd" tone="subdued">Crédito disponible:</Text>
+                                            <Text as="p" variant="bodyMd" fontWeight="bold" tone="success">
+                                                {formatCurrency(Math.max(0, cliente.creditLimit - cliente.balance))}
+                                            </Text>
+                                        </InlineStack>
+                                    </BlockStack>
                                 </BlockStack>
                             </Card>
 

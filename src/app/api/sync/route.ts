@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebase-admin';
+import { createSale } from '@/app/actions/sales-actions';
+import { updateProduct } from '@/app/actions/product-actions';
 
 export async function POST(req: NextRequest) {
   try {
-    // Verify authentication
+    // Verify authentication via cookie (same as middleware)
+    const sessionCookie = req.cookies.get('__session')?.value;
     const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : sessionCookie;
+
+    if (!token) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
-    const token = authHeader.slice(7);
 
     try {
       await adminAuth.verifyIdToken(token, true);
@@ -18,25 +22,26 @@ export async function POST(req: NextRequest) {
 
     const { action, payload } = await req.json();
 
-    // Validate action
-    const allowedActions = ['createSale', 'updateProduct'];
-    if (!allowedActions.includes(action)) {
+    const allowedActions = ['createSale', 'updateProduct'] as const;
+    if (!allowedActions.includes(action as typeof allowedActions[number])) {
       return NextResponse.json({ error: 'Acción no soportada' }, { status: 400 });
     }
 
-    // Procesar acciones offline sincronizadas
     switch (action) {
       case 'createSale':
-        // Implementar lógica de venta
+        await createSale(payload);
         break;
       case 'updateProduct':
-        // Implementar lógica de actualización
+        await updateProduct(payload.id, payload);
         break;
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error syncing offline action:', error);
-    return NextResponse.json({ error: 'Error al sincronizar' }, { status: 500 });
+    console.error('[sync] Error syncing offline action:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Error al sincronizar' },
+      { status: 500 },
+    );
   }
 }

@@ -13,7 +13,6 @@ import {
   Button,
   Modal,
   FormLayout,
-  EmptyState,
   Box,
   Divider,
   Checkbox,
@@ -23,6 +22,10 @@ import { PlusIcon, ExportIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { formatCurrency } from '@/lib/utils';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { StatCard } from '@/components/ui/StatCard';
+import { EmptyStateCard } from '@/components/ui/EmptyStateCard';
+import { DeleteConfirmation } from '@/components/ui/DeleteConfirmation';
 import { GenericExportModal } from '@/components/inventory/ShopifyModals';
 import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
 import type { GastoCategoria } from '@/types';
@@ -191,30 +194,13 @@ export function GastosManager() {
         {/* Summary Cards */}
         <InlineStack gap="400" align="start">
           <Box minWidth="200px">
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">Total Gastos</Text>
-                <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">{formatCurrency(totalGastos)}</Text>
-              </BlockStack>
-            </Card>
+            <StatCard label="Total Gastos" value={totalGastos} format="currency" tone="critical" />
           </Box>
           <Box minWidth="200px">
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">Total Ventas</Text>
-                <Text as="p" variant="headingLg" fontWeight="bold">{formatCurrency(totalVentas)}</Text>
-              </BlockStack>
-            </Card>
+            <StatCard label="Total Ventas" value={totalVentas} format="currency" />
           </Box>
           <Box minWidth="200px">
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">Ganancia Estimada</Text>
-                <Text as="p" variant="headingLg" fontWeight="bold" tone={gananciaEstimada >= 0 ? 'success' : 'critical'}>
-                  {formatCurrency(gananciaEstimada)}
-                </Text>
-              </BlockStack>
-            </Card>
+            <StatCard label="Ganancia Estimada" value={gananciaEstimada} format="currency" tone={gananciaEstimada >= 0 ? 'success' : 'critical'} />
           </Box>
         </InlineStack>
 
@@ -236,17 +222,11 @@ export function GastosManager() {
         {/* Filters + Actions */}
         <Card>
           <BlockStack gap="300">
-            <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">Registro de Gastos</Text>
-              <InlineStack gap="200">
-                <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>
-                  Exportar
-                </Button>
-                <Button icon={PlusIcon} variant="primary" onClick={() => setAddOpen(true)}>
-                  Nuevo Gasto
-                </Button>
-              </InlineStack>
-            </InlineStack>
+            <SectionHeader
+              title="Registro de Gastos"
+              primaryAction={{ content: 'Nuevo Gasto', icon: PlusIcon, onAction: () => setAddOpen(true) }}
+              secondaryActions={[{ content: 'Exportar', icon: ExportIcon, onAction: () => setIsExportOpen(true) }]}
+            />
 
             <InlineStack gap="200" align="start" blockAlign="end">
               <Box minWidth="200px">
@@ -271,11 +251,7 @@ export function GastosManager() {
 
         {/* Gastos list */}
         {filteredGastos.length === 0 ? (
-          <Card>
-            <EmptyState heading="Sin gastos registrados" image="">
-              <p>Agrega tus gastos para llevar control de tus finanzas.</p>
-            </EmptyState>
-          </Card>
+          <EmptyStateCard heading="Sin gastos registrados" description="Agrega tus gastos para llevar control de tus finanzas." />
         ) : (
           <Card>
             <IndexTable
@@ -316,14 +292,12 @@ export function GastosManager() {
                   <IndexTable.Cell>
                     <InlineStack gap="100">
                       <Button variant="plain" onClick={() => handleStartEdit(gasto)}>Editar</Button>
-                      {deleteConfirmId === gasto.id ? (
-                        <InlineStack gap="100">
-                          <Button variant="plain" tone="critical" onClick={() => handleDeleteGasto(gasto.id)} loading={deleting}>Confirmar</Button>
-                          <Button variant="plain" onClick={() => setDeleteConfirmId(null)}>No</Button>
-                        </InlineStack>
-                      ) : (
-                        <Button variant="plain" tone="critical" onClick={() => setDeleteConfirmId(gasto.id)}>Eliminar</Button>
-                      )}
+                      <DeleteConfirmation
+                        isConfirming={deleteConfirmId === gasto.id}
+                        isDeleting={deleting}
+                        onConfirm={() => handleDeleteGasto(gasto.id)}
+                        onCancel={() => setDeleteConfirmId(deleteConfirmId === gasto.id ? null : gasto.id)}
+                      />
                     </InlineStack>
                   </IndexTable.Cell>
                 </IndexTable.Row>

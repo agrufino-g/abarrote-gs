@@ -48,7 +48,9 @@ export function UserMenu() {
 
   if (!user) return null;
 
-  const displayName = currentUserRole?.displayName || user.displayName || user.email?.split('@')[0] || 'Usuario';
+  const rawDisplayName = currentUserRole?.displayName || user.displayName || user.email?.split('@')[0] || 'Usuario';
+  const displayName = rawDisplayName === 'ERROR' ? (currentUserRole?.roleId === 'owner' ? 'Admin' : 'Usuario') : rawDisplayName;
+
   const initials = displayName
     .split(' ')
     .filter(Boolean)

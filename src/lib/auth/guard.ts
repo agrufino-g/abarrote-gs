@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { userRoles, roleDefinitions } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import type { PermissionKey } from '@/types';
+import { logger } from '@/lib/logger';
 
 // ==================== TYPES ====================
 
@@ -113,6 +114,7 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
 
         // Firebase token verification errors
         const message = error instanceof Error ? error.message : 'Token inválido';
+        logger.warn('Auth verification failed', { action: 'requireAuth', error: message });
         if (message.includes('auth/id-token-expired')) {
             throw new AuthError('Tu sesión ha expirado. Inicia sesión de nuevo.', 401);
         }

@@ -180,11 +180,9 @@
   fill: #0518d2 !important;
 }
 
-
-
-/* Fix sidebar position below custom TopBar */
+/* --- Layout Stability (Shopify Style) --- */
 .Polaris-Frame {
-  padding-top: 56px !important;
+  padding-top: 0 !important;
 }
 
 .Polaris-Frame__Navigation {
@@ -196,9 +194,58 @@
   padding-top: 0 !important;
 }
 
-/* Ensure Navigation content is not cut off */
-.Polaris-Navigation {
-  padding-top: 0 !important;
+/* Professional Page Spacing - Expansive & Premium */
+.Polaris-Page {
+  padding-top: 24px !important;
+  padding-bottom: 40px !important;
+  max-width: 1750px !important; /* Wide layout for professional feel */
+  width: 95% !important;     /* Responsive width */
+  margin: 0 auto !important;
+}
+
+/* Full-width pages should be truly edge-to-edge if needed */
+.Polaris-Page--fullWidth {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.Polaris-Layout {
+  max-width: none !important;
+}
+
+.Polaris-Page-Header {
+  margin-bottom: 24px !important;
+}
+
+/* Fix the GREY AREA in Polaris IndexTable */
+.Polaris-IndexTable-ScrollContainer {
+  background-color: white !important;
+}
+
+/* Modern & Subtle Scrollbars */
+::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1) !important;
+  border-radius: 10px !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Premium Card Design */
+.Polaris-Card {
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: var(--p-shadow-sm) !important;
 }
 
 @media (min-width: 768px) {
@@ -207,7 +254,7 @@
   }
 }
 
-/* Custom Sort Menu (Shopify Style) */
+/* Custom Sort Menu */
 .custom-sort-list {
   display: flex;
   flex-direction: column;
@@ -255,72 +302,44 @@
   border-radius: 50%;
 }
 
-.direction-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 12px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  border-radius: 8px;
-  transition: background 0.2s ease;
-  color: #303030;
-}
-
-.direction-btn:hover {
-  background-color: #f1f1f1;
-}
-
-.direction-btn.active {
-  background-color: #e3e3e3;
-  color: #1a1a1a;
-}
-
-.direction-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
 /* ── Notifications Center ── */
 @keyframes notif-pulse-critical {
-  0%   { box-shadow: 0 0 0 0 rgba(227, 18, 18, 0.55); }
-  70%  { box-shadow: 0 0 0 6px rgba(227, 18, 18, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(227, 18, 18, 0.55); }
+  70% { box-shadow: 0 0 0 6px rgba(227, 18, 18, 0); }
   100% { box-shadow: 0 0 0 0 rgba(227, 18, 18, 0); }
 }
 
 @keyframes notif-pulse-warning {
-  0%   { box-shadow: 0 0 0 0 rgba(185, 137, 0, 0.5); }
-  70%  { box-shadow: 0 0 0 5px rgba(185, 137, 0, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(185, 137, 0, 0.5); }
+  70% { box-shadow: 0 0 0 5px rgba(185, 137, 0, 0); }
   100% { box-shadow: 0 0 0 0 rgba(185, 137, 0, 0); }
 }
 
-@keyframes notif-live-blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.35; }
+/* Shopify Premium Overrides */
+.Polaris-Popover__Content {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: var(--p-shadow-lg) !important;
 }
 
-.notif-pulse-dot--critical {
-  background-color: #E31212;
-  animation: notif-pulse-critical 1.6s ease-in-out infinite;
+.Polaris-TextField__Input {
+  border-radius: 28px !important;
 }
 
-.notif-pulse-dot--warning {
-  background-color: #B98900;
-  animation: notif-pulse-warning 2s ease-in-out infinite;
+/* Auth Pages Background */
+.auth-background {
+  background-image: url('/backgrounds/03.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
-.notif-pulse-dot--info {
-  background-color: #2E72D2;
-}
-
-.notif-live-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: #008060;
-  flex-shrink: 0;
-  animation: notif-live-blink 2.4s ease-in-out infinite;
+/* Glassmorphism card inside auth pages */
+.auth-background .Polaris-Card {
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18) !important;
 }

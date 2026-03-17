@@ -159,16 +159,24 @@ export function ResetPasswordForm() {
         <BlockStack gap="600">
           <BlockStack gap="400" align="center">
             <div style={{
-              padding: '16px 0',
+              padding: '24px 0 12px 0',
               width: '100%',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <img src="/logo_for_kiosko_login.svg" alt="Consola Admin Logo" style={{ width: '120px', height: 'auto' }} />
+              <img 
+                src="/login-brand.svg" 
+                alt="Logo" 
+                style={{ 
+                  width: '200px', 
+                  height: 'auto'
+                }} 
+              />
             </div>
             <BlockStack gap="100" align="center">
-              <Text as="h1" variant="headingLg">
+              <Text as="h1" variant="headingLg" fontWeight="bold">
                 Nueva Contraseña
               </Text>
               <Text as="p" variant="bodyMd" tone="subdued">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Badge, BlockStack, Box, Button, Divider, InlineStack, Icon, Popover, Scrollable, Text, Thumbnail } from '@shopify/polaris';
+import { Badge, BlockStack, Box, Button, Divider, InlineStack, Icon, Popover, Scrollable, Text, Thumbnail, ResourceList, ResourceItem, Tooltip } from '@shopify/polaris';
 import {
   CheckCircleIcon,
   FilterIcon,
@@ -15,6 +15,11 @@ import {
   SettingsIcon,
   HomeIcon,
   ImageIcon,
+  InventoryIcon,
+  CalendarIcon,
+  CartIcon,
+  MoneyIcon,
+  AlertCircleIcon,
 } from '@shopify/polaris-icons';
 import Image from 'next/image';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -144,6 +149,13 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
     critical: 'critical',
     warning: 'warning',
     info: 'info',
+  };
+
+  const alertIcon: Record<'low_stock' | 'expiration' | 'expired' | 'merma', any> = {
+    low_stock: InventoryIcon,
+    expiration: CalendarIcon,
+    expired: CalendarIcon,
+    merma: CartIcon,
   };
 
   const alertHeadingLabel: Record<'low_stock' | 'expiration' | 'expired' | 'merma', string> = {
@@ -520,119 +532,105 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
             </button>
           )}
         >
-          <Box minWidth="360px" maxWidth="360px">
+          <Box
+            width="450px"
+            borderRadius="400"
+            overflowX="hidden"
+            overflowY="hidden"
+            background="bg-surface"
+            shadow="shadowLg"
+          >
             <BlockStack gap="0">
-              <Box padding="400" background="bg-surface">
-                <InlineStack align="space-between" blockAlign="start">
-                  <BlockStack gap="050">
-                    <Text as="h3" variant="headingSm">Alertas</Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      {inventoryAlerts.length > 0 ? `${inventoryAlerts.length} activas` : 'Sin alertas'}
-                    </Text>
-                  </BlockStack>
+              <Box padding="300" background="bg-surface-secondary">
+                <InlineStack align="space-between" blockAlign="center">
                   <InlineStack gap="100" blockAlign="center">
+                    <Text as="h2" variant="headingMd" fontWeight="semibold">Alertas</Text>
+                    <Badge tone="attention" size="small">Beta</Badge>
+                  </InlineStack>
+                  <InlineStack gap="100">
                     <Button
-                      accessibilityLabel="Filtrar alertas"
+                      accessibilityLabel="Filtrar"
                       icon={FilterIcon}
-                      size="micro"
                       variant="plain"
                     />
                     <Button
-                      accessibilityLabel="Marcar revisadas"
+                      accessibilityLabel="Marcar todo como leído"
                       icon={CheckCircleIcon}
-                      size="micro"
                       variant="plain"
                     />
                   </InlineStack>
                 </InlineStack>
               </Box>
+
               <Divider />
 
               {inventoryAlerts.length === 0 ? (
-                <Box padding="600" background="bg-surface">
-                  <BlockStack gap="200" inlineAlign="center">
-                    <Text as="p" variant="headingSm" alignment="center">No hay alertas</Text>
-                    <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                      Cuando se detecten productos con stock bajo, caducidad o mermas, apareceran aqui.
+                <Box padding="800" background="bg-surface">
+                  <BlockStack gap="400" inlineAlign="center">
+                    <Icon source={NotificationIcon} tone="subdued" />
+                    <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
+                      No hay alertas activas en tu tienda.
                     </Text>
                   </BlockStack>
                 </Box>
               ) : (
-                <>
-                  <Scrollable shadow style={{ maxHeight: '420px', background: 'var(--p-color-bg-surface)' }}>
-                    <BlockStack gap="0">
-                      {inventoryAlerts.slice(0, 8).map((alert, index) => (
-                        <Box key={alert.id} background="bg-surface">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsNotificationsOpen(false);
-                              onProductClick?.(alert.product);
-                            }}
-                            style={{
-                              width: '100%',
-                              padding: '16px',
-                              border: 'none',
-                              background: 'transparent',
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <BlockStack gap="300">
-                              <InlineStack align="space-between" blockAlign="center">
-                                <InlineStack gap="200" blockAlign="center">
-                                  <div
-                                    style={{
-                                      width: '8px',
-                                      height: '8px',
-                                      borderRadius: '999px',
-                                      backgroundColor: alertSeverityColor[alert.severity],
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                  <Text as="span" variant="bodySm" tone="subdued">
-                                    {alertTypeLabel[alert.alertType]} • {formatNotificationTime(alert.createdAt)}
-                                  </Text>
-                                </InlineStack>
-                                <Badge tone={alertSeverityTone[alert.severity]} size="small">
-                                  {alert.severity === 'critical' ? 'Urgente' : alert.severity === 'warning' ? 'Atencion' : 'Info'}
-                                </Badge>
-                              </InlineStack>
+                <ResourceList
+                  resourceName={{singular: 'alerta', plural: 'alertas'}}
+                  items={inventoryAlerts}
+                  renderItem={(alert) => {
+                    const {id, createdAt, alertType, severity, product} = alert;
+                    const media = (
+                      <div style={{ color: severity === 'critical' ? 'var(--p-color-icon-critical)' : 'var(--p-color-icon-info)' }}>
+                        {severity === 'critical' ? (
+                          <Icon source={AlertCircleIcon} tone="inherit" />
+                        ) : (
+                          <div style={{ 
+                            width: '8px', 
+                            height: '8px', 
+                            borderRadius: '50%', 
+                            backgroundColor: 'currentColor',
+                            margin: '4px'
+                          }} />
+                        )}
+                      </div>
+                    );
 
-                              <BlockStack gap="100">
-                                <Text as="p" variant="bodyMd" fontWeight="semibold">
-                                  {alertHeadingLabel[alert.alertType]}
-                                </Text>
-                                <Text as="p" variant="bodyMd">{alert.product.name}</Text>
-                                <Text as="p" variant="bodySm" tone="subdued">
-                                  {buildAlertDescription(alert)}
-                                </Text>
-                              </BlockStack>
-                            </BlockStack>
-                          </button>
-                          {index < Math.min(inventoryAlerts.length, 8) - 1 && <Divider />}
-                        </Box>
-                      ))}
-                    </BlockStack>
-                  </Scrollable>
-
-                  <Divider />
-                  <Box padding="400" background="bg-surface-secondary">
-                    <InlineStack align="center">
-                      <Button
-                        size="micro"
-                        variant="plain"
+                    return (
+                      <ResourceItem
+                        id={id}
                         onClick={() => {
                           setIsNotificationsOpen(false);
-                          onSectionSelect?.('notifications');
+                          onProductClick?.(product);
                         }}
+                        media={media}
+                        accessibilityLabel={`Ver detalles de ${product.name}`}
                       >
-                        {inventoryAlerts.length > 8 ? `Ver las ${inventoryAlerts.length} alertas` : 'No hay mas alertas'}
-                      </Button>
-                    </InlineStack>
-                  </Box>
-                </>
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {alertTypeLabel[alertType]} • {formatNotificationTime(createdAt)}
+                          </Text>
+                          <BlockStack gap="050">
+                            <Text as="p" variant="bodyMd" fontWeight="bold">
+                              {alertHeadingLabel[alertType]}
+                            </Text>
+                            <Text as="p" variant="bodyMd" tone="base">
+                              {product.name}. {buildAlertDescription(alert)}
+                            </Text>
+                          </BlockStack>
+                        </BlockStack>
+                      </ResourceItem>
+                    );
+                  }}
+                />
               )}
+
+              <Divider />
+              
+              <Box padding="300" background="bg-surface-secondary">
+                <InlineStack align="center">
+                  <Text as="p" variant="bodyMd" tone="subdued">No hay más alertas</Text>
+                </InlineStack>
+              </Box>
             </BlockStack>
           </Box>
         </Popover>

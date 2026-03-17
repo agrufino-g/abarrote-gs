@@ -17,20 +17,15 @@ import {
   Box,
   Divider,
   Banner,
-  ProgressBar,
   Page,
   Icon,
   Popover,
-  ActionList,
   Tooltip,
 } from '@shopify/polaris';
 import {
   PlusIcon,
-  CashDollarIcon,
   SearchIcon,
   ChevronDownIcon,
-  CheckIcon,
-  PersonIcon,
   ExportIcon,
   ImportIcon,
   SortIcon,
@@ -42,14 +37,19 @@ import {
 } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { CustomerProfile } from './CustomerProfile';
+import { NewCustomerForm } from './NewCustomerForm';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { formatCurrency } from '@/lib/utils';
 import { usePermissions } from '@/lib/usePermissions';
-import { GenericExportModal, ClientImportModal } from '@/components/inventory/ShopifyModals';
+import { CustomerExportModal, ClientImportModal } from '@/components/inventory/ShopifyModals';
 import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
-import type { Cliente, FiadoTransaction } from '@/types';
+import type { Cliente } from '@/types';
 
-export function FiadoManager() {
+interface FiadoManagerProps {
+  mode?: 'all' | 'fiado';
+}
+
+export function FiadoManager({ mode = 'all' }: FiadoManagerProps) {
   const { clientes, fiadoTransactions, addCliente, registerFiado, registerAbono, updateCliente, deleteCliente } = useDashboardStore();
   const { showSuccess, showError } = useToast();
   const { hasPermission, isLoaded: permsLoaded } = usePermissions();
@@ -80,12 +80,7 @@ export function FiadoManager() {
   const [editCCreditLimit, setEditCCreditLimit] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  // New cliente form
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newAddress, setNewAddress] = useState('');
-  const [newCreditLimit, setNewCreditLimit] = useState('500');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Fiado form
   const [fiadoClienteId, setFiadoClienteId] = useState('');
@@ -98,6 +93,30 @@ export function FiadoManager() {
   const [abonoDescription, setAbonoDescription] = useState('');
 
   const totalDebt = useMemo(() => clientes.reduce((sum, c) => sum + c.balance, 0), [clientes]);
+  
+  const filteredClientes = useMemo(() => {
+    let list = [...clientes];
+
+    // Filter by mode (passed from Dashboard)
+    if (mode === 'fiado') {
+      list = list.filter(c => c.balance > 0);
+    }
+
+    // Filter by Search
+    return list.filter(c => 
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (c.phone && c.phone.includes(searchQuery))
+    ).sort((a, b) => {
+      const order = sortOrder === 'asc' ? 1 : -1;
+      if (sortBy === 'spent') {
+        const spentA = fiadoTransactions.filter(t => t.clienteId === a.id && t.type === 'fiado').reduce((s, t) => s + t.amount, 0);
+        const spentB = fiadoTransactions.filter(t => t.clienteId === b.id && t.type === 'fiado').reduce((s, t) => s + t.amount, 0);
+        return (spentA - spentB) * order;
+      }
+      return a.name.localeCompare(b.name) * order;
+    });
+  }, [clientes, searchQuery, sortBy, sortOrder, fiadoTransactions, mode]);
+
   const clientesWithDebt = useMemo(() => clientes.filter((c) => c.balance > 0), [clientes]);
 
   const clienteOptions = useMemo(() => [
@@ -116,19 +135,10 @@ export function FiadoManager() {
     })),
   ], [clientesWithDebt]);
 
-  const handleAddCliente = useCallback(async () => {
-    if (!newName.trim()) { showError('Ingresa el nombre del cliente'); return; }
-    await addCliente({
-      name: newName.trim(),
-      phone: newPhone.trim(),
-      address: newAddress.trim(),
-      creditLimit: parseFloat(newCreditLimit) || 500,
-      points: 0,
-    });
-    showSuccess(`Cliente "${newName}" agregado`);
-    setNewName(''); setNewPhone(''); setNewAddress(''); setNewCreditLimit('500');
+  const handleSuccessNewCliente = useCallback(() => {
     setAddClienteOpen(false);
-  }, [newName, newPhone, newAddress, newCreditLimit, addCliente, showSuccess, showError]);
+    useDashboardStore.getState().fetchDashboardData();
+  }, []);
 
   const handleFiado = useCallback(async () => {
     if (!fiadoClienteId || !fiadoAmount || !fiadoDescription.trim()) {
@@ -191,6 +201,15 @@ export function FiadoManager() {
     setDeleting(false);
   }, [clientes, deleteCliente, showSuccess, showError]);
 
+  if (addClienteOpen) {
+    return (
+      <NewCustomerForm
+        onBack={() => setAddClienteOpen(false)}
+        onSuccess={handleSuccessNewCliente}
+      />
+    );
+  }
+
   if (viewingProfile) {
     return (
       <CustomerProfile
@@ -204,12 +223,8 @@ export function FiadoManager() {
   return (
     <Page
       fullWidth
-      title={(
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Icon source={PersonFilledIcon} tone="base" />
-          <span>Clientes</span>
-        </div>
-      ) as any}
+      title="Clientes"
+      titleMetadata={<Icon source={PersonFilledIcon} tone="base" />}
       primaryAction={
         canEditClients ? {
           content: 'Agregar cliente',
@@ -217,55 +232,30 @@ export function FiadoManager() {
         } : undefined
       }
       secondaryActions={[
-        {
-          content: 'Actualizar',
-          icon: RefreshIcon,
-          onAction: () => {
-            useDashboardStore.getState().fetchDashboardData();
-          },
-        },
-        { content: 'Exportar', icon: ExportIcon, onAction: () => setIsExportOpen(true) },
-        { content: 'Importar', icon: ImportIcon, onAction: () => setIsImportOpen(true) },
+        { content: 'Exportar', onAction: () => setIsExportOpen(true) },
+        { content: 'Importar', onAction: () => setIsImportOpen(true) },
       ]}
     >
       <BlockStack gap="400">
-        {/* Summary Card */}
+        {/* Summary Card - Shopify Style */}
         <Box
           padding="300"
-          background="bg-surface-secondary"
+          background="bg-surface"
           borderRadius="200"
           borderWidth="025"
           borderColor="border"
         >
           <InlineStack align="space-between" blockAlign="center">
-            <InlineStack gap="100">
-              <Text as="span" variant="bodyMd" fontWeight="semibold">
+            <InlineStack gap="300" blockAlign="center">
+              <Text as="span" variant="bodyMd">
                 {clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'}
               </Text>
-              <Box borderInlineStartWidth="025" borderColor="border" paddingInlineStart="200">
-                <Text as="span" tone="subdued">0 % de tu clientela</Text>
-              </Box>
+              <div style={{ width: '1px', height: '24px', backgroundColor: '#e1e3e5' }} />
+              <Text as="span" tone="subdued">0 % de tu clientela</Text>
             </InlineStack>
             <Icon source={ChevronDownIcon} tone="subdued" />
           </InlineStack>
         </Box>
-
-        {/* Action Buttons for Store logic */}
-        <InlineStack gap="200">
-          {canCreateFiado && (
-            <Button variant="primary" tone="critical" onClick={() => setFiadoOpen(true)} disabled={clientes.length === 0}>
-              Registrar Fiado
-            </Button>
-          )}
-          {canCreateFiado && (
-            <Button variant="primary" onClick={() => setAbonoOpen(true)} disabled={clientesWithDebt.length === 0}>
-              Registrar Abono
-            </Button>
-          )}
-          <Badge tone={totalDebt > 0 ? 'attention' : 'success'}>
-            {`Deuda total en tienda: ${formatCurrency(totalDebt)}`}
-          </Badge>
-        </InlineStack>
 
         {/* Clients list */}
         {clientes.length === 0 ? (
@@ -283,98 +273,35 @@ export function FiadoManager() {
                   <TextField
                     label="Buscar clientes"
                     labelHidden
+                    value={searchQuery}
+                    onChange={setSearchQuery}
                     autoComplete="off"
                     placeholder="Buscar clientes"
                     prefix={<Icon source={SearchIcon} tone="subdued" />}
+                    clearButton
+                    onClearButtonClick={() => setSearchQuery('')}
                   />
                 </Box>
                 <InlineStack gap="200">
                   <Button variant="tertiary" icon={DataTableIcon} />
-                  <Popover
-                    active={sortActive}
-                    activator={
-                      <Tooltip content="Ordenar" dismissOnMouseOut>
-                        <Button variant="tertiary" icon={SortIcon} onClick={toggleSortActive} />
-                      </Tooltip>
-                    }
-                    onClose={toggleSortActive}
-                  >
-                    <Box padding="200" minWidth="280px">
-                      <BlockStack gap="100">
-                        <Box paddingInlineStart="300" paddingBlock="200">
-                          <Text as="p" variant="bodyMd" tone="subdued">Ordenar por</Text>
-                        </Box>
-
-                        <div className="custom-sort-list">
-                          {[
-                            { id: 'updated', label: 'Última actualización' },
-                            { id: 'spent', label: 'Importe gastado' },
-                            { id: 'orders', label: 'Pedidos totales' },
-                            { id: 'lastOrder', label: 'Fecha del último pedido' },
-                            { id: 'firstOrder', label: 'Fecha del primer pedido' },
-                            { id: 'created', label: 'Fecha en que se agregó como cliente' },
-                            { id: 'abandoned', label: 'Fecha del último pedido abandonado' },
-                          ].map((option) => (
-                            <button
-                              key={option.id}
-                              onClick={() => setSortBy(option.id)}
-                              className={`sort-option-btn ${sortBy === option.id ? 'active' : ''}`}
-                            >
-                              <div className="radio-circle">
-                                {sortBy === option.id && <div className="radio-inner" />}
-                              </div>
-                              <Text as="span" variant="bodyMd">
-                                {option.label}
-                              </Text>
-                            </button>
-                          ))}
-                        </div>
-
-                        <Divider />
-
-                        <Box padding="100">
-                          <BlockStack gap="100">
-                            <button
-                              onClick={() => setSortOrder('asc')}
-                              className={`direction-btn ${sortOrder === 'asc' ? 'active' : ''}`}
-                            >
-                              <Icon source={ArrowUpIcon} tone="base" />
-                              <Text as="span" variant="bodyMd" fontWeight={sortOrder === 'asc' ? 'semibold' : 'regular'}>
-                                Más antiguo a más reciente
-                              </Text>
-                            </button>
-                            <button
-                              onClick={() => setSortOrder('desc')}
-                              className={`direction-btn ${sortOrder === 'desc' ? 'active' : ''}`}
-                            >
-                              <Icon source={ArrowDownIcon} tone="base" />
-                              <Text as="span" variant="bodyMd" fontWeight={sortOrder === 'desc' ? 'semibold' : 'regular'}>
-                                Más reciente a más antiguo
-                              </Text>
-                            </button>
-                          </BlockStack>
-                        </Box>
-                      </BlockStack>
-                    </Box>
-                  </Popover>
+                  <Button variant="tertiary" icon={SortIcon} onClick={toggleSortActive} />
                 </InlineStack>
               </InlineStack>
             </Box>
 
             <IndexTable
               resourceName={{ singular: 'cliente', plural: 'clientes' }}
-              itemCount={clientes.length}
+              itemCount={filteredClientes.length}
               headings={[
                 { title: 'Nombre del cliente' },
                 { title: 'Suscripción por email' },
                 { title: 'Ubicación' },
                 { title: 'Pedidos' },
                 { title: 'Importe gastado' },
-                { title: 'Acciones' },
               ]}
               selectable={false}
             >
-              {clientes.map((cliente, idx) => {
+              {filteredClientes.map((cliente, idx) => {
                 const clientTransactions = fiadoTransactions.filter(t => t.clienteId === cliente.id);
                 const orderCount = new Set(clientTransactions.map(t => t.saleFolio).filter(Boolean)).size;
                 const totalSpent = clientTransactions
@@ -385,7 +312,7 @@ export function FiadoManager() {
                   <IndexTable.Row id={cliente.id} key={cliente.id} position={idx}>
                     <IndexTable.Cell>
                       <Button variant="plain" onClick={() => setViewingProfile(cliente)}>
-                        {cliente.name.toUpperCase()}
+                        {cliente.name}
                       </Button>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
@@ -395,29 +322,14 @@ export function FiadoManager() {
                       <Text as="span" tone="subdued">México</Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      <Text as="span">{orderCount} pedidos</Text>
+                      <Text as="span" tone="subdued">{orderCount} pedidos</Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      <Text as="span" fontWeight="semibold">
-                        {formatCurrency(totalSpent)}
-                      </Text>
-                    </IndexTable.Cell>
-                    <IndexTable.Cell>
-                      <InlineStack gap="100">
-                        {canEditClients && (
-                          <Button variant="plain" onClick={() => handleStartEditCliente(cliente)}>Editar</Button>
-                        )}
-                        {canEditClients && (
-                          deleteConfirmId === cliente.id ? (
-                            <InlineStack gap="100">
-                              <Button variant="plain" tone="critical" onClick={() => handleDeleteCliente(cliente.id)} loading={deleting}>Si</Button>
-                              <Button variant="plain" onClick={() => setDeleteConfirmId(null)}>No</Button>
-                            </InlineStack>
-                          ) : (
-                            <Button variant="plain" tone="critical" onClick={() => setDeleteConfirmId(cliente.id)}>Eliminar</Button>
-                          )
-                        )}
-                      </InlineStack>
+                      <div style={{ textAlign: 'right', width: '100%' }}>
+                         <Text as="span" variant="bodyMd">
+                            {formatCurrency(totalSpent).replace('$', '')} $
+                         </Text>
+                      </div>
                     </IndexTable.Cell>
                   </IndexTable.Row>
                 );
@@ -427,23 +339,6 @@ export function FiadoManager() {
         )}
       </BlockStack>
 
-      {/* Modal: Nuevo Cliente */}
-      <Modal
-        open={addClienteOpen}
-        onClose={() => setAddClienteOpen(false)}
-        title="Agregar Cliente"
-        primaryAction={{ content: 'Guardar', onAction: handleAddCliente, disabled: !newName.trim() }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => setAddClienteOpen(false) }]}
-      >
-        <Modal.Section>
-          <FormLayout>
-            <TextField label="Nombre completo" value={newName} onChange={setNewName} autoComplete="off" placeholder="Juan Pérez" />
-            <TextField label="Teléfono" value={newPhone} onChange={setNewPhone} autoComplete="off" placeholder="55 1234 5678" />
-            <TextField label="Dirección / Referencia" value={newAddress} onChange={setNewAddress} autoComplete="off" placeholder="Calle Juárez #45, cerca de la iglesia" />
-            <TextField label="Límite de crédito (MXN)" type="number" value={newCreditLimit} onChange={setNewCreditLimit} autoComplete="off" prefix="$" helpText="Monto máximo que puede deber" />
-          </FormLayout>
-        </Modal.Section>
-      </Modal>
 
       {/* Modal: Registrar Fiado */}
       <Modal
@@ -515,19 +410,19 @@ export function FiadoManager() {
         </Modal.Section>
       </Modal>
 
-      <GenericExportModal
+      <CustomerExportModal
         open={isExportOpen}
         onClose={() => setIsExportOpen(false)}
-        title="Exportar clientes"
-        exportName="clientes"
-        onExport={(format) => {
-          const exportData = filteredClientes.map(c => ({
+        onExport={(format, scope) => {
+          const dataToExport = scope === 'current' ? filteredClientes : clientes;
+          const exportData = dataToExport.map(c => ({
             "Nombre Completo": c.name,
             "Teléfono": c.phone || 'N/A',
             "Dirección": c.address || 'N/A',
             "Límite de Crédito": c.creditLimit,
-            "Crédito Utilizado": c.currentBalance,
-            "Crédito Disponible": Math.max(0, c.creditLimit - c.currentBalance)
+            "Crédito Utilizado": c.balance,
+            "Crédito Disponible": Math.max(0, c.creditLimit - c.balance),
+            "Puntos": c.points || 0
           }));
           const filename = `Clientes_Kiosco_${new Date().toISOString().split('T')[0]}`;
           if (format === 'pdf') {

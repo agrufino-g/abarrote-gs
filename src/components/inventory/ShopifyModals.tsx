@@ -1,7 +1,24 @@
-import { Modal, RadioButton, BlockStack, Text, Link, Badge, DropZone, InlineStack, Checkbox, Button, Icon } from '@shopify/polaris';
-import { ExportIcon, NoteIcon } from '@shopify/polaris-icons';
+import {
+  Modal,
+  RadioButton,
+  BlockStack,
+  Text,
+  Link,
+  Badge,
+  DropZone,
+  InlineStack,
+  Checkbox,
+  Button,
+  Icon,
+} from '@shopify/polaris';
+import {
+  ExportIcon,
+  NoteIcon,
+  QuestionCircleIcon,
+  SearchIcon,
+} from '@shopify/polaris-icons';
 import { useState, useCallback } from 'react';
-import { importProductsFromCSV } from '@/app/actions/import-actions';
+import { importProductsFromCSV, importCustomersFromCSV } from '@/app/actions/import-actions';
 import { useToast } from '@/components/notifications/ToastProvider';
 
 export function ProductImportModal({ open, onClose, onImportSuccess }: { open: boolean, onClose: () => void, onImportSuccess?: () => void }) {
@@ -168,7 +185,6 @@ export function ProductExportModal({ open, onClose, onExport }: { open: boolean,
             title="Exportar productos"
             primaryAction={{
                 content: 'Exportar productos',
-                icon: ExportIcon,
                 onAction: () => {
                     onExport(exportFormat);
                     onClose();
@@ -180,6 +196,14 @@ export function ProductExportModal({ open, onClose, onExport }: { open: boolean,
                     onAction: onClose,
                 },
             ]}
+            footer={
+                <InlineStack align="start" blockAlign="center" gap="100">
+                  <Icon source={QuestionCircleIcon} tone="subdued" />
+                  <Link url="#" removeUnderline>
+                    <Text as="span" variant="bodyMd" tone="base">Leer más</Text>
+                  </Link>
+                </InlineStack>
+            }
         >
             <Modal.Section>
                 <BlockStack gap="400">
@@ -200,28 +224,6 @@ export function ProductExportModal({ open, onClose, onExport }: { open: boolean,
                             checked={exportScope === 'all'}
                             id="export-all"
                             onChange={() => setExportScope('all')}
-                        />
-                        <RadioButton
-                            label={
-                                <Text as="span" tone="subdued">
-                                    Seleccionados: 0 productos
-                                </Text>
-                            }
-                            checked={exportScope === 'selected'}
-                            id="export-selected"
-                            onChange={() => setExportScope('selected')}
-                            disabled
-                        />
-                        <RadioButton
-                            label={
-                                <Text as="span" tone="subdued">
-                                    1 producto coincide con tu búsqueda
-                                </Text>
-                            }
-                            checked={exportScope === 'search'}
-                            id="export-search"
-                            onChange={() => setExportScope('search')}
-                            disabled
                         />
                     </BlockStack>
 
@@ -246,14 +248,113 @@ export function ProductExportModal({ open, onClose, onExport }: { open: boolean,
                             onChange={() => setExportFormat('pdf')}
                         />
                     </BlockStack>
-
-                    <Text as="p" variant="bodyMd">
-                        Más información sobre <Link url="#">exportar productos a archivo CSV</Link> o el <Link url="#">editor masivo</Link>.
-                    </Text>
                 </BlockStack>
             </Modal.Section>
         </Modal>
     );
+}
+
+export function CustomerExportModal({
+  open,
+  onClose,
+  onExport,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onExport: (format: 'csv' | 'plain' | 'pdf' | string, scope: 'all' | 'current' | string) => void;
+}) {
+  const [exportScope, setExportScope] = useState('all');
+  const [exportFormat, setExportFormat] = useState('csv');
+  const [includeTags, setIncludeTags] = useState(true);
+  const [includeMetafields, setIncludeMetafields] = useState(true);
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Exportar clientes"
+      primaryAction={{
+        content: 'Exportar clientes',
+        onAction: () => {
+          onExport(exportFormat, exportScope);
+          onClose();
+        },
+      }}
+      secondaryActions={[
+        {
+          content: 'Cancelar',
+          onAction: onClose,
+        },
+      ]}
+      footer={
+        <InlineStack align="start" blockAlign="center" gap="100">
+          <Icon source={QuestionCircleIcon} tone="subdued" />
+          <Link url="#" removeUnderline>
+            <Text as="span" variant="bodyMd" tone="base">Leer más</Text>
+          </Link>
+        </InlineStack>
+      }
+    >
+      <Modal.Section>
+        <BlockStack gap="400">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodyMd" fontWeight="semibold">Clientes seleccionados</Text>
+            <RadioButton
+              label="Página actual"
+              checked={exportScope === 'current'}
+              id="export-scope-current"
+              onChange={() => setExportScope('current')}
+            />
+            <RadioButton
+              label="Todos los clientes"
+              checked={exportScope === 'all'}
+              id="export-scope-all"
+              onChange={() => setExportScope('all')}
+            />
+          </BlockStack>
+
+          <BlockStack gap="200">
+            <Text as="p" variant="bodyMd" fontWeight="semibold">Campos incluidos</Text>
+            <Text as="p" variant="bodyMd" tone="subdued">
+              De forma predeterminada, todas las exportaciones incluyen: nombre completo, Identificación, dirección, correo electrónico, número de teléfono, empresa, consentimiento de marketing, pedidos, exenciones de impuestos.
+            </Text>
+            <Checkbox
+              label="Etiquetas de cliente"
+              checked={includeTags}
+              onChange={setIncludeTags}
+            />
+            <Checkbox
+              label="Metacampos de cliente"
+              checked={includeMetafields}
+              onChange={setIncludeMetafields}
+            />
+          </BlockStack>
+
+          <BlockStack gap="200">
+            <Text as="p" variant="bodyMd" fontWeight="semibold">Formato de archivo</Text>
+            <RadioButton
+              label="CSV para Excel, Numbers u otros programas de hojas de cálculo"
+              checked={exportFormat === 'csv'}
+              id="export-format-csv"
+              onChange={() => setExportFormat('csv')}
+            />
+            <RadioButton
+              label="Archivo CSV sin formato"
+              checked={exportFormat === 'plain'}
+              id="export-format-plain"
+              onChange={() => setExportFormat('plain')}
+            />
+            <RadioButton
+              label="Documento PDF (Tablas y reportes visuales)"
+              checked={exportFormat === 'pdf'}
+              id="export-format-pdf"
+              onChange={() => setExportFormat('pdf')}
+            />
+          </BlockStack>
+        </BlockStack>
+      </Modal.Section>
+    </Modal>
+  );
 }
 
 export function GenericExportModal({
@@ -317,6 +418,7 @@ export function GenericExportModal({
 export function ClientImportModal({ open, onClose, onImportSuccess }: { open: boolean, onClose: () => void, onImportSuccess?: () => void }) {
     const [step, setStep] = useState(1);
     const [file, setFile] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const toast = useToast();
 
     const handleDropZoneDrop = useCallback((_dropFiles: File[], acceptedFiles: File[]) => {
@@ -340,10 +442,24 @@ export function ClientImportModal({ open, onClose, onImportSuccess }: { open: bo
                 primaryAction={{
                     content: 'Subir y previsualizar',
                     disabled: !file,
-                    onAction: () => {
-                        toast.showSuccess("Plantilla de clientes recibida correctamente (Modo simulación)");
-                        onImportSuccess?.();
-                        handleClose();
+                    loading: isSubmitting,
+                    onAction: async () => {
+                        if (!file) return;
+                        setIsSubmitting(true);
+                        
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        
+                        const res = await importCustomersFromCSV(formData);
+                        setIsSubmitting(false);
+
+                        if (res.success) {
+                            toast.showSuccess(res.message);
+                            onImportSuccess?.();
+                            handleClose();
+                        } else {
+                            toast.showError(res.message);
+                        }
                     },
                 }}
                 secondaryActions={[{ content: 'Cancelar', onAction: handleClose }]}

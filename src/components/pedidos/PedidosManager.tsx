@@ -10,13 +10,14 @@ import {
   InlineStack,
   Button,
   Modal,
-  EmptyState,
   Banner,
   Divider,
 } from '@shopify/polaris';
 import { ExportIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { EmptyStateCard } from '@/components/ui/EmptyStateCard';
 import { GenericExportModal } from '@/components/inventory/ShopifyModals';
 import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
 import type { PedidoRecord } from '@/types';
@@ -72,27 +73,17 @@ export function PedidosManager() {
       <BlockStack gap="400">
         <Card>
           <BlockStack gap="300">
-            <InlineStack align="space-between" blockAlign="center">
-              <InlineStack gap="300" blockAlign="center">
-                <Text as="h2" variant="headingMd">Pedidos a Proveedores</Text>
-                {pendingCount > 0 && (
-                  <Badge tone="attention">{`${pendingCount} pendientes`}</Badge>
-                )}
-              </InlineStack>
-              <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>Exportar</Button>
-            </InlineStack>
-            <Text as="p" variant="bodySm" tone="subdued">
-              Administra el estado de tus pedidos. Al marcar como &quot;Recibido&quot; se actualiza automáticamente el inventario.
-            </Text>
+            <SectionHeader
+              title="Pedidos a Proveedores"
+              badge={pendingCount > 0 ? { content: `${pendingCount} pendientes`, tone: 'attention' } : undefined}
+              subtitle='Administra el estado de tus pedidos. Al marcar como "Recibido" se actualiza automáticamente el inventario.'
+              secondaryActions={[{ content: 'Exportar', icon: ExportIcon, onAction: () => setIsExportOpen(true) }]}
+            />
           </BlockStack>
         </Card>
 
         {sortedPedidos.length === 0 ? (
-          <Card>
-            <EmptyState heading="Sin pedidos registrados" image="">
-              <p>Crea un pedido desde la sección de Inventario para ver tus pedidos aquí.</p>
-            </EmptyState>
-          </Card>
+          <EmptyStateCard heading="Sin pedidos registrados" description="Crea un pedido desde la sección de Inventario para ver tus pedidos aquí." />
         ) : (
           <Card>
             <IndexTable

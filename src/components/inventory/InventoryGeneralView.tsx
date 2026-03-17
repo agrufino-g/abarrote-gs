@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActionList,
   BlockStack,
   Box,
   Button,
@@ -22,6 +23,8 @@ import {
 } from '@shopify/polaris';
 import {
   ArrowLeftIcon,
+  LayoutColumns3Icon,
+  EmailIcon,
   ExportIcon,
   FilterIcon,
   ImageIcon,
@@ -30,6 +33,7 @@ import {
   PlusIcon,
   SearchIcon,
   SortIcon,
+  ViewIcon,
 } from '@shopify/polaris-icons';
 import { Product } from '@/types';
 import { ProductExportModal, ProductImportModal } from './ShopifyModals';
@@ -160,6 +164,9 @@ export function InventoryGeneralView({ products, onProductClick, onImportSuccess
   const [bulkRows, setBulkRows] = useState<BulkEditRow[]>([]);
   const [columnQuery, setColumnQuery] = useState('');
   const [activeCell, setActiveCell] = useState<{ rowId: string; column: BulkColumnKey } | null>(null);
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
+
+  const toggleActions = useCallback(() => setIsActionsOpen((active) => !active), []);
   const storeConfig = useDashboardStore((state) => state.storeConfig);
   const saveStoreConfig = useDashboardStore((state) => state.saveStoreConfig);
   const [appliedVisibleColumns, setAppliedVisibleColumns] = useState<Record<BulkColumnKey, boolean>>(
@@ -683,41 +690,78 @@ export function InventoryGeneralView({ products, onProductClick, onImportSuccess
         <InlineStack gap="200">
           <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>Exportar</Button>
           <Button icon={ImportIcon} onClick={() => setIsImportOpen(true)}>Importar</Button>
+          <Popover
+            active={isActionsOpen}
+            activator={<Button onClick={toggleActions} disclosure>Más acciones</Button>}
+            onClose={toggleActions}
+          >
+            <ActionList
+              actionRole="menuitem"
+              items={[
+                {
+                  content: 'Mostrar barra de informes y estadísticas',
+                  icon: ViewIcon,
+                },
+                {
+                  content: 'Crear campaña por correo electrónico',
+                  icon: EmailIcon,
+                },
+              ]}
+            />
+          </Popover>
         </InlineStack>
       </InlineStack>
 
       {isBulkEditing ? bulkEditMarkup : (
         <Card padding="0">
           <BlockStack gap="0">
-            <div style={{ padding: '8px 12px' }}>
-              <InlineStack align="space-between" blockAlign="center">
-                <InlineStack gap="200" blockAlign="center">
-                  <Tabs tabs={INVENTORY_TABS} selected={selectedTab} onSelect={setSelectedTab} />
-                  <Button icon={PlusIcon} accessibilityLabel="Crear nueva vista" variant="plain" />
+            <div style={{ 
+              padding: '8px 12px', 
+              borderBottom: '1px solid #ebebeb',
+              backgroundColor: '#f9fafb',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <InlineStack align="space-between" blockAlign="center" gap="0">
+                <InlineStack gap="0" blockAlign="center">
+                  <div style={{ marginRight: '8px' }}>
+                    <Tabs tabs={INVENTORY_TABS} selected={selectedTab} onSelect={setSelectedTab} />
+                  </div>
+                  <div style={{ borderLeft: '1px solid #d1d1d1', height: '20px', margin: '0 8px' }} />
+                  <Button icon={PlusIcon} variant="plain" accessibilityLabel="Mas vistas" />
                 </InlineStack>
 
                 <InlineStack gap="100" blockAlign="center">
-                  <Box minWidth="360px">
-                    <TextField
-                      label="Buscar inventario"
-                      labelHidden
-                      autoComplete="off"
-                      value={queryValue}
-                      onChange={setQueryValue}
-                      prefix={<Icon source={SearchIcon} tone="subdued" />}
-                      placeholder="Buscar"
-                      connectedRight={renderColumnsPopover(
-                        'main',
-                        <Button onClick={() => setIsColumnsPopoverOpen((current) => !current)}>
-                          Columnas
-                        </Button>
-                      )}
-                    />
-                  </Box>
-                  <ButtonGroup>
-                    <Button icon={FilterIcon} accessibilityLabel="Filtrar inventario" />
-                    <Button icon={SortIcon} accessibilityLabel="Ordenar inventario" />
-                  </ButtonGroup>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {/* Boton Search + Filter como el de la imagen */}
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px',
+                      padding: '4px 8px',
+                      border: '1px solid #dcdfe3',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      backgroundColor: 'white',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }} onClick={() => {}}>
+                      <Icon source={SearchIcon} tone="base" />
+                      <div style={{ width: '1px', height: '14px', backgroundColor: '#e1e3e5' }} />
+                      <Icon source={FilterIcon} tone="base" />
+                    </div>
+                    
+                    {/* Boton Columnas */}
+                    {renderColumnsPopover(
+                      'main',
+                      <Button 
+                        icon={LayoutColumns3Icon} 
+                        onClick={() => setIsColumnsPopoverOpen((current) => !current)}
+                      />
+                    )}
+
+                    {/* Boton Sort */}
+                    <Button icon={SortIcon} onClick={() => {}} />
+                  </div>
                 </InlineStack>
               </InlineStack>
             </div>

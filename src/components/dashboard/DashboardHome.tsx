@@ -164,7 +164,7 @@ export function DashboardHome() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [corteModalOpen, setCorteModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [isProductDetailActive, setIsProductDetailActive] = useState(false);
   const [mobileNavActive, setMobileNavActive] = useState(false);
   const [registerProductOpen, setRegisterProductOpen] = useState(false);
   const [pedidoModalOpen, setPedidoModalOpen] = useState(false);
@@ -203,7 +203,7 @@ export function DashboardHome() {
 
   const handleProductClick = useCallback((product: Product) => {
     setSelectedProduct(product);
-    setProductModalOpen(true);
+    setIsProductDetailActive(true);
   }, []);
 
   const filteredAlerts = inventoryAlerts.filter((alert) => {
@@ -230,6 +230,8 @@ export function DashboardHome() {
       await adjustStock(product.id, changes.newStock, changes.reason);
       toast.showSuccess(`Stock de ${product.name} actualizado a ${changes.newStock} unidades`);
     }
+    setIsProductDetailActive(false);
+    setSelectedProduct(null);
   }, [adjustStock, toast]);
 
   const handleTableCreatePedido = useCallback(() => {
@@ -358,6 +360,18 @@ export function DashboardHome() {
       }
     }
 
+    if (isProductDetailActive && selectedProduct) {
+      return (
+        <ProductDetailModal 
+          product={selectedProduct} 
+          open={true} 
+          isInline={true}
+          onClose={() => { setIsProductDetailActive(false); setSelectedProduct(null); }} 
+          onSave={handleProductSave} 
+        />
+      );
+    }
+
     switch (selectedSection) {
       case 'overview':
         return (
@@ -406,10 +420,7 @@ export function DashboardHome() {
       case 'inventory-audit': return <InventoryAuditView />;
       case 'catalog':
         return (
-          <BlockStack gap="400">
-            <AdvancedFilters onFiltersChange={handleFiltersChange} />
-            <AllProductsTable products={products} onProductClick={handleProductClick} onRegisterProduct={() => setRegisterProductOpen(true)} onCreatePedido={handleTableCreatePedido} onDeleteProduct={handleDeleteProduct} onUpdateProduct={handleOpenUpdateProduct} onImportSuccess={fetchDashboardData} />
-          </BlockStack>
+          <AllProductsTable products={products} onProductClick={handleProductClick} onRegisterProduct={() => setRegisterProductOpen(true)} onCreatePedido={handleTableCreatePedido} onDeleteProduct={handleDeleteProduct} onUpdateProduct={handleOpenUpdateProduct} onImportSuccess={fetchDashboardData} />
         );
       case 'inventory-priority':
         return (
@@ -418,8 +429,9 @@ export function DashboardHome() {
           </BlockStack>
         );
       case 'customers':
+        return <FiadoManager mode="all" />;
       case 'fiado':
-        return <FiadoManager />;
+        return <FiadoManager mode="fiado" />;
       case 'expenses': return <GastosManager />;
       case 'suppliers': return <ProveedoresManager />;
       case 'pedidos': return <PedidosManager />;
@@ -503,7 +515,6 @@ export function DashboardHome() {
         )}
         <ExportModal open={exportModalOpen} onClose={() => setExportModalOpen(false)} onExport={handleExport} />
         <CorteCajaModal open={corteModalOpen} onClose={() => setCorteModalOpen(false)} />
-        <ProductDetailModal product={selectedProduct} open={productModalOpen} onClose={() => { setProductModalOpen(false); setSelectedProduct(null); }} onSave={handleProductSave} />
         <RegisterProductModal open={registerProductOpen} onClose={() => setRegisterProductOpen(false)} />
         <Modal open={updateProductOpen} onClose={() => { setUpdateProductOpen(false); setProductToUpdate(null); }} title={productToUpdate ? `Actualizar ${productToUpdate.name}` : 'Actualizar Producto'} primaryAction={{ content: 'Guardar Cambios', onAction: handleUpdateProductSubmit }} secondaryActions={[{ content: 'Cancelar', onAction: () => { setUpdateProductOpen(false); setProductToUpdate(null); } }]}>
           <Modal.Section><FormLayout><TextField label="Stock Actual" type="number" value={updateStock} onChange={setUpdateStock} autoComplete="off" /><TextField label="Precio Venta" type="number" value={updatePrice} onChange={setUpdatePrice} autoComplete="off" prefix="$" /><TextField label="Precio Costo" type="number" value={updateCostPrice} onChange={setUpdateCostPrice} autoComplete="off" prefix="$" /></FormLayout></Modal.Section>

@@ -20,7 +20,7 @@ import {
   TextField,
   Tooltip,
 } from '@shopify/polaris';
-import { SearchIcon, SettingsIcon } from '@shopify/polaris-icons';
+import { SearchIcon, SettingsIcon, NotificationIcon } from '@shopify/polaris-icons';
 import type { InventoryAlert, Product, StoreConfig } from '@/types';
 
 interface NotificationsCenterProps {
@@ -75,31 +75,27 @@ function StockBar({ current, minimum, severity }: {
   );
 }
 
-function MetricCard({ label, value, accentColor, subtitle, extra }: {
+function MetricCard({ label, value, tone, subtitle, icon }: {
   label: string;
   value: number | string;
-  accentColor: string;
+  tone: 'success' | 'critical' | 'attention' | 'info';
   subtitle?: string;
-  extra?: React.ReactNode;
+  icon: React.FC<React.SVGProps<SVGSVGElement>>;
 }) {
   return (
     <Card>
-      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', minHeight: 72 }}>
-        <div style={{
-          width: 4,
-          alignSelf: 'stretch',
-          minHeight: 52,
-          borderRadius: 4,
-          backgroundColor: accentColor,
-          flexShrink: 0,
-        }} />
-        <BlockStack gap="100">
-          <Text as="p" variant="heading3xl">{value}</Text>
-          <Text as="p" variant="bodySm" fontWeight="medium">{label}</Text>
+      <BlockStack gap="200">
+        <InlineStack align="space-between">
+          <Text as="p" variant="bodySm" tone="subdued" fontWeight="medium">{label.toUpperCase()}</Text>
+          <div style={{ color: `var(--p-color-icon-${tone})` }}>
+            <Icon source={icon} tone="inherit" />
+          </div>
+        </InlineStack>
+        <BlockStack gap="050">
+          <Text as="h2" variant="heading2xl" fontWeight="bold">{value}</Text>
           {subtitle && <Text as="p" variant="bodyXs" tone="subdued">{subtitle}</Text>}
-          {extra}
         </BlockStack>
-      </div>
+      </BlockStack>
     </Card>
   );
 }
@@ -177,21 +173,9 @@ export function NotificationsCenter({
       <IndexTable.Row id={alert.id} key={alert.id} position={index} tone={rowTone}>
         {/* Severity indicator */}
         <IndexTable.Cell>
-          <InlineStack gap="200" blockAlign="center" wrap={false}>
-            <div
-              className={
-                alert.severity === 'critical'
-                  ? 'notif-pulse-dot--critical'
-                  : alert.severity === 'warning'
-                  ? 'notif-pulse-dot--warning'
-                  : 'notif-pulse-dot--info'
-              }
-              style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0 }}
-            />
-            <Badge tone={badgeTone as any}>
-              {alert.severity === 'critical' ? 'Crítica' : alert.severity === 'warning' ? 'Advertencia' : 'Info'}
-            </Badge>
-          </InlineStack>
+          <Badge tone={badgeTone as any}>
+            {alert.severity === 'critical' ? 'Crítica' : alert.severity === 'warning' ? 'Advertencia' : 'Info'}
+          </Badge>
         </IndexTable.Cell>
 
         {/* Product name + meta */}
@@ -242,56 +226,66 @@ export function NotificationsCenter({
 
   return (
     <BlockStack gap="400">
-      {/* ── Live header card ── */}
-      <Card>
-        <InlineStack align="space-between" blockAlign="center" wrap>
-          <InlineStack gap="300" blockAlign="center">
-            <div className="notif-live-dot" />
-            <BlockStack gap="025">
-              <Text as="h1" variant="headingLg" fontWeight="bold">Centro de alertas</Text>
-              <Text as="p" variant="bodySm" tone="subdued">
-                Monitoreo operativo en tiempo real · inventario, vencimientos y mermas
+      {/* ── Header ── */}
+      <Box paddingBlockEnd="400">
+        <BlockStack gap="400">
+          <Banner tone="info" title="Sistema de Notificaciones en Beta">
+            <p>
+              Este centro de control está en fase Beta. Estamos priorizando las <strong>notificaciones vía Telegram</strong> para una gestión más inmediata.
+              {!isConnected && " Actualmente Telegram no está configurado."}
+            </p>
+          </Banner>
+
+          <InlineStack align="space-between" blockAlign="center">
+            <BlockStack gap="100">
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="h1" variant="headingLg">Gestión de Alertas</Text>
+                <Badge tone="attention">Beta</Badge>
+              </InlineStack>
+              <Text as="p" variant="bodyMd" tone="subdued">
+                Monitoreo centralizado · Canal principal sugerido: Telegram.
               </Text>
             </BlockStack>
+            <Button icon={SettingsIcon} onClick={onOpenSettings}>
+              Configurar Telegram
+            </Button>
           </InlineStack>
-          <Button icon={SettingsIcon} onClick={onOpenSettings}>
-            Configurar canal
-          </Button>
-        </InlineStack>
-      </Card>
+        </BlockStack>
+      </Box>
 
       {/* ── Metric cards ── */}
-      <InlineGrid columns={{ xs: 2, sm: 2, md: 4 }} gap="300">
-        <MetricCard
-          label="Alertas activas"
-          value={counts.all}
-          accentColor="#5C6AC4"
-          subtitle={counts.all === 0 ? 'Sistema al día' : 'Requieren atención'}
-        />
-        <MetricCard
-          label="Críticas"
-          value={counts.critical}
-          accentColor="#E31212"
-          subtitle={counts.critical > 0 ? 'Acción inmediata' : 'Sin urgencias'}
-        />
-        <MetricCard
-          label="Advertencias"
-          value={counts.warning}
-          accentColor="#B98900"
-          subtitle="Requieren revisión"
-        />
-        <MetricCard
-          label="Canal externo"
-          value={isConnected ? 'Activo' : 'Sin config.'}
-          accentColor={isConnected ? '#008060' : '#B98900'}
-          subtitle={isConnected ? 'Telegram configurado' : 'Sin alertas externas'}
-          extra={
-            <Badge tone={isConnected ? 'success' : 'warning'}>
-              {isConnected ? 'Conectado' : 'Pendiente'}
-            </Badge>
-          }
-        />
-      </InlineGrid>
+      <Box paddingBlockEnd="400">
+        <InlineGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="400">
+          <MetricCard
+            label="Total Alertas"
+            value={counts.all}
+            tone="info"
+            subtitle="Pendientes globales"
+            icon={NotificationIcon}
+          />
+          <MetricCard
+            label="Casos Críticos"
+            value={counts.critical}
+            tone="critical"
+            subtitle="Resolver de inmediato"
+            icon={SearchIcon}
+          />
+          <MetricCard
+            label="Advertencias"
+            value={counts.warning}
+            tone="attention"
+            subtitle="Monitoreo preventivo"
+            icon={SearchIcon}
+          />
+          <MetricCard
+            label="Canal Externo"
+            value={isConnected ? 'Conectado' : 'Pendiente'}
+            tone={isConnected ? 'success' : 'attention'}
+            subtitle={isConnected ? 'Telegram activo' : 'Configuración necesaria'}
+            icon={SettingsIcon}
+          />
+        </InlineGrid>
+      </Box>
 
       {/* ── Main alerts table ── */}
       <Card padding="0">

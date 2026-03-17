@@ -1,5 +1,37 @@
 // Tipos para el Dashboard de Abarrotes
 
+// === Enums / Constantes de Dominio ===
+
+export const PAYMENT_METHODS = ['efectivo', 'tarjeta', 'transferencia', 'fiado'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const MERMA_REASONS = ['expiration', 'damage', 'spoilage', 'other'] as const;
+export type MermaReason = (typeof MERMA_REASONS)[number];
+
+export const PEDIDO_ESTADOS = ['pendiente', 'enviado', 'recibido'] as const;
+export type PedidoEstado = (typeof PEDIDO_ESTADOS)[number];
+
+export const GASTO_CATEGORIAS = ['renta', 'servicios', 'proveedores', 'salarios', 'mantenimiento', 'impuestos', 'otro'] as const;
+export type GastoCategoria = (typeof GASTO_CATEGORIAS)[number];
+
+export const ALERT_TYPES = ['low_stock', 'expiration', 'expired', 'merma'] as const;
+export type AlertType = (typeof ALERT_TYPES)[number];
+
+export const ALERT_SEVERITIES = ['critical', 'warning', 'info'] as const;
+export type AlertSeverity = (typeof ALERT_SEVERITIES)[number];
+
+export const USER_STATUSES = ['activo', 'baja'] as const;
+export type UserStatus = (typeof USER_STATUSES)[number];
+
+export const CORTE_STATUSES = ['abierto', 'cerrado'] as const;
+export type CorteStatus = (typeof CORTE_STATUSES)[number];
+
+export const AUDIT_STATUSES = ['draft', 'completed'] as const;
+export type AuditStatus = (typeof AUDIT_STATUSES)[number];
+
+export const SERVICIO_ESTADOS = ['completado', 'pendiente', 'cancelado'] as const;
+export type ServicioEstado = (typeof SERVICIO_ESTADOS)[number];
+
 // === Configuración de Tienda (Ticket) ===
 export interface StoreConfig {
   id: string;
@@ -87,8 +119,8 @@ export interface Product {
 export interface InventoryAlert {
   id: string;
   product: Product;
-  alertType: 'low_stock' | 'expiration' | 'expired' | 'merma';
-  severity: 'critical' | 'warning' | 'info';
+  alertType: AlertType;
+  severity: AlertSeverity;
   message: string;
   createdAt: string;
 }
@@ -113,12 +145,12 @@ export interface MermaRecord {
   productId: string;
   productName: string;
   quantity: number;
-  reason: 'expiration' | 'damage' | 'spoilage' | 'other';
+  reason: MermaReason;
   date: string;
   value: number;
 }
 
-export type AlertStatus = 'critical' | 'warning' | 'info';
+export type AlertStatus = AlertSeverity;
 
 export interface PedidoRecord {
   id: string;
@@ -126,7 +158,7 @@ export interface PedidoRecord {
   productos: { productId: string; productName: string; cantidad: number }[];
   notas: string;
   fecha: string;
-  estado: 'pendiente' | 'enviado' | 'recibido';
+  estado: PedidoEstado;
 }
 
 export interface SaleItem {
@@ -146,7 +178,7 @@ export interface SaleRecord {
   iva: number;
   cardSurcharge: number;
   total: number;
-  paymentMethod: 'efectivo' | 'tarjeta' | 'transferencia' | 'fiado';
+  paymentMethod: PaymentMethod;
   amountPaid: number;
   change: number;
   date: string;
@@ -190,7 +222,7 @@ export interface CorteCaja {
   fondoInicial: number;
   gastosDelDia: number;
   notas: string;
-  status: 'abierto' | 'cerrado';
+  status: CorteStatus;
 }
 
 // === Fiado / Crédito a Clientes ===
@@ -224,7 +256,7 @@ export interface InventoryAudit {
   title: string;
   date: string;
   auditor: string;
-  status: 'draft' | 'completed';
+  status: AuditStatus;
   notes: string;
   items?: InventoryAuditItem[];
 }
@@ -255,7 +287,7 @@ export interface Proveedor {
 }
 
 // === Gastos del Negocio ===
-export type GastoCategoria = 'renta' | 'servicios' | 'proveedores' | 'salarios' | 'mantenimiento' | 'impuestos' | 'otro';
+// GastoCategoria is now defined above as a const-derived type
 
 export interface Gasto {
   id: string;
@@ -328,7 +360,7 @@ export interface UserRoleRecord {
   avatarUrl: string;
   employeeNumber: string;
   globalId?: string;         // Permanent unique ID, generated once, never reused
-  status: 'activo' | 'baja'; // Active or deactivated
+  status: UserStatus; // Active or deactivated
   deactivatedAt?: string;    // ISO date when deactivated
   pinCode?: string;
   roleId: string;
@@ -467,7 +499,7 @@ export interface Servicio {
   comision: number;
   numeroReferencia: string;
   folio: string;
-  estado: 'completado' | 'pendiente' | 'cancelado';
+  estado: ServicioEstado;
   cajero: string;
   fecha: string;
 }

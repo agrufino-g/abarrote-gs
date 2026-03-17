@@ -4,6 +4,6 @@ export default auth.middleware({ loginUrl: '/auth/login' });
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|auth).*)',
+    '/((?!api|_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|auth|login-brand\\.svg|backgrounds).*)',
   ],
 };

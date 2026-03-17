@@ -20,16 +20,19 @@ export function RegisterForm() {
         <BlockStack gap="600">
           {/* Logo Section */}
           <div style={{
-            padding: '8px 0',
+            padding: '24px 0 12px 0',
             width: '100%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}>
             <img
-              src="/logo_for_kiosko_login.svg"
-              alt="Kiosko"
-              style={{ width: '130px', height: 'auto' }}
+              src="/login-brand.svg"
+              alt="Logo"
+              style={{ 
+                width: '200px', 
+                height: 'auto'
+              }}
             />
           </div>
 

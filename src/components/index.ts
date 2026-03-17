@@ -63,3 +63,9 @@ export { ExportModal, generateCSV, downloadFile, exportDashboardData } from './e
 
 // Notifications
 export { ToastProvider, useToast } from './notifications/ToastProvider';
+
+// Shared UI
+export { SectionHeader } from './ui/SectionHeader';
+export { StatCard } from './ui/StatCard';
+export { EmptyStateCard } from './ui/EmptyStateCard';
+export { DeleteConfirmation } from './ui/DeleteConfirmation';

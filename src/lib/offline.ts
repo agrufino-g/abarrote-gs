@@ -1,9 +1,16 @@
 'use client';
 
+/**
+ * Offline queue: stores pending server actions in localStorage
+ * and replays them via /api/sync when back online.
+ *
+ * Supported actions: 'createSale', 'updateProduct'
+ */
+
 type PendingAction = {
   id: string;
   action: string;
-  payload: any;
+  payload: unknown;
   timestamp: number;
 };
 
@@ -29,7 +36,7 @@ class OfflineQueue {
     localStorage.setItem(this.storageKey, JSON.stringify(this.queue));
   }
 
-  add(action: string, payload: any) {
+  add(action: string, payload: unknown) {
     this.queue.push({
       id: crypto.randomUUID(),
       action,
