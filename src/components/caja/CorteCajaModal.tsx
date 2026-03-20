@@ -13,9 +13,10 @@ import {
   Divider,
   Banner,
   Button,
-  IndexTable,
+  Select,
+  Box,
 } from '@shopify/polaris';
-import { PrintIcon } from '@shopify/polaris-icons';
+import { PrintIcon, PlusIcon, MinusIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { formatCurrency } from '@/lib/utils';
@@ -27,7 +28,13 @@ interface CorteCajaModalProps {
 }
 
 export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
-  const { saleRecords, gastos, cortesHistory, createCorteCaja, storeConfig, currentUserRole } = useDashboardStore();
+  const saleRecords = useDashboardStore((s) => s.saleRecords);
+  const gastos = useDashboardStore((s) => s.gastos);
+  const createCorteCaja = useDashboardStore((s) => s.createCorteCaja);
+  const storeConfig = useDashboardStore((s) => s.storeConfig);
+  const currentUserRole = useDashboardStore((s) => s.currentUserRole);
+  const cashMovements = useDashboardStore((s) => s.cashMovements);
+  const addCashMovement = useDashboardStore((s) => s.addCashMovement);
   const { showSuccess, showError } = useToast();
 
   const defaultCajero = currentUserRole?.globalId || currentUserRole?.employeeNumber || '';
@@ -37,6 +44,14 @@ export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
   const [efectivoContado, setEfectivoContado] = useState('');
   const [notas, setNotas] = useState('');
   const [completedCorte, setCompletedCorte] = useState<CorteCaja | null>(null);
+
+  // Movement form
+  const [movementType, setMovementType] = useState<'entrada' | 'salida'>('salida');
+  const [movementMonto, setMovementMonto] = useState('');
+  const [movementNotas, setMovementNotas] = useState('');
+  const [movementConcepto, setMovementConcepto] = useState<'retiro_parcial' | 'deposito' | 'gasto' | 'ajuste' | 'otro'>('retiro_parcial');
+  const [savingMovement, setSavingMovement] = useState(false);
+  const [showMovementForm, setShowMovementForm] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -49,8 +64,33 @@ export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
   const todayTotal = todayEfectivo + todayTarjeta + todayTransferencia + todayFiado;
   const todayGastos = useMemo(() => gastos.filter((g) => g.fecha.startsWith(today)).reduce((sum, g) => sum + g.monto, 0), [gastos, today]);
 
+  // Today's cash movements
+  const todayMovements = useMemo(() => cashMovements.filter((m) => m.fecha.startsWith(today)), [cashMovements, today]);
+
   const efectivoEsperado = parseFloat(fondoInicial || '0') + todayEfectivo - todayGastos;
   const diferencia = (parseFloat(efectivoContado || '0')) - efectivoEsperado;
+
+  const handleSaveMovement = useCallback(async () => {
+    const monto = parseFloat(movementMonto);
+    if (!monto || monto <= 0) { showError('Ingresa un monto válido'); return; }
+    setSavingMovement(true);
+    try {
+      await addCashMovement({
+        tipo: movementType,
+        concepto: movementConcepto,
+        monto,
+        notas: movementNotas,
+        cajero: cajero || defaultCajero || 'Cajero',
+      });
+      showSuccess(`${movementType === 'entrada' ? 'Entrada' : 'Retiro'} de ${formatCurrency(monto)} registrado`);
+      setMovementMonto('');
+      setMovementNotas('');
+      setShowMovementForm(false);
+    } catch {
+      showError('Error al registrar el movimiento');
+    }
+    setSavingMovement(false);
+  }, [movementMonto, movementType, movementConcepto, movementNotas, cajero, defaultCajero, addCashMovement, showSuccess, showError]);
 
   const resetForm = useCallback(() => {
     setCajero(defaultCajero);
@@ -278,6 +318,112 @@ ${completedCorte.notas ? `<div class="data-row" style="font-size:10px"><span>NOT
             </BlockStack>
           </Card>
 
+          {/* Movimientos de Caja */}
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h3" variant="headingSm">Movimientos de Caja</Text>
+                <InlineStack gap="200">
+                  <Button
+                    icon={MinusIcon}
+                    tone="critical"
+                    size="slim"
+                    onClick={() => { setMovementType('salida'); setMovementConcepto('retiro_parcial'); setShowMovementForm(true); }}
+                  >
+                    Retiro
+                  </Button>
+                  <Button
+                    icon={PlusIcon}
+                    size="slim"
+                    onClick={() => { setMovementType('entrada'); setMovementConcepto('deposito'); setShowMovementForm(true); }}
+                  >
+                    Entrada
+                  </Button>
+                </InlineStack>
+              </InlineStack>
+
+              {showMovementForm && (
+                <Box
+                  background="bg-surface-secondary"
+                  borderWidth="025"
+                  borderColor="border"
+                  borderRadius="200"
+                  padding="300"
+                >
+                  <BlockStack gap="300">
+                    <InlineStack gap="300" wrap={false}>
+                      <div style={{ flex: 1 }}>
+                        <Select
+                          label="Concepto"
+                          options={movementType === 'salida' ? [
+                            { label: 'Retiro parcial', value: 'retiro_parcial' },
+                            { label: 'Gasto', value: 'gasto' },
+                            { label: 'Ajuste', value: 'ajuste' },
+                            { label: 'Otro', value: 'otro' },
+                          ] : [
+                            { label: 'Depósito', value: 'deposito' },
+                            { label: 'Ajuste', value: 'ajuste' },
+                            { label: 'Otro', value: 'otro' },
+                          ]}
+                          value={movementConcepto}
+                          onChange={(v) => setMovementConcepto(v as typeof movementConcepto)}
+                        />
+                      </div>
+                      <div style={{ width: 130 }}>
+                        <TextField
+                          label="Monto"
+                          type="number"
+                          value={movementMonto}
+                          onChange={setMovementMonto}
+                          prefix="$"
+                          autoComplete="off"
+                        />
+                      </div>
+                    </InlineStack>
+                    <TextField
+                      label="Notas"
+                      value={movementNotas}
+                      onChange={setMovementNotas}
+                      autoComplete="off"
+                      placeholder="Motivo del movimiento..."
+                    />
+                    <InlineStack gap="200" align="end">
+                      <Button onClick={() => setShowMovementForm(false)}>Cancelar</Button>
+                      <Button
+                        variant="primary"
+                        tone={movementType === 'salida' ? 'critical' : undefined}
+                        onClick={handleSaveMovement}
+                        loading={savingMovement}
+                      >
+                        {movementType === 'entrada' ? 'Registrar Entrada' : 'Registrar Retiro'}
+                      </Button>
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+              )}
+
+              {todayMovements.length > 0 ? (
+                <BlockStack gap="100">
+                  {todayMovements.map((m) => (
+                    <InlineStack key={m.id} align="space-between" blockAlign="center">
+                      <BlockStack gap="050">
+                        <Text as="span" variant="bodySm" fontWeight="semibold">
+                          {m.concepto.replace('_', ' ')}
+                        </Text>
+                        {m.notas && <Text as="span" variant="bodySm" tone="subdued">{m.notas}</Text>}
+                      </BlockStack>
+                      <Badge tone={m.tipo === 'entrada' ? 'success' : 'critical'}>
+                        {`${m.tipo === 'entrada' ? '+' : '-'}${formatCurrency(m.monto)}`}
+                      </Badge>
+                    </InlineStack>
+                  ))}
+                </BlockStack>
+              ) : (
+                <Text as="p" variant="bodySm" tone="subdued">Sin movimientos registrados hoy.</Text>
+              )}
+            </BlockStack>
+          </Card>
+
           <FormLayout>
             <TextField
               label="Cajero"
@@ -333,47 +479,4 @@ ${completedCorte.notas ? `<div class="data-row" style="font-size:10px"><span>NOT
   );
 }
 
-// Cortes History sub-component
-export function CortesHistory() {
-  const cortesHistory = useDashboardStore((s) => s.cortesHistory);
 
-  if (cortesHistory.length === 0) {
-    return null;
-  }
-
-  return (
-    <Card>
-      <BlockStack gap="300">
-        <Text as="h2" variant="headingMd">Historial de Cortes</Text>
-        <IndexTable
-          resourceName={{ singular: 'corte', plural: 'cortes' }}
-          itemCount={cortesHistory.length}
-          headings={[
-            { title: 'Fecha' },
-            { title: 'Cajero' },
-            { title: 'Total Ventas' },
-            { title: 'Esperado' },
-            { title: 'Contado' },
-            { title: 'Diferencia' },
-          ]}
-          selectable={false}
-        >
-          {[...cortesHistory].reverse().map((c, idx) => (
-            <IndexTable.Row id={c.id} key={c.id} position={idx}>
-              <IndexTable.Cell>
-                <Text as="span" variant="bodySm">{new Date(c.fecha).toLocaleDateString('es-MX')}</Text>
-              </IndexTable.Cell>
-              <IndexTable.Cell>{c.cajero}</IndexTable.Cell>
-              <IndexTable.Cell><Text as="span" fontWeight="semibold">{formatCurrency(c.totalVentas)}</Text></IndexTable.Cell>
-              <IndexTable.Cell>{formatCurrency(c.efectivoEsperado)}</IndexTable.Cell>
-              <IndexTable.Cell>{formatCurrency(c.efectivoContado)}</IndexTable.Cell>
-              <IndexTable.Cell>
-                <Badge tone={Math.abs(c.diferencia) <= 10 ? 'success' : 'critical'}>{`${c.diferencia >= 0 ? '+' : ''}${formatCurrency(c.diferencia)}`}</Badge>
-              </IndexTable.Cell>
-            </IndexTable.Row>
-          ))}
-        </IndexTable>
-      </BlockStack>
-    </Card>
-  );
-}

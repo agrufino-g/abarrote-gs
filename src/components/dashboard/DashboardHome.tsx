@@ -46,7 +46,8 @@ import { ExportModal, exportDashboardData } from '@/components/export/ExportModa
 import { ProductDetailModal } from '@/components/modals/ProductDetailModal';
 import { RegisterProductModal } from '@/components/modals/RegisterProductModal';
 import { SalesHistory } from '@/components/sales/SalesHistory';
-import { CorteCajaModal, CortesHistory } from '@/components/caja/CorteCajaModal';
+import { CorteCajaModal } from '@/components/caja/CorteCajaModal';
+import { CortesHistory } from '@/components/caja/CortesHistory';
 import { FiadoManager } from '@/components/fiado/FiadoManager';
 import { GastosManager } from '@/components/gastos/GastosManager';
 import { ProveedoresManager } from '@/components/suppliers/ProveedoresManager';
@@ -139,24 +140,18 @@ const SECTION_TITLES: Record<string, string> = {
 };
 
 export function DashboardHome() {
-  const {
-    kpiData,
-    inventoryAlerts,
-    products,
-    salesData,
-    isLoading,
-    error,
-    fetchDashboardData,
-    adjustStock,
-    createPedido,
-    currentUserRole,
-    roleDefinitions,
-    storeConfig,
-  } = useDashboardStore();
-
-  const userPermissions = currentUserRole
-    ? roleDefinitions.find((r) => r.id === currentUserRole.roleId)?.permissions || []
-    : [];
+  const kpiData = useDashboardStore((s) => s.kpiData);
+  const inventoryAlerts = useDashboardStore((s) => s.inventoryAlerts);
+  const products = useDashboardStore((s) => s.products);
+  const salesData = useDashboardStore((s) => s.salesData);
+  const isLoading = useDashboardStore((s) => s.isLoading);
+  const error = useDashboardStore((s) => s.error);
+  const fetchDashboardData = useDashboardStore((s) => s.fetchDashboardData);
+  const adjustStock = useDashboardStore((s) => s.adjustStock);
+  const createPedido = useDashboardStore((s) => s.createPedido);
+  const currentUserRole = useDashboardStore((s) => s.currentUserRole);
+  const roleDefinitions = useDashboardStore((s) => s.roleDefinitions);
+  const storeConfig = useDashboardStore((s) => s.storeConfig);
 
   const toast = useToast();
 
@@ -328,27 +323,26 @@ export function DashboardHome() {
       onSectionSelect={handleSectionSelect}
       onProductClick={(product) => {
         setSelectedProduct(product);
-        setProductModalOpen(true);
+        setIsProductDetailActive(true);
       }}
     />
   );
 
   const navigationMarkup = (
     <SidebarNav
-      selected={selectedSection}
       onSelect={handleSectionSelect}
       badges={{
         lowStock: kpiData?.lowStockProducts,
         notifications: criticalAlerts.length,
       }}
-      permissions={userPermissions}
     />
   );
 
   const renderSectionContent = () => {
     const requiredPerms = SECTION_PERMISSIONS[selectedSection];
     if (requiredPerms && currentUserRole) {
-      const hasPerm = requiredPerms.some((p) => userPermissions.includes(p));
+      const userPerms = roleDefinitions.find((r) => r.id === currentUserRole.roleId)?.permissions ?? [];
+      const hasPerm = requiredPerms.some((p) => userPerms.includes(p));
       if (!hasPerm) {
         return (
           <Page title="Acceso Denegado">
@@ -414,13 +408,17 @@ export function DashboardHome() {
           <InventoryGeneralView
             products={products}
             onProductClick={handleProductClick}
+            exportOpen={false}
+            onExportClose={() => {}}
+            importOpen={false}
+            onImportClose={() => {}}
             onImportSuccess={fetchDashboardData}
           />
         );
       case 'inventory-audit': return <InventoryAuditView />;
       case 'catalog':
         return (
-          <AllProductsTable products={products} onProductClick={handleProductClick} onRegisterProduct={() => setRegisterProductOpen(true)} onCreatePedido={handleTableCreatePedido} onDeleteProduct={handleDeleteProduct} onUpdateProduct={handleOpenUpdateProduct} onImportSuccess={fetchDashboardData} />
+          <AllProductsTable products={products} onProductClick={handleProductClick} onDeleteProducts={(ps) => { if (ps[0]) handleDeleteProduct(ps[0]); }} onUpdateProduct={handleOpenUpdateProduct} exportOpen={false} onExportClose={() => {}} importOpen={false} onImportClose={() => {}} onImportSuccess={fetchDashboardData} />
         );
       case 'inventory-priority':
         return (
@@ -434,7 +432,7 @@ export function DashboardHome() {
         return <FiadoManager mode="fiado" />;
       case 'expenses': return <GastosManager />;
       case 'suppliers': return <ProveedoresManager />;
-      case 'pedidos': return <PedidosManager />;
+      case 'pedidos': return <PedidosManager onCreateOrder={() => {}} />;
       case 'analytics': return <AnalyticsView />;
       case 'reports': return <ReportesView />;
       case 'settings': return <ConfiguracionPage />;
@@ -455,7 +453,9 @@ export function DashboardHome() {
   const wrapWithPage = (content: React.ReactNode) => {
     const rawTitle = SECTION_TITLES[selectedSection] || 'Dashboard';
     const SectionIcon = SECTION_ICONS[selectedSection];
-    const hidePageHeader = selectedSection === 'inventory' || selectedSection === 'catalog';
+    const hidePageHeader = selectedSection === 'inventory' || selectedSection === 'catalog' || selectedSection === 'sales-history';
+    // Secciones que tienen sus propios botones de acción — no mostrar los globales
+    const hideSecondaryActions = hidePageHeader || ['pedidos', 'notifications', 'roles'].includes(selectedSection);
 
     // Convertimos el string a un InlineStack the Polaris o simple div para inyectar el ícono a la izquierda 
     const fancyTitle = SectionIcon ? (
@@ -469,7 +469,7 @@ export function DashboardHome() {
       <Page
         fullWidth
         title={hidePageHeader ? undefined : fancyTitle as any}
-        secondaryActions={hidePageHeader ? [] : [
+        secondaryActions={hideSecondaryActions ? [] : [
           { content: 'Actualizar', icon: RefreshIcon, onAction: fetchDashboardData },
           { content: 'Exportar', icon: ExportIcon, onAction: () => setExportModalOpen(true) },
         ]}

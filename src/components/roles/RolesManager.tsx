@@ -8,25 +8,24 @@ import {
   Badge,
   BlockStack,
   InlineStack,
-  TextField,
-  Select,
   Button,
-  Modal,
-  FormLayout,
   EmptyState,
   Box,
-  Divider,
   Banner,
   Spinner,
-  Checkbox,
-  InlineGrid,
 } from '@shopify/polaris';
 import { PersonAddIcon, DeleteIcon, EditIcon, PlusIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { RoleDefinition, UserRoleRecord, PermissionKey } from '@/types';
-import { PERMISSION_LABELS, PERMISSION_GROUPS } from '@/types';
+
+import { RoleDefinitionFormModal } from './modals/RoleDefinitionFormModal';
+import { DeleteRoleDefinitionModal } from './modals/DeleteRoleDefinitionModal';
+import { AddUserModal } from './modals/AddUserModal';
+import { EditUserModal } from './modals/EditUserModal';
+import { DeactivateUserModal } from './modals/DeactivateUserModal';
+import { PermissionsDetailModal } from './modals/PermissionsDetailModal';
 
 // Color tones cycled for badges
 const BADGE_TONES: Array<'info' | 'success' | 'warning' | 'critical' | 'attention' | 'new'> = [
@@ -39,52 +38,38 @@ function getBadgeTone(index: number) {
 
 export function RolesManager() {
   const { user } = useAuth();
-  const {
-    roleDefinitions,
-    userRoles,
-    currentUserRole,
-    fetchRoleDefinitions,
-    createRoleDefinition,
-    updateRoleDefinition,
-    deleteRoleDefinition,
-    fetchRoles,
-    createUserWithRole,
-    assignRole,
-    updateRole,
-    updateUserPin,
-    removeRole,
-    ensureOwnerRole,
-    generateGlobalId,
-    deactivateUser,
-    reactivateUser,
-  } = useDashboardStore();
+  const roleDefinitions = useDashboardStore((s) => s.roleDefinitions);
+  const userRoles = useDashboardStore((s) => s.userRoles);
+  const currentUserRole = useDashboardStore((s) => s.currentUserRole);
+  const fetchRoleDefinitions = useDashboardStore((s) => s.fetchRoleDefinitions);
+  const createRoleDefinition = useDashboardStore((s) => s.createRoleDefinition);
+  const updateRoleDefinition = useDashboardStore((s) => s.updateRoleDefinition);
+  const deleteRoleDefinition = useDashboardStore((s) => s.deleteRoleDefinition);
+  const fetchRoles = useDashboardStore((s) => s.fetchRoles);
+  const createUserWithRole = useDashboardStore((s) => s.createUserWithRole);
+  const updateRole = useDashboardStore((s) => s.updateRole);
+  const updateUserPin = useDashboardStore((s) => s.updateUserPin);
+  const removeRole = useDashboardStore((s) => s.removeRole);
+  const ensureOwnerRole = useDashboardStore((s) => s.ensureOwnerRole);
+  const generateGlobalId = useDashboardStore((s) => s.generateGlobalId);
+  const deactivateUser = useDashboardStore((s) => s.deactivateUser);
+  const reactivateUser = useDashboardStore((s) => s.reactivateUser);
   const { showSuccess, showError } = useToast();
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // Role definition modals
+  // Role definition modal flags
   const [roleDefOpen, setRoleDefOpen] = useState(false);
   const [editingRoleDef, setEditingRoleDef] = useState<RoleDefinition | null>(null);
   const [deleteRoleDefOpen, setDeleteRoleDefOpen] = useState(false);
   const [deletingRoleDef, setDeletingRoleDef] = useState<RoleDefinition | null>(null);
-  const [roleDefName, setRoleDefName] = useState('');
-  const [roleDefDesc, setRoleDefDesc] = useState('');
-  const [roleDefPerms, setRoleDefPerms] = useState<PermissionKey[]>([]);
 
-  // User assignment modals
+  // User modal flags
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserRoleRecord | null>(null);
-
-  const [formEmail, setFormEmail] = useState('');
-  const [formDisplayName, setFormDisplayName] = useState('');
-  const [formPassword, setFormPassword] = useState('');
-  const [formRoleId, setFormRoleId] = useState('');
-  const [formPinCode, setFormPinCode] = useState('');
-  const [editRoleId, setEditRoleId] = useState('');
-  const [editPinCode, setEditPinCode] = useState('');
-  const [saving, setSaving] = useState(false);
 
   // Permissions detail modal
   const [permDetailOpen, setPermDetailOpen] = useState(false);
@@ -108,9 +93,20 @@ export function RolesManager() {
     return currentRoleDef.permissions.includes('roles.manage');
   }, [currentRoleDef]);
 
-  // Determine owner role definition
-  const ownerRoleDef = useMemo(() => {
-    return roleDefinitions.find((d) => d.isSystem && d.name === 'Propietario') ?? null;
+  // Build role select options for user assignment (exclude owner for non-owners)
+  const roleSelectOptions = useMemo(() => {
+    return roleDefinitions
+      .filter((d) => {
+        if (currentRoleDef?.name === 'Propietario') return true;
+        return d.name !== 'Propietario';
+      })
+      .map((d) => ({ label: d.name, value: d.id }));
+  }, [roleDefinitions, currentRoleDef]);
+
+  // Default role ID for new user form
+  const defaultRoleId = useMemo(() => {
+    const defaultRole = roleDefinitions.find((d) => d.name === 'Cajero') ?? roleDefinitions[0];
+    return defaultRole?.id ?? '';
   }, [roleDefinitions]);
 
   useEffect(() => {
@@ -129,28 +125,14 @@ export function RolesManager() {
     init();
   }, [user, ensureOwnerRole, fetchRoleDefinitions, fetchRoles]);
 
-  // Set default formRoleId once roleDefinitions load
-  useEffect(() => {
-    if (roleDefinitions.length > 0 && !formRoleId) {
-      const defaultRole = roleDefinitions.find((d) => d.name === 'Cajero') ?? roleDefinitions[0];
-      setFormRoleId(defaultRole.id);
-    }
-  }, [roleDefinitions, formRoleId]);
-
   // ---- Role Definition handlers ----
   const openNewRoleDef = () => {
     setEditingRoleDef(null);
-    setRoleDefName('');
-    setRoleDefDesc('');
-    setRoleDefPerms([]);
     setRoleDefOpen(true);
   };
 
   const openEditRoleDef = (def: RoleDefinition) => {
     setEditingRoleDef(def);
-    setRoleDefName(def.name);
-    setRoleDefDesc(def.description);
-    setRoleDefPerms([...def.permissions]);
     setRoleDefOpen(true);
   };
 
@@ -159,18 +141,12 @@ export function RolesManager() {
     setDeleteRoleDefOpen(true);
   };
 
-  const togglePermission = (perm: PermissionKey) => {
-    setRoleDefPerms((prev) =>
-      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
-    );
-  };
-
-  const handleSaveRoleDef = useCallback(async () => {
-    if (!roleDefName.trim()) {
+  const handleSaveRoleDef = useCallback(async (data: { name: string; description: string; permissions: PermissionKey[] }) => {
+    if (!data.name.trim()) {
       showError('El nombre del rol es obligatorio');
       return;
     }
-    if (roleDefPerms.length === 0) {
+    if (data.permissions.length === 0) {
       showError('Selecciona al menos un permiso');
       return;
     }
@@ -179,17 +155,17 @@ export function RolesManager() {
     try {
       if (editingRoleDef) {
         await updateRoleDefinition(editingRoleDef.id, {
-          name: roleDefName.trim(),
-          description: roleDefDesc.trim(),
-          permissions: roleDefPerms,
+          name: data.name.trim(),
+          description: data.description.trim(),
+          permissions: data.permissions,
         });
-        showSuccess(`Rol "${roleDefName.trim()}" actualizado`);
+        showSuccess(`Rol "${data.name.trim()}" actualizado`);
       } else {
         await createRoleDefinition(
-          { name: roleDefName.trim(), description: roleDefDesc.trim(), permissions: roleDefPerms },
+          { name: data.name.trim(), description: data.description.trim(), permissions: data.permissions },
           user.uid
         );
-        showSuccess(`Rol "${roleDefName.trim()}" creado`);
+        showSuccess(`Rol "${data.name.trim()}" creado`);
       }
       setRoleDefOpen(false);
     } catch {
@@ -197,7 +173,7 @@ export function RolesManager() {
     } finally {
       setSaving(false);
     }
-  }, [roleDefName, roleDefDesc, roleDefPerms, editingRoleDef, user, createRoleDefinition, updateRoleDefinition, showSuccess, showError]);
+  }, [editingRoleDef, user, createRoleDefinition, updateRoleDefinition, showSuccess, showError]);
 
   const handleDeleteRoleDef = useCallback(async () => {
     if (!deletingRoleDef) return;
@@ -215,41 +191,31 @@ export function RolesManager() {
   }, [deletingRoleDef, deleteRoleDefinition, showSuccess, showError]);
 
   // ---- User handlers ----
-  const resetUserForm = () => {
-    setFormEmail('');
-    setFormDisplayName('');
-    setFormPassword('');
-    setFormPinCode('');
-    const defaultRole = roleDefinitions.find((d) => d.name === 'Cajero') ?? roleDefinitions[0];
-    if (defaultRole) setFormRoleId(defaultRole.id);
-  };
-
-  const handleAddUser = useCallback(async () => {
-    if (!formEmail.trim() || !formPassword.trim()) {
+  const handleAddUser = useCallback(async (data: { email: string; displayName: string; password: string; roleId: string; pinCode: string }) => {
+    if (!data.email.trim() || !data.password.trim()) {
       showError('El correo y la contraseña son obligatorios');
       return;
     }
-    if (formPassword.trim().length < 6) {
+    if (data.password.trim().length < 6) {
       showError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
-    if (!user || !formRoleId) return;
+    if (!user || !data.roleId) return;
     setSaving(true);
     try {
       await createUserWithRole(
         {
-          email: formEmail.trim(),
-          password: formPassword.trim(),
-          displayName: formDisplayName.trim(),
-          roleId: formRoleId,
-          pinCode: formPinCode.trim() || undefined,
+          email: data.email.trim(),
+          password: data.password.trim(),
+          displayName: data.displayName.trim(),
+          roleId: data.roleId,
+          pinCode: data.pinCode.trim() || undefined,
         },
         user.uid
       );
 
-      const roleName = roleMap.get(formRoleId)?.name ?? '';
-      showSuccess(`Usuario creado y Rol ${roleName} asignado a ${formEmail}`);
-      resetUserForm();
+      const roleName = roleMap.get(data.roleId)?.name ?? '';
+      showSuccess(`Usuario creado y Rol ${roleName} asignado a ${data.email}`);
       setAddOpen(false);
     } catch (error: any) {
       console.error(error);
@@ -261,17 +227,17 @@ export function RolesManager() {
     } finally {
       setSaving(false);
     }
-  }, [formEmail, formDisplayName, formPassword, formRoleId, formPinCode, user, createUserWithRole, roleMap, showSuccess, showError]);
+  }, [user, createUserWithRole, roleMap, showSuccess, showError]);
 
-  const handleEditUser = useCallback(async () => {
+  const handleEditUser = useCallback(async (data: { roleId: string; pinCode: string }) => {
     if (!selectedUser || !user) return;
     setSaving(true);
     try {
-      await updateRole(selectedUser.firebaseUid, editRoleId, user.uid);
-      if (editPinCode.trim()) {
-        await updateUserPin(selectedUser.firebaseUid, editPinCode.trim());
+      await updateRole(selectedUser.firebaseUid, data.roleId, user.uid);
+      if (data.pinCode.trim()) {
+        await updateUserPin(selectedUser.firebaseUid, data.pinCode.trim());
       }
-      const roleName = roleMap.get(editRoleId)?.name ?? '';
+      const roleName = roleMap.get(data.roleId)?.name ?? '';
       showSuccess(`Rol y accesos actualizados a ${roleName}`);
       setEditOpen(false);
       setSelectedUser(null);
@@ -280,27 +246,25 @@ export function RolesManager() {
     } finally {
       setSaving(false);
     }
-  }, [selectedUser, editRoleId, editPinCode, user, updateRole, updateUserPin, roleMap, showSuccess, showError]);
+  }, [selectedUser, user, updateRole, updateUserPin, roleMap, showSuccess, showError]);
 
-  const handleDeleteUser = useCallback(async () => {
+  const handleDeactivateUser = useCallback(async () => {
     if (!selectedUser) return;
     setSaving(true);
     try {
-      await removeRole(selectedUser.firebaseUid);
-      showSuccess(`Usuario ${selectedUser.email} eliminado del sistema de roles`);
+      await deactivateUser(selectedUser.firebaseUid);
+      showSuccess(`${selectedUser.displayName || selectedUser.email} ha sido dado de baja. Su Global ID queda reservado permanentemente.`);
       setDeleteOpen(false);
       setSelectedUser(null);
-    } catch {
-      showError('Error al eliminar rol');
+    } catch (e: unknown) {
+      showError(e instanceof Error ? e.message : 'Error al dar de baja');
     } finally {
       setSaving(false);
     }
-  }, [selectedUser, removeRole, showSuccess, showError]);
+  }, [selectedUser, deactivateUser, showSuccess, showError]);
 
   const openEditUser = (record: UserRoleRecord) => {
     setSelectedUser(record);
-    setEditRoleId(record.roleId);
-    setEditPinCode(record.pinCode || '');
     setEditOpen(true);
   };
 
@@ -316,16 +280,6 @@ export function RolesManager() {
       year: 'numeric',
     });
   };
-
-  // Build role select options for user assignment (exclude owner for non-owners)
-  const roleSelectOptions = useMemo(() => {
-    return roleDefinitions
-      .filter((d) => {
-        if (currentRoleDef?.name === 'Propietario') return true;
-        return d.name !== 'Propietario';
-      })
-      .map((d) => ({ label: d.name, value: d.id }));
-  }, [roleDefinitions, currentRoleDef]);
 
   if (loading) {
     return (
@@ -588,314 +542,56 @@ export function RolesManager() {
         </BlockStack>
       </Card>
 
-      {/* ====== ROLE DEFINITION CREATE/EDIT MODAL ====== */}
-      <Modal
+      {/* ====== MODALS ====== */}
+      <RoleDefinitionFormModal
         open={roleDefOpen}
         onClose={() => setRoleDefOpen(false)}
-        title={editingRoleDef ? `Editar rol: ${editingRoleDef.name}` : 'Crear nuevo rol'}
-        primaryAction={{
-          content: editingRoleDef ? 'Guardar cambios' : 'Crear rol',
-          onAction: handleSaveRoleDef,
-          loading: saving,
-          disabled: !roleDefName.trim() || roleDefPerms.length === 0,
-        }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => setRoleDefOpen(false) }]}
-      >
-        <Modal.Section>
-          <FormLayout>
-            <TextField
-              label="Nombre del rol"
-              value={roleDefName}
-              onChange={setRoleDefName}
-              autoComplete="off"
-              placeholder="Ej: Cajero Senior"
-              disabled={editingRoleDef?.isSystem && editingRoleDef?.name === 'Propietario'}
-            />
-            <TextField
-              label="Descripcion"
-              value={roleDefDesc}
-              onChange={setRoleDefDesc}
-              autoComplete="off"
-              multiline={2}
-              placeholder="Descripcion breve de lo que puede hacer este rol"
-            />
-          </FormLayout>
-        </Modal.Section>
-        <Modal.Section>
-          <BlockStack gap="400">
-            <InlineStack align="space-between" blockAlign="center">
-              <Text variant="headingSm" as="h3">
-                Permisos ({roleDefPerms.length} seleccionados)
-              </Text>
-              <InlineStack gap="200">
-                <Button
-                  size="micro"
-                  onClick={() => {
-                    const all = PERMISSION_GROUPS.flatMap((g) => g.permissions);
-                    setRoleDefPerms(all);
-                  }}
-                >
-                  Seleccionar todos
-                </Button>
-                <Button size="micro" onClick={() => setRoleDefPerms([])}>
-                  Limpiar
-                </Button>
-              </InlineStack>
-            </InlineStack>
-            <Divider />
-            {PERMISSION_GROUPS.map((group) => (
-              <Box key={group.title}>
-                <BlockStack gap="200">
-                  <Text variant="headingSm" as="h4">{group.title}</Text>
-                  <InlineGrid columns={{ xs: 1, sm: 2 }} gap="100">
-                    {group.permissions.map((perm) => (
-                      <Checkbox
-                        key={perm}
-                        label={PERMISSION_LABELS[perm]}
-                        checked={roleDefPerms.includes(perm)}
-                        onChange={() => togglePermission(perm)}
-                      />
-                    ))}
-                  </InlineGrid>
-                </BlockStack>
-              </Box>
-            ))}
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        editingRoleDef={editingRoleDef}
+        onSave={handleSaveRoleDef}
+        saving={saving}
+      />
 
-      {/* ====== ROLE DEFINITION DELETE MODAL ====== */}
-      <Modal
+      <DeleteRoleDefinitionModal
         open={deleteRoleDefOpen}
         onClose={() => { setDeleteRoleDefOpen(false); setDeletingRoleDef(null); }}
-        title="Eliminar rol"
-        primaryAction={{
-          content: 'Eliminar',
-          destructive: true,
-          onAction: handleDeleteRoleDef,
-          loading: saving,
-        }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => { setDeleteRoleDefOpen(false); setDeletingRoleDef(null); } }]}
-      >
-        <Modal.Section>
-          <BlockStack gap="200">
-            <Text as="p">
-              Se eliminara el rol <strong>{deletingRoleDef?.name}</strong> del sistema.
-            </Text>
-            <Text as="p" tone="subdued">
-              Los usuarios que tengan este rol asignado perderan sus permisos asociados.
-            </Text>
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        roleDef={deletingRoleDef}
+        onDelete={handleDeleteRoleDef}
+        saving={saving}
+      />
 
-      {/* ====== ADD USER MODAL ====== */}
-      <Modal
+      <AddUserModal
         open={addOpen}
-        onClose={() => { setAddOpen(false); resetUserForm(); }}
-        title="Agregar usuario al sistema"
-        primaryAction={{
-          content: 'Asignar rol',
-          onAction: handleAddUser,
-          loading: saving,
-          disabled: !formEmail.trim() || !formRoleId,
-        }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => { setAddOpen(false); resetUserForm(); } }]}
-      >
-        <Modal.Section>
-          <FormLayout>
-            <TextField
-              label="Correo electronico"
-              type="email"
-              value={formEmail}
-              onChange={setFormEmail}
-              autoComplete="email"
-              placeholder="cajero@mitienda.com"
-              helpText="El correo con el que el usuario se registro en Firebase"
-            />
-            <TextField
-              label="Nombre (opcional)"
-              value={formDisplayName}
-              onChange={setFormDisplayName}
-              autoComplete="name"
-              placeholder="Juan Perez"
-            />
-            <TextField
-              label="Contraseña"
-              type="password"
-              value={formPassword}
-              onChange={setFormPassword}
-              autoComplete="new-password"
-              placeholder="Min. 6 caracteres"
-              helpText="La contraseña inicial para que el usuario inicie sesión."
-            />
-            <Select
-              label="Rol"
-              options={roleSelectOptions}
-              value={formRoleId}
-              onChange={setFormRoleId}
-            />
-            <TextField
-              label="PIN de Aprobación (Opcional)"
-              type="password"
-              value={formPinCode}
-              onChange={setFormPinCode}
-              autoComplete="off"
-              maxLength={6}
-              placeholder="Ej: 1234"
-              helpText="PIN de 4 a 6 dígitos numéricos para autorizar anulaciones y mermas en mostrador."
-            />
-            {formRoleId && roleMap.get(formRoleId) && (
-              <Banner tone="info">
-                <p><strong>{roleMap.get(formRoleId)!.name}:</strong> {roleMap.get(formRoleId)!.description}</p>
-              </Banner>
-            )}
-          </FormLayout>
-        </Modal.Section>
-      </Modal>
+        onClose={() => setAddOpen(false)}
+        onSave={handleAddUser}
+        saving={saving}
+        roleSelectOptions={roleSelectOptions}
+        roleMap={roleMap}
+        defaultRoleId={defaultRoleId}
+      />
 
-      {/* ====== EDIT USER MODAL ====== */}
-      <Modal
+      <EditUserModal
         open={editOpen}
         onClose={() => { setEditOpen(false); setSelectedUser(null); }}
-        title={`Cambiar rol de ${selectedUser?.displayName || selectedUser?.email || ''}`}
-        primaryAction={{
-          content: 'Guardar cambio',
-          onAction: handleEditUser,
-          loading: saving,
-        }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => { setEditOpen(false); setSelectedUser(null); } }]}
-      >
-        <Modal.Section>
-          <FormLayout>
-            <Text as="p">
-              Correo: <strong>{selectedUser?.email}</strong>
-            </Text>
-            <Text as="p">
-              Rol actual: <Badge tone="info">{roleMap.get(selectedUser?.roleId ?? '')?.name || 'Sin rol'}</Badge>
-            </Text>
-            <Select
-              label="Nuevo rol"
-              options={roleSelectOptions}
-              value={editRoleId}
-              onChange={setEditRoleId}
-            />
-            <TextField
-              label="Cambiar o Establecer PIN de Aprobación"
-              type="password"
-              value={editPinCode}
-              onChange={setEditPinCode}
-              autoComplete="off"
-              maxLength={6}
-              placeholder="Ej: 1234"
-              helpText="Este usuario usará este PIN numérico para autorizar bloqueos, mermas o cortes."
-            />
-            {editRoleId && roleMap.get(editRoleId) && (
-              <Banner tone="info">
-                <p><strong>{roleMap.get(editRoleId)!.name}:</strong> {roleMap.get(editRoleId)!.description}</p>
-              </Banner>
-            )}
-          </FormLayout>
-        </Modal.Section>
-      </Modal>
+        selectedUser={selectedUser}
+        onSave={handleEditUser}
+        saving={saving}
+        roleSelectOptions={roleSelectOptions}
+        roleMap={roleMap}
+      />
 
-      {/* ====== DELETE USER MODAL ====== */}
-      <Modal
+      <DeactivateUserModal
         open={deleteOpen}
         onClose={() => { setDeleteOpen(false); setSelectedUser(null); }}
-        title="Dar de baja al usuario"
-        primaryAction={{
-          content: 'Dar de baja',
-          destructive: true,
-          onAction: async () => {
-            if (!selectedUser) return;
-            setSaving(true);
-            try {
-              await deactivateUser(selectedUser.firebaseUid);
-              showSuccess(`${selectedUser.displayName || selectedUser.email} ha sido dado de baja. Su Global ID queda reservado permanentemente.`);
-              setDeleteOpen(false);
-              setSelectedUser(null);
-            } catch (e: unknown) {
-              showError(e instanceof Error ? e.message : 'Error al dar de baja');
-            } finally {
-              setSaving(false);
-            }
-          },
-          loading: saving,
-        }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => { setDeleteOpen(false); setSelectedUser(null); } }]}
-      >
-        <Modal.Section>
-          <BlockStack gap="300">
-            <Banner tone="warning">
-              <p>
-                Al dar de baja a <strong>{selectedUser?.displayName || selectedUser?.email}</strong>, su acceso al sistema será revocado inmediatamente.
-              </p>
-            </Banner>
-            {selectedUser?.globalId && (
-              <Banner tone="info">
-                <p>
-                  El Global ID <strong>{selectedUser.globalId}</strong> quedará reservado permanentemente y no podrá ser reutilizado por nadie más.
-                </p>
-              </Banner>
-            )}
-            <Text as="p" tone="subdued">
-              El usuario no será eliminado del sistema. Su registro permanecerá para auditoría y su Global ID nunca podrá ser reasignado.
-              Si necesitas reincorporarlo, podrás usar la opción "Reactivar".
-            </Text>
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        selectedUser={selectedUser}
+        onDeactivate={handleDeactivateUser}
+        saving={saving}
+      />
 
-      {/* ====== PERMISSIONS DETAIL MODAL ====== */}
-      <Modal
+      <PermissionsDetailModal
         open={permDetailOpen}
         onClose={() => { setPermDetailOpen(false); setPermDetailRole(null); }}
-        title={`Permisos: ${permDetailRole?.name ?? ''}`}
-        secondaryActions={[{ content: 'Cerrar', onAction: () => { setPermDetailOpen(false); setPermDetailRole(null); } }]}
-      >
-        <Modal.Section>
-          <BlockStack gap="300">
-            {permDetailRole && (
-              <>
-                <Banner tone="info">
-                  <p>{permDetailRole.description}</p>
-                </Banner>
-                <Text variant="headingSm" as="h3">
-                  {permDetailRole.permissions.length} permisos activos
-                </Text>
-                <Divider />
-                {PERMISSION_GROUPS.map((group) => {
-                  const active = group.permissions.filter((p) =>
-                    permDetailRole.permissions.includes(p)
-                  );
-                  return (
-                    <Box key={group.title}>
-                      <BlockStack gap="100">
-                        <Text variant="headingSm" as="h4">{group.title}</Text>
-                        {active.length === 0 ? (
-                          <Text variant="bodySm" as="p" tone="subdued">Sin acceso</Text>
-                        ) : (
-                          <InlineStack gap="200" wrap>
-                            {group.permissions.map((perm) => {
-                              const has = permDetailRole.permissions.includes(perm);
-                              return (
-                                <Badge key={perm} tone={has ? 'success' : undefined}>
-                                  {PERMISSION_LABELS[perm]}
-                                </Badge>
-                              );
-                            })}
-                          </InlineStack>
-                        )}
-                      </BlockStack>
-                    </Box>
-                  );
-                })}
-              </>
-            )}
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        roleDef={permDetailRole}
+      />
     </BlockStack>
   );
 }

@@ -10,176 +10,276 @@ import {
   InlineStack,
   TextField,
   Button,
-  EmptyState,
+  Select,
   Box,
-  Divider,
-  Modal,
-  Banner,
+  Icon,
 } from '@shopify/polaris';
-import { FormSelect } from '@/components/ui/FormSelect';
-import { SearchIcon, PrintIcon, DeleteIcon, ExportIcon } from '@shopify/polaris-icons';
+import { ExportIcon, SearchIcon, ReceiptIcon, RefreshIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/components/notifications/ToastProvider';
+import { printWithIframe, posTicketCSS, applyTicketTemplate } from '@/lib/printTicket';
 import { GenericExportModal } from '@/components/inventory/ShopifyModals';
 import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
+import { DevolucionModal } from '@/components/modals/DevolucionModal';
+import { SaleDetailModal } from '@/components/sales/SaleDetailModal';
+import { DateRangeFilter } from '@/components/sales/DateRangeFilter';
+import type { RangeOption } from '@/components/sales/DateRangeFilter';
 import type { SaleRecord } from '@/types';
 
 function paymentBadge(method: string) {
   switch (method) {
-    case 'efectivo':
-      return <Badge tone="success">Efectivo</Badge>;
-    case 'tarjeta':
-      return <Badge tone="info">Tarjeta</Badge>;
-    case 'transferencia':
-      return <Badge tone="attention">Transferencia</Badge>;
-    default:
-      return <Badge>{method}</Badge>;
+    case 'efectivo':      return <Badge tone="success">Efectivo</Badge>;
+    case 'tarjeta':       return <Badge tone="info">Tarjeta</Badge>;
+    case 'transferencia': return <Badge tone="attention">Transferencia</Badge>;
+    default:              return <Badge>{method}</Badge>;
   }
 }
 
 export function SalesHistory() {
-  const saleRecords = useDashboardStore((s) => s.saleRecords);
-  const storeConfig = useDashboardStore((s) => s.storeConfig);
-  const cancelSale = useDashboardStore((s) => s.cancelSale);
+  const saleRecords     = useDashboardStore((s) => s.saleRecords);
+  const storeConfig     = useDashboardStore((s) => s.storeConfig);
+  const cancelSale      = useDashboardStore((s) => s.cancelSale);
+  const currentUserRole = useDashboardStore((s) => s.currentUserRole);
   const { showSuccess, showError } = useToast();
-  const [searchFolio, setSearchFolio] = useState('');
-  const [filterMethod, setFilterMethod] = useState('');
-  const [filterDate, setFilterDate] = useState('');
-  const [selectedSale, setSelectedSale] = useState<SaleRecord | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [cancelConfirm, setCancelConfirm] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
-  const [isExportOpen, setIsExportOpen] = useState(false);
 
+  const [searchFolio,    setSearchFolio]    = useState('');
+  const [filterMethod,   setFilterMethod]   = useState('');
+  const [selectedSale,   setSelectedSale]   = useState<SaleRecord | null>(null);
+  const [detailOpen,     setDetailOpen]     = useState(false);
+  const [isExportOpen,   setIsExportOpen]   = useState(false);
+  const [devolucionOpen, setDevolucionOpen] = useState(false);
+
+  // ── Date range state (lifted for filtering) ────────────────────────────────
+  const [activeDateRange, setActiveDateRange] = useState<RangeOption | null>(null);
+
+  // ── Filter logic ───────────────────────────────────────────────────────────
   const filteredSales = useMemo(() => {
     return saleRecords
       .filter((sale) => {
         if (searchFolio && !sale.folio.toLowerCase().includes(searchFolio.toLowerCase())) return false;
         if (filterMethod && sale.paymentMethod !== filterMethod) return false;
-        if (filterDate && !sale.date.startsWith(filterDate)) return false;
+        if (activeDateRange) {
+          const d = new Date(sale.date);
+          d.setHours(0, 0, 0, 0);
+          if (d < activeDateRange.period.since || d > activeDateRange.period.until) return false;
+        }
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [saleRecords, searchFolio, filterMethod, filterDate]);
+  }, [saleRecords, searchFolio, filterMethod, activeDateRange]);
 
-  const totalFiltered = useMemo(() => filteredSales.reduce((sum, s) => sum + s.total, 0), [filteredSales]);
+  const totalFiltered = useMemo(() => filteredSales.reduce((s, r) => s + r.total, 0), [filteredSales]);
 
   const handleViewSale = useCallback((sale: SaleRecord) => {
     setSelectedSale(sale);
     setDetailOpen(true);
   }, []);
 
+  // ── Print ticket ───────────────────────────────────────────────────────────
   const handlePrint = useCallback(() => {
     if (!selectedSale) return;
     const saleDate = new Date(selectedSale.date);
-    const printWindow = window.open('', '_blank', 'width=380,height=600');
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <!DOCTYPE html><html><head><title>Ticket ${selectedSale.folio}</title>
-      <style>
-        @media print { @page { size: 80mm auto; margin: 2mm; } }
-        body { font-family: 'Courier New', monospace; font-size: 12px; width: 280px; margin: 0 auto; padding: 8px; }
-        .center { text-align: center; } .right { text-align: right; }
-        .line { border-top: 1px dashed #000; margin: 6px 0; }
-        .bold { font-weight: bold; } .row { display: flex; justify-content: space-between; }
-      </style></head><body>
-      <div class="center"><h2 style="margin:4px 0;font-size:16px">${storeConfig.storeName}</h2>
-      <p style="margin:2px 0;font-size:11px">${storeConfig.address}</p>
-      <p style="margin:2px 0;font-size:11px">Tel: ${storeConfig.phone}</p></div>
-      <div class="line"></div>
-      <div class="row" style="font-size:11px"><span><b>Folio:</b> ${selectedSale.folio}</span><span>${saleDate.toLocaleDateString('es-MX')}</span></div>
-      <div class="row" style="font-size:11px"><span><b>Cajero:</b> ${selectedSale.cajero}</span><span>${saleDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span></div>
-      <div class="line"></div>
-      ${selectedSale.items.map((item) => `<div style="margin:3px 0"><div class="bold" style="font-size:11px">${item.productName}</div><div class="row" style="font-size:11px"><span>${item.quantity} x $${item.unitPrice.toFixed(2)}</span><span>$${item.subtotal.toFixed(2)}</span></div></div>`).join('')}
-      <div class="line"></div>
-      <div class="row" style="font-size:11px"><span>Subtotal:</span><span>$${selectedSale.subtotal.toFixed(2)}</span></div>
-      <div class="row" style="font-size:11px"><span>IVA (16%):</span><span>$${selectedSale.iva.toFixed(2)}</span></div>
-      <div class="row bold" style="font-size:14px;margin:4px 0"><span>TOTAL:</span><span>$${selectedSale.total.toFixed(2)}</span></div>
-      <div class="line"></div>
-      <div class="row" style="font-size:11px"><span>Pago:</span><span style="text-transform:capitalize">${selectedSale.paymentMethod}</span></div>
-      ${selectedSale.paymentMethod === 'efectivo' ? `<div class="row" style="font-size:11px"><span>Pagó:</span><span>$${selectedSale.amountPaid.toFixed(2)}</span></div><div class="row bold" style="font-size:11px"><span>Cambio:</span><span>$${selectedSale.change.toFixed(2)}</span></div>` : ''}
-      <div class="line"></div>
-      <div class="center" style="font-size:11px"><p style="margin:2px 0">¡Gracias por su compra!</p><p style="margin:2px 0">REIMPRESIÓN</p></div>
-      <script>window.onload=()=>{window.print();window.close();}<\/script></body></html>
-    `);
-    printWindow.document.close();
-  }, [selectedSale]);
+    const dateStr = saleDate.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = saleDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    const now = new Date().toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+    const paymentLabels: Record<string, string> = {
+      efectivo: 'Efectivo', tarjeta: 'Tarjeta bancaria', tarjeta_manual: 'Tarjeta (manual)',
+      tarjeta_web: 'Mercado Pago Web', transferencia: 'Transferencia',
+      fiado: 'Crédito cliente', puntos: 'Puntos de lealtad',
+    };
+    const itemsHtml = selectedSale.items.map((item) => `
+      <div class="item-name">${item.productName}</div>
+      <div class="item-detail">
+        <span>${item.quantity} pza × $${item.unitPrice.toFixed(2)}</span>
+        <span>$${item.subtotal.toFixed(2)}</span>
+      </div>`).join('');
 
+    const html = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"/>
+<title>Ticket ${selectedSale.folio}</title>
+<style>${posTicketCSS}</style></head>
+<body><div class="ticket">
+  <div class="store-name">${storeConfig.storeName || storeConfig.legalName || 'Tienda'}</div>
+  ${storeConfig.address ? `<div class="store-sub">${storeConfig.address}</div>` : ''}
+  ${storeConfig.phone ? `<div class="store-sub">Tel: ${storeConfig.phone}</div>` : ''}
+  <hr class="dash"/>
+  <div class="doc-type">Ticket de Venta</div>
+  <div class="folio">Folio: ${selectedSale.folio}</div>
+  <div class="fecha">${dateStr} ${timeStr}</div>
+  <hr class="dash"/>
+  <div class="row"><span class="label">Cajero</span><span class="val">${selectedSale.cajero || '—'}</span></div>
+  <div class="row"><span class="label">Pago</span><span class="val">${paymentLabels[selectedSale.paymentMethod] || selectedSale.paymentMethod}</span></div>
+  <hr class="dash"/>
+  ${itemsHtml}
+  <hr class="solid"/>
+  <div class="total-row"><span>Subtotal</span><span>$${selectedSale.subtotal.toFixed(2)}</span></div>
+  <div class="total-row"><span>IVA (16%)</span><span>$${selectedSale.iva.toFixed(2)}</span></div>
+  ${selectedSale.cardSurcharge > 0 ? `<div class="total-row"><span>Comisión tarjeta</span><span>$${selectedSale.cardSurcharge.toFixed(2)}</span></div>` : ''}
+  <hr class="solid"/>
+  <div class="total-row main"><span>TOTAL</span><span>$${selectedSale.total.toFixed(2)}</span></div>
+  ${selectedSale.paymentMethod === 'efectivo' ? `
+  <hr class="dash"/>
+  <div class="total-row"><span>Recibido</span><span>$${selectedSale.amountPaid.toFixed(2)}</span></div>
+  <div class="total-row bold"><span>Cambio</span><span>$${selectedSale.change.toFixed(2)}</span></div>` : ''}
+  <hr class="dash"/>
+  <div style="text-align:center;margin:4px 0;"><span class="reprint-badge">REIMPRESIÓN</span></div>
+  ${storeConfig.ticketFooter ? `<div class="footer-line">${storeConfig.ticketFooter.replace(/\n/g, '<br/>')}</div>` : '<div class="footer-line">¡Gracias por su compra!</div>'}
+  <div class="footer-line">Impreso el ${now}</div>
+</div></body></html>`;
+
+    const templateVars: Record<string, string> = {
+      storeName: storeConfig.storeName || storeConfig.legalName || 'Tienda',
+      folio: selectedSale.folio, fecha: `${dateStr} ${timeStr}`,
+      cajero: selectedSale.cajero || '—',
+      metodoPago: paymentLabels[selectedSale.paymentMethod] || selectedSale.paymentMethod,
+      items: selectedSale.items.map((item) =>
+        `<div class="item-name">${item.productName}</div><div class="item-detail"><span>${item.quantity} pza × $${item.unitPrice.toFixed(2)}</span><span>$${item.subtotal.toFixed(2)}</span></div>`
+      ).join(''),
+      subtotal: `$${selectedSale.subtotal.toFixed(2)}`,
+      iva: `$${selectedSale.iva.toFixed(2)}`,
+      total: `$${selectedSale.total.toFixed(2)}`,
+      cambio: `$${selectedSale.change.toFixed(2)}`,
+      recibido: `$${selectedSale.amountPaid.toFixed(2)}`,
+      footer: storeConfig.ticketFooter || '¡Gracias por su compra!',
+    };
+    printWithIframe(applyTicketTemplate(storeConfig.ticketTemplateVenta, templateVars, html));
+  }, [selectedSale, storeConfig]);
+
+  // ── Cancel sale ────────────────────────────────────────────────────────────
   const handleCancelSale = useCallback(async () => {
     if (!selectedSale) return;
-    setCancelling(true);
     try {
       await cancelSale(selectedSale.id);
       showSuccess(`Venta ${selectedSale.folio} cancelada — inventario restaurado`);
       setDetailOpen(false);
       setSelectedSale(null);
-      setCancelConfirm(false);
-    } catch { showError('Error al cancelar la venta'); }
-    setCancelling(false);
+    } catch {
+      showError('Error al cancelar la venta');
+      throw new Error('cancel failed');
+    }
   }, [selectedSale, cancelSale, showSuccess, showError]);
 
   const methodOptions = [
     { label: 'Todos los métodos', value: '' },
-    { label: 'Efectivo', value: 'efectivo' },
-    { label: 'Tarjeta', value: 'tarjeta' },
-    { label: 'Transferencia', value: 'transferencia' },
+    { label: 'Efectivo',          value: 'efectivo' },
+    { label: 'Tarjeta',           value: 'tarjeta' },
+    { label: 'Transferencia',     value: 'transferencia' },
   ];
 
   return (
     <>
-      <Card>
-        <BlockStack gap="400">
-          <InlineStack align="space-between" blockAlign="center">
-            <InlineStack gap="300" blockAlign="center">
-              <Text as="h2" variant="headingMd">Historial de Ventas</Text>
-              <Badge tone="info">{`${filteredSales.length} ventas — Total: ${formatCurrency(totalFiltered)}`}</Badge>
-            </InlineStack>
-            <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>Exportar</Button>
-          </InlineStack>
+      <div style={{ marginBottom: '20px' }}>
+        <Text as="h1" variant="headingLg" fontWeight="bold">Historial de Ventas</Text>
+      </div>
 
-          {/* Filters */}
-          <InlineStack gap="200" align="start" blockAlign="end">
-            <Box minWidth="200px">
+      <Card padding="0">
+
+        {/* ══ Header ═══════════════════════════════════════════════════════════ */}
+        <Box
+          background="bg-surface-active"
+          paddingInlineStart="600"
+          paddingInlineEnd="600"
+          paddingBlockStart="500"
+          paddingBlockEnd="500"
+        >
+          <InlineStack align="space-between" blockAlign="center" wrap={false}>
+            <BlockStack gap="100">
+              <Text as="h2" variant="headingMd" fontWeight="bold">Historial de Ventas</Text>
+              <InlineStack gap="300" blockAlign="center" wrap={false}>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '2px 10px', borderRadius: 20,
+                  background: 'var(--p-color-bg-fill-success)',
+                  color: 'var(--p-color-text-success)',
+                  fontSize: 13, fontWeight: 600,
+                }}>
+                  {filteredSales.length} {filteredSales.length === 1 ? 'venta' : 'ventas'}
+                </div>
+                <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--p-color-border)' }} />
+                <Text as="span" variant="bodyLg" fontWeight="semibold">{formatCurrency(totalFiltered)}</Text>
+                {activeDateRange && (
+                  <Badge tone="info" size="small">{activeDateRange.title}</Badge>
+                )}
+                {filterMethod && (
+                  <Badge tone="attention" size="small">
+                    {methodOptions.find(o => o.value === filterMethod)?.label ?? filterMethod}
+                  </Badge>
+                )}
+              </InlineStack>
+            </BlockStack>
+
+            <InlineStack gap="200">
+              <Button icon={RefreshIcon} onClick={() => window.location.reload()}>
+                Actualizar
+              </Button>
+              <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>
+                Exportar
+              </Button>
+            </InlineStack>
+          </InlineStack>
+        </Box>
+
+        {/* ══ Filter bar ═══════════════════════════════════════════════════════ */}
+        <Box
+          background="bg-surface-secondary"
+          paddingInlineStart="600"
+          paddingInlineEnd="600"
+          paddingBlockStart="300"
+          paddingBlockEnd="300"
+          borderBlockStartWidth="025"
+          borderColor="border"
+        >
+          <InlineStack gap="300" blockAlign="end" wrap={false}>
+            <div style={{ flexGrow: 1, minWidth: 0 }}>
               <TextField
-                label="Buscar por folio"
+                label="Buscar"
+                labelHidden
                 value={searchFolio}
                 onChange={setSearchFolio}
                 autoComplete="off"
-                placeholder="V-000001"
-                prefix={<SearchIcon />}
+                placeholder="Buscar por folio…"
+                prefix={<Icon source={SearchIcon} />}
                 clearButton
                 onClearButtonClick={() => setSearchFolio('')}
+                variant="borderless"
               />
-            </Box>
-            <Box minWidth="180px">
-              <FormSelect
-                label="Método de pago"
+            </div>
+
+            <div style={{ width: 1, height: 36, background: 'var(--p-color-border)', flexShrink: 0 }} />
+
+            <div style={{ minWidth: 190, flexShrink: 0 }}>
+              <Select
+                label="Método"
+                labelHidden
                 options={methodOptions}
                 value={filterMethod}
                 onChange={setFilterMethod}
               />
-            </Box>
-            <Box minWidth="160px">
-              <TextField
-                label="Fecha"
-                type="date"
-                value={filterDate}
-                onChange={setFilterDate}
-                autoComplete="off"
-                clearButton
-                onClearButtonClick={() => setFilterDate('')}
-              />
-            </Box>
-          </InlineStack>
+            </div>
 
+            <div style={{ width: 1, height: 36, background: 'var(--p-color-border)', flexShrink: 0 }} />
+
+            <DateRangeFilter
+              activeDateRange={activeDateRange}
+              onApply={setActiveDateRange}
+              onClear={() => setActiveDateRange(null)}
+            />
+          </InlineStack>
+        </Box>
+
+        {/* ══ Table ════════════════════════════════════════════════════════════ */}
+        <Box>
           {filteredSales.length === 0 ? (
-            <EmptyState
-              heading="Sin ventas registradas"
-              image=""
-            >
-              <p>Registra una venta desde Acciones Rápidas para verla aquí.</p>
-            </EmptyState>
+            <Box paddingBlockStart="800" paddingBlockEnd="800">
+              <BlockStack gap="300" inlineAlign="center">
+                <Icon source={ReceiptIcon} tone="subdued" />
+                <BlockStack gap="100" inlineAlign="center">
+                  <Text as="p" variant="bodyMd" fontWeight="semibold">Sin ventas registradas</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">Registra una venta desde Acciones Rápidas para verla aquí.</Text>
+                </BlockStack>
+              </BlockStack>
+            </Box>
           ) : (
             <IndexTable
               resourceName={{ singular: 'venta', plural: 'ventas' }}
@@ -222,95 +322,18 @@ export function SalesHistory() {
               })}
             </IndexTable>
           )}
-        </BlockStack>
+        </Box>
       </Card>
 
-      {/* Sale Detail Modal */}
-      {selectedSale && (
-        <Modal
-          open={detailOpen}
-          onClose={() => { setDetailOpen(false); setSelectedSale(null); }}
-          title={`Venta ${selectedSale.folio}`}
-          primaryAction={{ content: 'Reimprimir Ticket', icon: PrintIcon, onAction: handlePrint }}
-          secondaryActions={[{ content: 'Cerrar', onAction: () => { setDetailOpen(false); setSelectedSale(null); } }]}
-        >
-          <Modal.Section>
-            <BlockStack gap="300">
-              <InlineStack align="space-between">
-                <Text as="span" variant="bodySm" tone="subdued">
-                  {new Date(selectedSale.date).toLocaleString('es-MX')}
-                </Text>
-                <Text as="span" variant="bodySm" tone="subdued">Cajero: {selectedSale.cajero}</Text>
-              </InlineStack>
-
-              <Divider />
-
-              {selectedSale.items.map((item, i) => (
-                <InlineStack key={i} align="space-between">
-                  <BlockStack gap="050">
-                    <Text as="span" fontWeight="semibold">{item.productName}</Text>
-                    <Text as="span" variant="bodySm" tone="subdued">{item.quantity} x {formatCurrency(item.unitPrice)}</Text>
-                  </BlockStack>
-                  <Text as="span" fontWeight="semibold">{formatCurrency(item.subtotal)}</Text>
-                </InlineStack>
-              ))}
-
-              <Divider />
-
-              <InlineStack align="space-between">
-                <Text as="span">Subtotal:</Text>
-                <Text as="span">{formatCurrency(selectedSale.subtotal)}</Text>
-              </InlineStack>
-              <InlineStack align="space-between">
-                <Text as="span">IVA (16%):</Text>
-                <Text as="span">{formatCurrency(selectedSale.iva)}</Text>
-              </InlineStack>
-              <InlineStack align="space-between">
-                <Text as="span" variant="headingMd" fontWeight="bold">TOTAL:</Text>
-                <Text as="span" variant="headingMd" fontWeight="bold">{formatCurrency(selectedSale.total)}</Text>
-              </InlineStack>
-
-              <Divider />
-
-              <InlineStack align="space-between">
-                <Text as="span">Método de pago:</Text>
-                {paymentBadge(selectedSale.paymentMethod)}
-              </InlineStack>
-              {selectedSale.paymentMethod === 'efectivo' && (
-                <>
-                  <InlineStack align="space-between">
-                    <Text as="span">Pagó con:</Text>
-                    <Text as="span">{formatCurrency(selectedSale.amountPaid)}</Text>
-                  </InlineStack>
-                  <InlineStack align="space-between">
-                    <Text as="span" fontWeight="bold">Cambio:</Text>
-                    <Text as="span" fontWeight="bold">{formatCurrency(selectedSale.change)}</Text>
-                  </InlineStack>
-                </>
-              )}
-
-              <Divider />
-
-              {/* Cancel Sale */}
-              {cancelConfirm ? (
-                <Banner tone="critical" title="¿Cancelar esta venta?" onDismiss={() => setCancelConfirm(false)}>
-                  <p style={{ marginBottom: 8 }}>Se revertirá el inventario y se eliminará la venta <strong>{selectedSale.folio}</strong>. Esta acción no se puede deshacer.</p>
-                  <InlineStack gap="200">
-                    <Button variant="primary" tone="critical" onClick={handleCancelSale} loading={cancelling}>Sí, Cancelar Venta</Button>
-                    <Button onClick={() => setCancelConfirm(false)}>No</Button>
-                  </InlineStack>
-                </Banner>
-              ) : (
-                <InlineStack align="end">
-                  <Button variant="plain" tone="critical" icon={DeleteIcon} onClick={() => setCancelConfirm(true)}>
-                    Cancelar / Devolver Venta
-                  </Button>
-                </InlineStack>
-              )}
-            </BlockStack>
-          </Modal.Section>
-        </Modal>
-      )}
+      {/* ── Sale Detail Modal ── */}
+      <SaleDetailModal
+        open={detailOpen}
+        sale={selectedSale}
+        onClose={() => { setDetailOpen(false); setSelectedSale(null); }}
+        onCancel={handleCancelSale}
+        onReturn={() => setDevolucionOpen(true)}
+        onPrint={handlePrint}
+      />
 
       <GenericExportModal
         open={isExportOpen}
@@ -328,7 +351,7 @@ export function SalesHistory() {
             "IVA": s.iva,
             "Total": s.total,
             "Método de Pago": s.paymentMethod,
-            "Cancelada / Devuelta": 'No' // Si hubiera flag sería aquí
+            "Cancelada / Devuelta": 'No',
           }));
           const filename = `Ventas_Kiosco_${new Date().toISOString().split('T')[0]}`;
           if (format === 'pdf') {
@@ -340,6 +363,16 @@ export function SalesHistory() {
           }
         }}
       />
+
+      {selectedSale && devolucionOpen && (
+        <DevolucionModal
+          open={devolucionOpen}
+          sale={selectedSale}
+          cajero={currentUserRole?.displayName ?? 'Cajero'}
+          onClose={() => setDevolucionOpen(false)}
+          onSuccess={() => setDevolucionOpen(false)}
+        />
+      )}
     </>
   );
 }

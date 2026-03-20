@@ -1,6 +1,7 @@
 'use client';
 
 import { Navigation } from '@shopify/polaris';
+import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
   HomeFilledIcon,
@@ -18,39 +19,39 @@ import {
   SettingsFilledIcon,
   PersonLockIcon,
   PersonLockFilledIcon,
-  NotificationIcon,
 } from '@shopify/polaris-icons';
-import type { PermissionKey } from '@/types';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface SidebarNavProps {
-  selected: string;
   onSelect: (section: string) => void;
   badges?: {
     lowStock?: number;
     notifications?: number;
   };
-  /** Current user's permissions — used to show/hide nav items */
-  permissions?: PermissionKey[];
 }
 
-const SALES_SECTIONS = ['sales', 'sales-history', 'sales-corte'];
-const PRODUCT_SECTIONS = ['inventory', 'catalog', 'inventory-audit', 'inventory-priority', 'pedidos'];
-const CUSTOMER_SECTIONS = ['customers', 'fiado'];
-const FINANCE_SECTIONS = ['expenses', 'suppliers', 'pedidos'];
-const ANALYTICS_SECTIONS = ['analytics', 'reports'];
+const SALES_PATHS = ['/dashboard/sales', '/dashboard/sales/corte'];
+const PRODUCT_PATHS = ['/dashboard/products', '/dashboard/products/inventory', '/dashboard/products/priority', '/dashboard/products/audit', '/dashboard/products/pedidos'];
+const CUSTOMER_PATHS = ['/dashboard/customers', '/dashboard/customers/fiado'];
+const FINANCE_PATHS = ['/dashboard/finance/expenses', '/dashboard/finance/suppliers'];
+const ANALYTICS_PATHS = ['/dashboard/analytics', '/dashboard/analytics/reports'];
 
-/** Returns true if the user has ANY of the given permissions */
-function can(permissions: PermissionKey[] | undefined, ...keys: PermissionKey[]): boolean {
-  if (!permissions || permissions.length === 0) return true; // no restrictions loaded yet or admin without role -> show all
-  return keys.some((k) => permissions.includes(k));
-}
+export function SidebarNav({ onSelect, badges }: SidebarNavProps) {
+  const { hasAnyPermission, isLoaded } = usePermissions();
+  const pathname = usePathname();
 
-export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarNavProps) {
+  const isPath = (path: string) => pathname === path;
+  const isAnyPath = (paths: string[]) => paths.some(p => pathname === p);
+
+  /** Show all items while permissions are still loading */
+  const can = (...keys: Parameters<typeof hasAnyPermission>) =>
+    !isLoaded || hasAnyPermission(...keys);
+
   // Main navigation items — filtered by permissions
   const mainItems = [];
 
-  if (can(permissions, 'dashboard.view')) {
-    const isSel = selected === 'overview';
+  if (can('dashboard.view')) {
+    const isSel = isPath('/dashboard');
     mainItems.push({
       url: '#',
       label: 'Inicio',
@@ -60,25 +61,17 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
     });
   }
 
-  if (can(permissions, 'sales.create', 'sales.view')) {
+  if (can('sales.create', 'sales.view')) {
     const subNav = [];
-    if (can(permissions, 'sales.view')) {
-      subNav.push({
-        url: '#',
-        label: 'Lista de folios',
-        matches: selected === 'sales-history' || selected === 'sales',
-        onClick: () => onSelect('sales-history'),
-      });
-    }
-    if (can(permissions, 'corte.create', 'corte.view')) {
+    if (can('corte.create', 'corte.view')) {
       subNav.push({
         url: '#',
         label: 'Corte de Caja',
-        matches: selected === 'sales-corte',
+        matches: isPath('/dashboard/sales/corte'),
         onClick: () => onSelect('sales-corte'),
       });
     }
-    const isSel = SALES_SECTIONS.includes(selected);
+    const isSel = isAnyPath(SALES_PATHS);
     mainItems.push({
       url: '#',
       label: 'Ventas',
@@ -90,8 +83,8 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
     });
   }
 
-  if (can(permissions, 'inventory.view')) {
-    const isSel = PRODUCT_SECTIONS.includes(selected);
+  if (can('inventory.view')) {
+    const isSel = isAnyPath(PRODUCT_PATHS);
     mainItems.push({
       url: '#',
       label: 'Productos',
@@ -104,42 +97,42 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
         {
           url: '#',
           label: 'Productos',
-          matches: selected === 'catalog',
+          matches: isPath('/dashboard/products'),
           onClick: () => onSelect('catalog'),
         },
         {
           url: '#',
           label: 'Inventario General',
-          matches: selected === 'inventory',
+          matches: isPath('/dashboard/products/inventory'),
           onClick: () => onSelect('inventory'),
         },
         {
           url: '#',
           label: 'Reposición (Pedidos)',
-          matches: selected === 'pedidos',
+          matches: isPath('/dashboard/products/pedidos'),
           onClick: () => onSelect('pedidos'),
         },
         {
           url: '#',
           label: 'Prioridad',
-          matches: selected === 'inventory-priority',
+          matches: isPath('/dashboard/products/priority'),
           onClick: () => onSelect('inventory-priority'),
         },
       ],
     });
   }
 
-  if (can(permissions, 'customers.view')) {
+  if (can('customers.view')) {
     const subNav = [];
-    if (can(permissions, 'fiado.view', 'fiado.create')) {
+    if (can('fiado.view', 'fiado.create')) {
       subNav.push({
         url: '#',
         label: 'Fiado / Crédito',
-        matches: selected === 'fiado',
+        matches: isPath('/dashboard/customers/fiado'),
         onClick: () => onSelect('fiado'),
       });
     }
-    const isSel = CUSTOMER_SECTIONS.includes(selected);
+    const isSel = isAnyPath(CUSTOMER_PATHS);
     mainItems.push({
       url: '#',
       label: 'Clientes',
@@ -154,25 +147,25 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
   // Admin section items
   const adminItems = [];
 
-  if (can(permissions, 'expenses.view', 'suppliers.view', 'pedidos.view')) {
+  if (can('expenses.view', 'suppliers.view', 'pedidos.view')) {
     const subNav = [];
-    if (can(permissions, 'suppliers.view')) {
+    if (can('suppliers.view')) {
       subNav.push({
         url: '#',
         label: 'Proveedores',
-        matches: selected === 'suppliers',
+        matches: isPath('/dashboard/finance/suppliers'),
         onClick: () => onSelect('suppliers'),
       });
     }
-    if (can(permissions, 'pedidos.view')) {
+    if (can('pedidos.view')) {
       subNav.push({
         url: '#',
         label: 'Pedidos a Proveedor',
-        matches: selected === 'pedidos',
+        matches: isPath('/dashboard/products/pedidos'),
         onClick: () => onSelect('pedidos'),
       });
     }
-    const isSel = FINANCE_SECTIONS.includes(selected);
+    const isSel = isAnyPath(FINANCE_PATHS);
     adminItems.push({
       url: '#',
       label: 'Finanzas',
@@ -184,17 +177,17 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
     });
   }
 
-  if (can(permissions, 'analytics.view', 'reports.view')) {
+  if (can('analytics.view', 'reports.view')) {
     const subNav = [];
-    if (can(permissions, 'reports.view')) {
+    if (can('reports.view')) {
       subNav.push({
         url: '#',
         label: 'Reportes',
-        matches: selected === 'reports',
+        matches: isPath('/dashboard/analytics/reports'),
         onClick: () => onSelect('reports'),
       });
     }
-    const isSel = ANALYTICS_SECTIONS.includes(selected);
+    const isSel = isAnyPath(ANALYTICS_PATHS);
     adminItems.push({
       url: '#',
       label: 'Análisis Integral',
@@ -209,8 +202,8 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
   // System section items
   const systemItems = [];
 
-  if (can(permissions, 'roles.manage')) {
-    const isSel = selected === 'roles';
+  if (can('roles.manage')) {
+    const isSel = isPath('/dashboard/settings/roles');
     systemItems.push({
       url: '#',
       label: 'Usuarios y Accesos',
@@ -220,8 +213,8 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
     });
   }
 
-  if (can(permissions, 'settings.view')) {
-    const isSel = selected === 'settings';
+  if (can('settings.view')) {
+    const isSel = isPath('/dashboard/settings');
     systemItems.push({
       url: '#',
       label: 'Configuración Avanzada',
@@ -232,7 +225,7 @@ export function SidebarNav({ selected, onSelect, badges, permissions }: SidebarN
   }
 
   return (
-    <Navigation location="/">
+    <Navigation location={pathname}>
       {mainItems.length > 0 && (
         <Navigation.Section items={mainItems} fill />
       )}

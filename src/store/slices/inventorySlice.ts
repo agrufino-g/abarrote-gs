@@ -1,0 +1,116 @@
+import type { StoreSet, StoreGet, InventorySlice } from '../types';
+import {
+  createProduct as dbCreateProduct,
+  deleteProduct as dbDeleteProduct,
+  updateProduct as dbUpdateProduct,
+  updateProductStock as dbUpdateProductStock,
+  createMerma as dbCreateMerma,
+  fetchInventoryAlerts,
+  fetchKPIData,
+  fetchAllProducts,
+  fetchInventoryAudits,
+} from '@/app/actions/db-actions';
+
+/** Refresh only product-related data: products list, alerts, KPIs */
+async function refreshProductData(set: StoreSet) {
+  const [products, alerts, kpi] = await Promise.all([
+    fetchAllProducts(),
+    fetchInventoryAlerts(),
+    fetchKPIData(),
+  ]);
+  set({ products, inventoryAlerts: alerts, kpiData: kpi });
+}
+
+export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySlice => ({
+  registerMerma: async (merma) => {
+    try {
+      const newRecord = await dbCreateMerma(merma);
+      const state = get();
+      set({ mermaRecords: [newRecord, ...state.mermaRecords] });
+      const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
+      set({ inventoryAlerts: alerts, kpiData: kpi });
+    } catch (error) {
+      console.error('Error registering merma:', error);
+    }
+  },
+
+  adjustStock: async (productId, newStock, _reason) => {
+    try {
+      await dbUpdateProductStock(productId, newStock);
+      // Update the product in-place optimistically, then refresh alerts/KPIs
+      const state = get();
+      set({
+        products: state.products.map(p =>
+          p.id === productId ? { ...p, currentStock: newStock } : p
+        ),
+      });
+      const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
+      set({ inventoryAlerts: alerts, kpiData: kpi });
+    } catch (error) {
+      console.error('Error adjusting stock:', error);
+    }
+  },
+
+  registerProduct: async (productData) => {
+    try {
+      await dbCreateProduct(productData);
+      await refreshProductData(set);
+    } catch (error) {
+      console.error('Error registering product:', error);
+    }
+  },
+
+  deleteProduct: async (productId) => {
+    try {
+      await dbDeleteProduct(productId);
+      // Optimistic: remove from local state immediately
+      const state = get();
+      set({ products: state.products.filter(p => p.id !== productId) });
+      // Then refresh alerts/KPIs (product list already updated)
+      const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
+      set({ inventoryAlerts: alerts, kpiData: kpi });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      throw error;
+    }
+  },
+
+  updateProduct: async (id, data) => {
+    try {
+      await dbUpdateProduct(id, data);
+      // Optimistic update
+      const state = get();
+      set({ products: state.products.map(p => p.id === id ? { ...p, ...data } : p) });
+      // Refresh alerts/KPIs (price or stock changes affect them)
+      const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
+      set({ inventoryAlerts: alerts, kpiData: kpi });
+    } catch (error) {
+      console.error('Error updating product:', error);
+      throw error;
+    }
+  },
+
+  getAllProducts: () => get().products,
+
+  createInventoryAudit: async (data) => {
+    const { createInventoryAudit: dbCreate } = await import('@/app/actions/db-actions');
+    const id = await dbCreate(data);
+    // Only refresh audits list
+    const audits = await fetchInventoryAudits();
+    set({ inventoryAudits: audits });
+    return id;
+  },
+
+  completeInventoryAudit: async (id) => {
+    const { completeInventoryAudit: dbComplete } = await import('@/app/actions/db-actions');
+    await dbComplete(id);
+    // Audit completion adjusts stock → refresh products + audits
+    const [products, alerts, kpi, audits] = await Promise.all([
+      fetchAllProducts(),
+      fetchInventoryAlerts(),
+      fetchKPIData(),
+      fetchInventoryAudits(),
+    ]);
+    set({ products, inventoryAlerts: alerts, kpiData: kpi, inventoryAudits: audits });
+  },
+});

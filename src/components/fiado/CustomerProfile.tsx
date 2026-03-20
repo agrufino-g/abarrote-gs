@@ -42,15 +42,16 @@ import {
 } from '@shopify/polaris-icons';
 import { useState, useMemo } from 'react';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import type { Cliente, FiadoTransaction } from '@/types';
+import type { Cliente, FiadoTransaction, LoyaltyTransaction } from '@/types';
 
 interface CustomerProfileProps {
     cliente: Cliente;
     transactions: FiadoTransaction[];
+    loyaltyTransactions?: LoyaltyTransaction[];
     onBack: () => void;
 }
 
-export function CustomerProfile({ cliente, transactions, onBack }: CustomerProfileProps) {
+export function CustomerProfile({ cliente, transactions, loyaltyTransactions = [], onBack }: CustomerProfileProps) {
     const [comment, setComment] = useState('');
 
     const stats = useMemo(() => {
@@ -379,6 +380,40 @@ export function CustomerProfile({ cliente, transactions, onBack }: CustomerProfi
                                     </Text>
                                 </BlockStack>
                             </Card>
+
+                            {/* Loyalty History Card */}
+                            {loyaltyTransactions.length > 0 && (
+                                <Card>
+                                    <BlockStack gap="300">
+                                        <Text as="h2" variant="headingSm">Historial de Puntos</Text>
+                                        <BlockStack gap="200">
+                                            {loyaltyTransactions.slice(0, 8).map((lt) => (
+                                                <InlineStack key={lt.id} align="space-between" blockAlign="center">
+                                                    <BlockStack gap="050">
+                                                        <Text as="span" variant="bodySm" fontWeight="semibold">
+                                                            {lt.tipo === 'acumulacion' ? 'Acumulación' :
+                                                             lt.tipo === 'canje' ? 'Canje' :
+                                                             lt.tipo === 'ajuste' ? 'Ajuste' : 'Expiración'}
+                                                            {lt.saleFolio ? ` — Folio ${lt.saleFolio}` : ''}
+                                                        </Text>
+                                                        <Text as="span" variant="bodySm" tone="subdued">
+                                                            {new Date(lt.fecha).toLocaleDateString('es-MX')}
+                                                        </Text>
+                                                    </BlockStack>
+                                                    <Badge tone={lt.puntos >= 0 ? 'success' : 'critical'}>
+                                                        {`${lt.puntos >= 0 ? '+' : ''}${lt.puntos} pts`}
+                                                    </Badge>
+                                                </InlineStack>
+                                            ))}
+                                        </BlockStack>
+                                        {loyaltyTransactions.length > 8 && (
+                                            <Text as="p" variant="bodySm" tone="subdued">
+                                                +{loyaltyTransactions.length - 8} movimientos más
+                                            </Text>
+                                        )}
+                                    </BlockStack>
+                                </Card>
+                            )}
 
                             {/* Fiado / Credit Card */}
                             <Card>

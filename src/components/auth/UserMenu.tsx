@@ -27,7 +27,7 @@ import { ProfileModal } from '@/components/modals/ProfileModal';
 
 export function UserMenu() {
   const { user, signOut } = useAuth();
-  const { currentUserRole } = useDashboardStore();
+  const currentUserRole = useDashboardStore((s) => s.currentUserRole);
   const [active, setActive] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');

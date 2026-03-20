@@ -40,7 +40,7 @@ import { CustomerProfile } from './CustomerProfile';
 import { NewCustomerForm } from './NewCustomerForm';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { formatCurrency } from '@/lib/utils';
-import { usePermissions } from '@/lib/usePermissions';
+import { usePermissions } from '@/hooks/usePermissions';
 import { CustomerExportModal, ClientImportModal } from '@/components/inventory/ShopifyModals';
 import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
 import type { Cliente } from '@/types';
@@ -50,7 +50,14 @@ interface FiadoManagerProps {
 }
 
 export function FiadoManager({ mode = 'all' }: FiadoManagerProps) {
-  const { clientes, fiadoTransactions, addCliente, registerFiado, registerAbono, updateCliente, deleteCliente } = useDashboardStore();
+  const clientes = useDashboardStore((s) => s.clientes);
+  const fiadoTransactions = useDashboardStore((s) => s.fiadoTransactions);
+  const loyaltyTransactions = useDashboardStore((s) => s.loyaltyTransactions);
+  const addCliente = useDashboardStore((s) => s.addCliente);
+  const registerFiado = useDashboardStore((s) => s.registerFiado);
+  const registerAbono = useDashboardStore((s) => s.registerAbono);
+  const updateCliente = useDashboardStore((s) => s.updateCliente);
+  const deleteCliente = useDashboardStore((s) => s.deleteCliente);
   const { showSuccess, showError } = useToast();
   const { hasPermission, isLoaded: permsLoaded } = usePermissions();
 
@@ -215,6 +222,7 @@ export function FiadoManager({ mode = 'all' }: FiadoManagerProps) {
       <CustomerProfile
         cliente={viewingProfile}
         transactions={fiadoTransactions.filter(t => t.clienteId === viewingProfile.id)}
+        loyaltyTransactions={loyaltyTransactions.filter(t => t.clienteId === viewingProfile.id)}
         onBack={() => setViewingProfile(null)}
       />
     );

@@ -54,7 +54,11 @@ const categoriaBadge: Record<GastoCategoria, { tone: 'info' | 'success' | 'warni
 };
 
 export function GastosManager() {
-  const { gastos, registerGasto, updateGasto, deleteGasto, saleRecords } = useDashboardStore();
+  const gastos = useDashboardStore((s) => s.gastos);
+  const registerGasto = useDashboardStore((s) => s.registerGasto);
+  const updateGasto = useDashboardStore((s) => s.updateGasto);
+  const deleteGasto = useDashboardStore((s) => s.deleteGasto);
+  const saleRecords = useDashboardStore((s) => s.saleRecords);
   const { showSuccess, showError } = useToast();
 
   const [addOpen, setAddOpen] = useState(false);

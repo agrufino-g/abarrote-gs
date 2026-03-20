@@ -35,7 +35,8 @@ export { SaleTicketModal } from './modals/SaleTicketModal';
 export { SalesHistory } from './sales/SalesHistory';
 
 // Caja
-export { CorteCajaModal, CortesHistory } from './caja/CorteCajaModal';
+export { CorteCajaModal } from './caja/CorteCajaModal';
+export { CortesHistory } from './caja/CortesHistory';
 
 // Fiado
 export { FiadoManager } from './fiado/FiadoManager';

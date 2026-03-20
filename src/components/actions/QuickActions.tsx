@@ -26,14 +26,19 @@ import {
 } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
-import { usePermissions } from '@/lib/usePermissions';
+import { usePermissions } from '@/hooks/usePermissions';
 import { RegisterProductModal } from '@/components/modals/RegisterProductModal';
 import { SaleTicketModal } from '@/components/modals/SaleTicketModal';
 import { ServiciosModal } from '@/components/modals/ServiciosModal';
 import { formatCurrency } from '@/lib/utils';
 
 export function QuickActions() {
-  const { inventoryAlerts, registerMerma, adjustStock, createPedido, clientes, registerAbono } = useDashboardStore();
+  const inventoryAlerts = useDashboardStore((s) => s.inventoryAlerts);
+  const registerMerma = useDashboardStore((s) => s.registerMerma);
+  const adjustStock = useDashboardStore((s) => s.adjustStock);
+  const createPedido = useDashboardStore((s) => s.createPedido);
+  const clientes = useDashboardStore((s) => s.clientes);
+  const registerAbono = useDashboardStore((s) => s.registerAbono);
   const toast = useToast();
   const { hasPermission, isLoaded: permsLoaded } = usePermissions();
 

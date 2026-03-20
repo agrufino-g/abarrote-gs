@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { auditLogs } from '@/db/audit-schema';
+import { auditLogs } from '@/db/schema';
 
 type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout' | 'view';
 

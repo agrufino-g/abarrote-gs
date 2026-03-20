@@ -23,7 +23,9 @@ import { GenericExportModal } from '@/components/inventory/ShopifyModals';
 import { generateCSV, downloadFile, generatePDF } from '@/components/export/ExportModal';
 
 export function ProveedoresManager() {
-  const { proveedores, addProveedor, deleteProveedor } = useDashboardStore();
+  const proveedores = useDashboardStore((s) => s.proveedores);
+  const addProveedor = useDashboardStore((s) => s.addProveedor);
+  const deleteProveedor = useDashboardStore((s) => s.deleteProveedor);
   const { showSuccess, showError } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);

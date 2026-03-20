@@ -22,7 +22,7 @@ import { uploadFile, getUserAvatarPath } from '@/lib/storage';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { usePermissions } from '@/lib/usePermissions';
+import { usePermissions } from '@/hooks/usePermissions';
 import { OAuthProvider, linkWithPopup } from 'firebase/auth';
 
 interface ProfileModalProps {
@@ -32,7 +32,8 @@ interface ProfileModalProps {
 
 export function ProfileModal({ open, onClose }: ProfileModalProps) {
   const { user } = useAuth();
-  const { currentUserRole, updateUserProfile } = useDashboardStore();
+  const currentUserRole = useDashboardStore((s) => s.currentUserRole);
+  const updateUserProfile = useDashboardStore((s) => s.updateUserProfile);
   const { roleName } = usePermissions();
   const { showSuccess, showError } = useToast();
 

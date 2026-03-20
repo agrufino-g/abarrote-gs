@@ -41,7 +41,7 @@ const SERVICIOS = [
 
 export function ServiciosModal({ open, onClose }: ServiciosModalProps) {
   const { showSuccess, showError } = useToast();
-  const { currentUserRole } = useDashboardStore();
+  const currentUserRole = useDashboardStore((s) => s.currentUserRole);
 
   const [tipo, setTipo] = useState<'recarga' | 'servicio'>('recarga');
   const [categoria, setCategoria] = useState('');

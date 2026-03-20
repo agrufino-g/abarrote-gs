@@ -1,0 +1,322 @@
+/* ============================================================
+   BARRA SUPERIOR (contenedor raíz)
+   Sticky en la parte superior, fondo oscuro con degradado sutil
+   ============================================================ */
+.ctb-root {
+  height: 52px;
+  background: linear-gradient(180deg, #18181b 0%, #141417 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  padding: 0 12px 0 8px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 8px;
+}
+
+/* ============================================================
+   BOTÓN HAMBURGUESA (solo visible en móvil)
+   ============================================================ */
+.ctb-ham {
+  background: transparent;
+  border: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #a1a1aa;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.ctb-ham:hover { background: rgba(255,255,255,0.07); color: #e4e4e7; }
+@media (max-width: 768px) {
+  .ctb-ham { display: flex; }
+}
+
+/* ============================================================
+   LOGO
+   ============================================================ */
+.ctb-logo { display: flex; align-items: center; flex-shrink: 0; margin-right: 4px; }
+
+/* ============================================================
+   BARRA DE BÚSQUEDA — contenedor y caja
+   ============================================================ */
+.ctb-search-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 0 24px;
+}
+.ctb-search-box {
+  width: 100%;
+  max-width: 640px;
+  position: relative;
+}
+
+/* Fila del input: ícono + campo + atajo de teclado */
+.ctb-search-input-row {
+  height: 34px;
+  background: #09090b;
+  border-radius: 20px;
+  border: 1px solid #3f3f46;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  cursor: text;
+  transition: border-color 0.15s;
+}
+.ctb-search-input-row.focused {
+  border-color: #71717a;
+  border-radius: 20px 20px 0 0; /* aplana la parte inferior cuando el dropdown está abierto */
+}
+.ctb-search-input-row.open-dd {
+  border-radius: 20px 20px 0 0;
+}
+
+/* Ícono de lupa */
+.ctb-search-icon { color: #71717a; display: flex; align-items: center; flex-shrink: 0; }
+
+/* Campo de texto nativo */
+.ctb-search-native {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e4e4e7;
+  font-size: 13px;
+  font-weight: 400;
+  width: 100%;
+  height: 34px;
+}
+.ctb-search-native::placeholder { color: #71717a; }
+
+/* Badges de atajo de teclado (CTRL + K) */
+.ctb-kbd {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.ctb-kbd span {
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #52525b;
+  padding: 1px 4px;
+  line-height: 14px;
+  letter-spacing: 0.4px;
+}
+
+/* ============================================================
+   DROPDOWN DE BÚSQUEDA — resultados de acciones y productos
+   ============================================================ */
+.ctb-dropdown {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  right: 0;
+  background: #1c1c1f;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+  z-index: 999;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* Etiqueta de sección dentro del dropdown */
+.ctb-dd-section-label {
+  padding: 8px 12px 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #52525b;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* Fila de resultado (acción o producto) */
+.ctb-dd-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: #d4d4d8;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  transition: background 0.08s;
+}
+.ctb-dd-item:hover, .ctb-dd-item.active { background: rgba(255,255,255,0.06); }
+
+/* Ícono del item */
+.ctb-dd-item-icon { color: #52525b; display: flex; flex-shrink: 0; }
+.ctb-dd-item.active .ctb-dd-item-icon { color: #a78bfa; }
+
+/* Flecha indicadora de selección */
+.ctb-dd-item-arrow { margin-left: auto; font-size: 11px; color: #3f3f46; }
+
+/* Separador entre secciones del dropdown */
+.ctb-dd-sep { height: 1px; background: rgba(255,255,255,0.05); margin: 3px 12px; }
+
+/* Pie del dropdown con atajos de navegación */
+.ctb-dd-footer {
+  padding: 5px 12px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  gap: 14px;
+}
+.ctb-dd-footer span { font-size: 10.5px; color: #3f3f46; }
+
+/* Mensaje sin resultados */
+.ctb-dd-empty { padding: 20px; text-align: center; }
+
+/* ============================================================
+   ZONA DERECHA — iconos de acción y separadores
+   ============================================================ */
+.ctb-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+
+/* Botón de ícono genérico (globo, notificaciones, etc.) */
+.ctb-icon-btn {
+  background: transparent;
+  border: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #71717a;
+  position: relative;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+.ctb-icon-btn:hover { background: rgba(255,255,255,0.07); color: #d4d4d8; }
+.ctb-icon-btn.active { background: rgba(255,255,255,0.08); color: #e4e4e7; }
+
+/* Badge de conteo sobre el ícono (alertas críticas = rojo, advertencias = amarillo) */
+.ctb-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  background: #ef4444;
+  color: white;
+  border-radius: 8px;
+  font-size: 9.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border: 2px solid #141417;
+  line-height: 1;
+}
+.ctb-badge.warn { background: #f59e0b; }
+
+/* Separador vertical entre grupos de iconos */
+.ctb-sep-v { width: 1px; height: 20px; background: rgba(255,255,255,0.07); margin: 0 2px; }
+
+/* ============================================================
+   PANEL DE NOTIFICACIONES / ALERTAS DE INVENTARIO
+   ============================================================ */
+.ctb-notif-panel { width: 400px; }
+
+/* Encabezado del panel */
+.ctb-notif-header {
+  padding: 14px 16px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #18181b;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.ctb-notif-title { font-size: 14px; font-weight: 600; color: #f4f4f5; }
+
+/* Contadores de severidad en el encabezado */
+.ctb-notif-counters { display: flex; gap: 6px; align-items: center; }
+.ctb-notif-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+.ctb-notif-count.critical { background: rgba(239,68,68,0.15); color: #f87171; }
+.ctb-notif-count.warning  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.ctb-notif-count.neutral  { background: rgba(255,255,255,0.07); color: #71717a; }
+
+/* Punto de color indicador de severidad */
+.ctb-notif-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* Lista scrolleable de alertas */
+.ctb-notif-list { max-height: 380px; overflow-y: auto; }
+.ctb-notif-list::-webkit-scrollbar { width: 4px; }
+.ctb-notif-list::-webkit-scrollbar-track { background: transparent; }
+.ctb-notif-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* Fila individual de alerta */
+.ctb-notif-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.ctb-notif-item:hover { background: rgba(255,255,255,0.04); }
+.ctb-notif-item:last-child { border-bottom: none; }
+
+/* Ícono de la alerta con fondo coloreado según severidad */
+.ctb-notif-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Cuerpo de texto de la alerta */
+.ctb-notif-body { flex: 1; min-width: 0; }
+.ctb-notif-type { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.ctb-notif-name { font-size: 13px; font-weight: 500; color: #e4e4e7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctb-notif-desc { font-size: 11.5px; color: #71717a; margin-top: 2px; }
+
+/* Timestamp relativo de la alerta */
+.ctb-notif-time { font-size: 10.5px; color: #52525b; flex-shrink: 0; margin-top: 2px; }
+
+/* Estado vacío: sin alertas */
+.ctb-notif-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #52525b;
+  font-size: 13px;
+}
+
+/* Pie del panel con conteo total */
+.ctb-notif-footer {
+  padding: 10px 16px;
+  background: #18181b;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  text-align: center;
+  font-size: 12px;
+  color: #52525b;
+}

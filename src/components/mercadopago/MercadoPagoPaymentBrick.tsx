@@ -7,7 +7,6 @@ interface MercadoPagoPaymentBrickProps {
     amount: number;
     externalReference: string;
     publicKey: string;
-    accessToken: string;
     onSuccess: () => void;
     onError: (error: string) => void;
 }
@@ -16,7 +15,6 @@ export function MercadoPagoPaymentBrick({
     amount,
     externalReference,
     publicKey,
-    accessToken,
     onSuccess,
     onError,
 }: MercadoPagoPaymentBrickProps) {
@@ -76,7 +74,6 @@ export function MercadoPagoPaymentBrick({
                 },
                 body: JSON.stringify({
                     action: 'process_payment',
-                    accessToken: accessToken,
                     transaction_amount: formData.transaction_amount || amount,
                     description: `Venta Kiosco (${formatCurrency(amount)})`,
                     payment_method_id: formData.payment_method_id || 'mercado_pago',

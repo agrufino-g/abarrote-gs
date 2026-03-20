@@ -33,6 +33,9 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
     cortesHistory: [],
     storeConfig: DEFAULT_STORE_CONFIG,
     inventoryAudits: [],
+    devoluciones: [],
+    cashMovements: [],
+    loyaltyTransactions: [],
     isLoading: false,
     error: null,
 
@@ -63,6 +66,9 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
           cortesHistory: data.cortesHistory,
           inventoryAudits: data.inventoryAudits,
           storeConfig: data.storeConfig,
+          devoluciones: data.devoluciones,
+          cashMovements: data.cashMovements,
+          loyaltyTransactions: data.loyaltyTransactions,
           isLoading: false,
         });
       } catch (error) {
@@ -71,29 +77,6 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
           error: 'Error al cargar los datos del dashboard. Verifica tu conexión a la base de datos.',
           isLoading: false,
         });
-      }
-    },
-
-    refreshAllData: async () => {
-      try {
-        const data = await fetchDashboardFromDB();
-        set({
-          kpiData: data.kpiData,
-          products: data.products,
-          inventoryAlerts: data.inventoryAlerts,
-          salesData: data.salesData,
-          saleRecords: data.saleRecords,
-          mermaRecords: data.mermaRecords,
-          pedidos: data.pedidos,
-          clientes: data.clientes,
-          fiadoTransactions: data.fiadoTransactions,
-          gastos: data.gastos,
-          proveedores: data.proveedores,
-          cortesHistory: data.cortesHistory,
-          inventoryAudits: data.inventoryAudits,
-        });
-      } catch (error) {
-        console.error('Error refreshing data:', error);
       }
     },
 

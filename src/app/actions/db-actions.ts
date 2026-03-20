@@ -99,3 +99,22 @@ export {
 export {
   fetchDashboardFromDB,
 } from './dashboard-actions';
+
+// Devoluciones
+export {
+  fetchDevoluciones,
+  createDevolucion,
+  getSaleItemsForDevolucion,
+} from './devolucion-actions';
+
+// Movimientos de Caja
+export {
+  fetchCashMovements,
+  createCashMovement,
+} from './cash-movement-actions';
+
+// Loyalty Transactions
+export {
+  fetchLoyaltyTransactions,
+  createLoyaltyTransaction,
+} from './loyalty-actions';

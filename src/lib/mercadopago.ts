@@ -2,7 +2,6 @@
 // Docs: https://www.mercadopago.com.mx/developers/es/docs/mp-point/integration-api
 
 export interface MercadoPagoConfig {
-  accessToken: string;
   publicKey?: string;
   deviceId: string;
   enabled: boolean;
@@ -43,7 +42,6 @@ export async function createPaymentIntent(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'create_point_intent',
-      accessToken: config.accessToken,
       deviceId: config.deviceId,
       amount: request.amount,
       description: request.description,
@@ -72,7 +70,6 @@ export async function getPaymentIntentStatus(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'get_point_status',
-      accessToken: config.accessToken,
       paymentIntentId,
     }),
   });
@@ -96,7 +93,6 @@ export async function cancelPaymentIntent(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'cancel_point_intent',
-      accessToken: config.accessToken,
       deviceId,
     }),
   });
@@ -109,15 +105,12 @@ export async function cancelPaymentIntent(
 /**
  * Obtiene la lista de dispositivos Point asociados a la cuenta
  */
-export async function getDevices(
-  accessToken: string
-): Promise<{ id: string; operating_mode: string; pos_id: number }[]> {
+export async function getDevices(): Promise<{ id: string; operating_mode: string; pos_id: number }[]> {
   const response = await fetch(MP_BACKEND_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'get_devices',
-      accessToken,
     }),
   });
 
@@ -134,15 +127,24 @@ export async function getDevices(
  */
 export function getMPConfig(): MercadoPagoConfig {
   if (typeof window === 'undefined') {
-    return { accessToken: '', publicKey: '', deviceId: '', enabled: false };
+    return { deviceId: '', enabled: false };
   }
   try {
     const stored = localStorage.getItem('mp_config');
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Migrar: eliminar accessToken/publicKey si existen en localStorage
+      if (parsed.accessToken || parsed.publicKey) {
+        const { accessToken: _a, publicKey: _p, ...clean } = parsed;
+        localStorage.setItem('mp_config', JSON.stringify(clean));
+        return { deviceId: clean.deviceId || '', enabled: clean.enabled || false };
+      }
+      return parsed;
+    }
   } catch {
     // ignore
   }
-  return { accessToken: '', publicKey: '', deviceId: '', enabled: false };
+  return { deviceId: '', enabled: false };
 }
 
 /**

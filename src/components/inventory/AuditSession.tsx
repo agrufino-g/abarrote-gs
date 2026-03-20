@@ -17,7 +17,15 @@ import {
 } from '@shopify/polaris';
 import { SearchIcon, CheckIcon, AlertCircleIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
-import { getInventoryAudit, saveAuditItem, completeInventoryAudit } from '@/app/actions/db-actions';
+import {
+    getInventoryAudit,
+    saveAuditItem,
+    completeInventoryAudit,
+    fetchAllProducts,
+    fetchInventoryAlerts,
+    fetchKPIData,
+    fetchInventoryAudits,
+} from '@/app/actions/db-actions';
 import type { InventoryAudit, InventoryAuditItem } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/components/notifications/ToastProvider';
@@ -28,7 +36,7 @@ interface AuditSessionProps {
 }
 
 export function AuditSession({ auditId, onClose }: AuditSessionProps) {
-    const { products, refreshAllData } = useDashboardStore();
+    const products = useDashboardStore((s) => s.products);
     const { showSuccess, showError } = useToast();
     const [audit, setAudit] = useState<InventoryAudit | null>(null);
     const [counts, setCounts] = useState<Record<string, string>>({});
@@ -81,7 +89,21 @@ export function AuditSession({ auditId, onClose }: AuditSessionProps) {
             // 2. Complete audit (updates stock in DB)
             await completeInventoryAudit(auditId);
             showSuccess('Auditoría completada y stock ajustado correctamente');
-            await refreshAllData();
+
+            // 3. Targeted refresh: only products, alerts, KPIs, and audits
+            const [newProducts, newAlerts, newKPI, newAudits] = await Promise.all([
+                fetchAllProducts(),
+                fetchInventoryAlerts(),
+                fetchKPIData(),
+                fetchInventoryAudits(),
+            ]);
+            useDashboardStore.setState({
+                products: newProducts,
+                inventoryAlerts: newAlerts,
+                kpiData: newKPI,
+                inventoryAudits: newAudits,
+            });
+
             onClose();
         } catch (error) {
             console.error(error);
@@ -89,7 +111,7 @@ export function AuditSession({ auditId, onClose }: AuditSessionProps) {
         } finally {
             setIsSubmitting(false);
         }
-    }, [auditId, products, counts, showSuccess, showError, refreshAllData, onClose]);
+    }, [auditId, products, counts, showSuccess, showError, onClose]);
 
     if (!audit) return <div style={{ padding: '20px' }}><Text as="p">Cargando...</Text></div>;
 

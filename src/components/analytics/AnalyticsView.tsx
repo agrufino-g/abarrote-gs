@@ -36,7 +36,11 @@ import { useDashboardStore } from '@/store/dashboardStore';
 import { formatCurrency } from '@/lib/utils';
 
 export function AnalyticsView() {
-  const { saleRecords, products, gastos, mermaRecords, kpiData } = useDashboardStore();
+  const saleRecords = useDashboardStore((s) => s.saleRecords);
+  const products = useDashboardStore((s) => s.products);
+  const gastos = useDashboardStore((s) => s.gastos);
+  const mermaRecords = useDashboardStore((s) => s.mermaRecords);
+  const kpiData = useDashboardStore((s) => s.kpiData);
   const [periodo, setPeriodo] = useState('30');
 
   // Calcular ventas del mes actual

@@ -17,7 +17,7 @@ export function PinPadModal({ open, onClose, onSuccess, requiredPermission, titl
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const { authorizePin } = useDashboardStore();
+    const authorizePin = useDashboardStore((s) => s.authorizePin);
 
     const handleKeyPress = (num: string) => {
         setError('');

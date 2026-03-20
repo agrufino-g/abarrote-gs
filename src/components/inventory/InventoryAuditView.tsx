@@ -18,7 +18,9 @@ import { useDashboardStore } from '@/store/dashboardStore';
 import { AuditSession } from './AuditSession';
 
 export function InventoryAuditView() {
-    const { inventoryAudits, currentUserRole, createInventoryAudit } = useDashboardStore();
+    const inventoryAudits = useDashboardStore((s) => s.inventoryAudits);
+    const currentUserRole = useDashboardStore((s) => s.currentUserRole);
+    const createInventoryAudit = useDashboardStore((s) => s.createInventoryAudit);
     const [activeAuditId, setActiveAuditId] = useState<string | null>(null);
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [title, setTitle] = useState('');

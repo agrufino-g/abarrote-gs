@@ -2,19 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActionList,
   BlockStack,
-  Box,
   Button,
-  ButtonGroup,
   Card,
-  Checkbox,
   Divider,
-  Icon,
   IndexTable,
   InlineStack,
-  Popover,
-  Scrollable,
   Tabs,
   Text,
   TextField,
@@ -22,66 +15,40 @@ import {
   useIndexResourceState,
 } from '@shopify/polaris';
 import {
-  ArrowLeftIcon,
-  LayoutColumns3Icon,
-  EmailIcon,
-  ExportIcon,
   FilterIcon,
   ImageIcon,
-  ImportIcon,
-  InventoryIcon,
+  LayoutColumns3Icon,
   PlusIcon,
   SearchIcon,
   SortIcon,
-  ViewIcon,
 } from '@shopify/polaris-icons';
 import { Product } from '@/types';
-import { ProductExportModal, ProductImportModal } from './ShopifyModals';
-import { downloadFile, generateCSV, generatePDF } from '@/components/export/ExportModal';
 import { updateProduct } from '@/app/actions/db-actions';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { ProductExportModal, ProductImportModal } from './ShopifyModals';
+import { downloadFile, generateCSV, generatePDF } from '@/components/export/ExportModal';
+import { InventoryColumnsPopover } from './InventoryColumnsPopover';
+import {
+  BulkColumnKey,
+  BulkEditRow,
+  BULK_COLUMN_DEFINITIONS,
+  INVENTORY_GENERAL_COLUMNS_FALLBACK,
+  parseInventoryGeneralColumns,
+  serializeInventoryGeneralColumns,
+} from './InventoryTypes';
+import { InventoryBulkEdit } from './InventoryBulkEdit';
 
-interface InventoryGeneralViewProps {
-  products: Product[];
-  onProductClick?: (product: Product) => void;
-  onImportSuccess?: () => void;
-}
-
-type BulkColumnKey =
-  | 'title'
-  | 'sku'
-  | 'barcode'
-  | 'category'
-  | 'unitPrice'
-  | 'costPrice'
-  | 'available'
-  | 'onHand'
-  | 'minStock'
-  | 'expirationDate';
-
-interface BulkEditRow {
-  id: string;
-  title: string;
-  sku: string;
-  barcode: string;
-  category: string;
-  unitPrice: string;
-  costPrice: string;
-  available: string;
-  onHand: string;
-  minStock: string;
-  expirationDate: string;
-}
-
-interface BulkColumnDefinition {
-  key: BulkColumnKey;
-  label: string;
-  group: 'General' | 'Precios' | 'Inventario';
-  inputType: 'text' | 'number' | 'date';
-  minWidth: number;
-  mainTableTitle?: string;
-}
+// --- Columnas fijas del screenshot de Shopify ---
+const INVENTORY_HEADINGS: { title: string }[] = [
+  { title: 'Producto' },
+  { title: 'SKU' },
+  { title: 'No disponible' },
+  { title: 'Comprometido' },
+  { title: 'Disponible' },
+  { title: 'En existencia' },
+  { title: 'Nombre del contenedor' },
+];
 
 const INVENTORY_TABS = [
   {
@@ -92,90 +59,48 @@ const INVENTORY_TABS = [
   },
 ];
 
-const BULK_COLUMN_DEFINITIONS: BulkColumnDefinition[] = [
-  { key: 'title', label: 'Titulo', group: 'General', inputType: 'text', minWidth: 280, mainTableTitle: 'Producto' },
-  { key: 'sku', label: 'SKU', group: 'General', inputType: 'text', minWidth: 170, mainTableTitle: 'SKU' },
-  { key: 'barcode', label: 'Codigo de barras', group: 'General', inputType: 'text', minWidth: 220, mainTableTitle: 'Codigo de barras' },
-  { key: 'category', label: 'Categoria', group: 'General', inputType: 'text', minWidth: 180, mainTableTitle: 'Categoria' },
-  { key: 'unitPrice', label: 'Precio unitario', group: 'Precios', inputType: 'number', minWidth: 170, mainTableTitle: 'Precio unitario' },
-  { key: 'costPrice', label: 'Costo por articulo', group: 'Precios', inputType: 'number', minWidth: 170, mainTableTitle: 'Costo' },
-  { key: 'available', label: 'Disponible', group: 'Inventario', inputType: 'number', minWidth: 160, mainTableTitle: 'Disponible' },
-  { key: 'onHand', label: 'En existencia', group: 'Inventario', inputType: 'number', minWidth: 160, mainTableTitle: 'En existencia' },
-  { key: 'minStock', label: 'Stock minimo', group: 'Inventario', inputType: 'number', minWidth: 150, mainTableTitle: 'Stock minimo' },
-  { key: 'expirationDate', label: 'Caducidad', group: 'Inventario', inputType: 'date', minWidth: 170, mainTableTitle: 'Caducidad' },
-];
-
-const INITIAL_VISIBLE_COLUMNS: Record<BulkColumnKey, boolean> = {
-  title: true,
-  sku: true,
-  barcode: false,
-  category: false,
-  unitPrice: false,
-  costPrice: false,
-  available: true,
-  onHand: true,
-  minStock: false,
-  expirationDate: false,
-};
-
-const INVENTORY_GENERAL_COLUMNS_FALLBACK = JSON.stringify(['title', 'sku', 'available', 'onHand']);
-
-function parseInventoryGeneralColumns(serializedColumns?: string): Record<BulkColumnKey, boolean> {
-  const nextColumns = { ...INITIAL_VISIBLE_COLUMNS };
-
-  if (!serializedColumns) {
-    return nextColumns;
-  }
-
-  try {
-    const parsed = JSON.parse(serializedColumns);
-    if (!Array.isArray(parsed)) {
-      return nextColumns;
-    }
-
-    for (const value of parsed) {
-      if (typeof value === 'string' && value in nextColumns) {
-        nextColumns[value as BulkColumnKey] = true;
-      }
-    }
-
-    return nextColumns;
-  } catch {
-    return nextColumns;
-  }
+interface InventoryGeneralViewProps {
+  products: Product[];
+  onProductClick?: (product: Product) => void;
+  exportOpen: boolean;
+  onExportClose: () => void;
+  importOpen: boolean;
+  onImportClose: () => void;
+  onImportSuccess?: () => void;
 }
 
-function serializeInventoryGeneralColumns(columns: Record<BulkColumnKey, boolean>): string {
-  const enabledColumns = BULK_COLUMN_DEFINITIONS
-    .map((column) => column.key)
-    .filter((key) => columns[key]);
-
-  return JSON.stringify(enabledColumns.length > 0 ? enabledColumns : JSON.parse(INVENTORY_GENERAL_COLUMNS_FALLBACK));
-}
-
-export function InventoryGeneralView({ products, onProductClick, onImportSuccess }: InventoryGeneralViewProps) {
+export function InventoryGeneralView({
+  products,
+  onProductClick,
+  exportOpen,
+  onExportClose,
+  importOpen,
+  onImportClose,
+  onImportSuccess,
+}: InventoryGeneralViewProps) {
   const [selectedTab, setSelectedTab] = useState(0);
   const [queryValue, setQueryValue] = useState('');
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isImportOpen, setIsImportOpen] = useState(false);
-  const [isBulkEditing, setIsBulkEditing] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [isColumnsPopoverOpen, setIsColumnsPopoverOpen] = useState(false);
+  const [columnQuery, setColumnQuery] = useState('');
+
+  // --- Edicion masiva ---
+  const [isBulkEditing, setIsBulkEditing] = useState(false);
   const [isSavingBulkEdit, setIsSavingBulkEdit] = useState(false);
   const [bulkRows, setBulkRows] = useState<BulkEditRow[]>([]);
-  const [columnQuery, setColumnQuery] = useState('');
-  const [activeCell, setActiveCell] = useState<{ rowId: string; column: BulkColumnKey } | null>(null);
-  const [isActionsOpen, setIsActionsOpen] = useState(false);
 
-  const toggleActions = useCallback(() => setIsActionsOpen((active) => !active), []);
   const storeConfig = useDashboardStore((state) => state.storeConfig);
   const saveStoreConfig = useDashboardStore((state) => state.saveStoreConfig);
-  const [appliedVisibleColumns, setAppliedVisibleColumns] = useState<Record<BulkColumnKey, boolean>>(
+  const [appliedVisibleColumns, setAppliedVisibleColumns] = useState(
     parseInventoryGeneralColumns(INVENTORY_GENERAL_COLUMNS_FALLBACK)
   );
-  const [draftVisibleColumns, setDraftVisibleColumns] = useState<Record<BulkColumnKey, boolean>>(
+  const [draftVisibleColumns, setDraftVisibleColumns] = useState(
     parseInventoryGeneralColumns(INVENTORY_GENERAL_COLUMNS_FALLBACK)
   );
   const toast = useToast();
+
+  // --- Inline editable state for Disponible / En existencia ---
+  const [editedValues, setEditedValues] = useState<Record<string, { available?: string; onHand?: string }>>({});
 
   const handlePersistColumns = useCallback(async (nextColumns: Record<BulkColumnKey, boolean>) => {
     setAppliedVisibleColumns(nextColumns);
@@ -196,167 +121,88 @@ export function InventoryGeneralView({ products, onProductClick, onImportSuccess
     }
   }, [isBulkEditing, storeConfig.inventoryGeneralColumns]);
 
+  // --- Filtro ---
   const filteredProducts = useMemo(() => {
     const query = queryValue.trim().toLowerCase();
     if (!query) return products;
-
-    return products.filter((product) =>
-      product.name.toLowerCase().includes(query) ||
-      product.sku.toLowerCase().includes(query) ||
-      product.barcode.toLowerCase().includes(query)
+    return products.filter((p) =>
+      p.name.toLowerCase().includes(query) ||
+      p.sku.toLowerCase().includes(query) ||
+      p.barcode.toLowerCase().includes(query)
     );
   }, [products, queryValue]);
 
+  // --- Resource selection ---
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(filteredProducts);
+    useIndexResourceState(filteredProducts as any);
 
   const selectedProducts = useMemo(
-    () => filteredProducts.filter((product) => selectedResources.includes(product.id)),
+    () => filteredProducts.filter((p) => selectedResources.includes(p.id)),
     [filteredProducts, selectedResources]
   );
 
-  const appliedColumnDefinitions = useMemo(
-    () => BULK_COLUMN_DEFINITIONS.filter((column) => appliedVisibleColumns[column.key]),
-    [appliedVisibleColumns]
-  );
-
-  const visibleColumnDefinitions = useMemo(
-    () => BULK_COLUMN_DEFINITIONS.filter((column) => draftVisibleColumns[column.key]),
-    [draftVisibleColumns]
-  );
-
-  const filteredColumnDefinitions = useMemo(() => {
-    const normalizedQuery = columnQuery.trim().toLowerCase();
-    if (!normalizedQuery) return BULK_COLUMN_DEFINITIONS;
-
-    return BULK_COLUMN_DEFINITIONS.filter((column) =>
-      column.label.toLowerCase().includes(normalizedQuery) ||
-      column.group.toLowerCase().includes(normalizedQuery)
-    );
-  }, [columnQuery]);
-
-  const groupedColumnDefinitions = useMemo(
-    () => ['General', 'Precios', 'Inventario'].map((group) => ({
-      group,
-      columns: filteredColumnDefinitions.filter((column) => column.group === group),
-    })).filter((entry) => entry.columns.length > 0),
-    [filteredColumnDefinitions]
-  );
-
-  useEffect(() => {
-    if (!isBulkEditing) return;
-
-    setBulkRows(
-      selectedProducts.map((product) => ({
-        id: product.id,
-        title: product.name,
-        sku: product.sku || '',
-        barcode: product.barcode || '',
-        category: product.category || '',
-        unitPrice: String(product.unitPrice),
-        costPrice: String(product.costPrice),
-        available: String(product.currentStock),
-        onHand: String(product.currentStock),
-        minStock: String(product.minStock),
-        expirationDate: product.expirationDate || '',
-      }))
-    );
-  }, [isBulkEditing, selectedProducts]);
-
-  const handleBulkFieldChange = useCallback((id: string, field: BulkColumnKey, value: string) => {
-    setBulkRows((currentRows) =>
-      currentRows.map((row) => (row.id === id ? { ...row, [field]: value } : row))
-    );
-  }, []);
-
-  const handleDraftColumnChange = useCallback((columnKey: BulkColumnKey, checked: boolean) => {
-    setDraftVisibleColumns((current) => ({
-      ...current,
-      [columnKey]: checked,
+  // --- Inline edit handlers ---
+  const handleInlineChange = useCallback((productId: string, field: 'available' | 'onHand', value: string) => {
+    setEditedValues((prev) => ({
+      ...prev,
+      [productId]: { ...prev[productId], [field]: value },
     }));
   }, []);
 
-  const handleAppliedColumnChange = useCallback((columnKey: BulkColumnKey, checked: boolean) => {
-    const nextColumns = {
-      ...appliedVisibleColumns,
-      [columnKey]: checked,
-    };
-    void handlePersistColumns(nextColumns);
-  }, [appliedVisibleColumns, handlePersistColumns]);
+  const handleInlineSave = useCallback(async (product: Product) => {
+    const edited = editedValues[product.id];
+    if (!edited) return;
 
-  const renderColumnsPopover = useCallback((mode: 'main' | 'bulk', activator: React.ReactElement) => {
-    const selectedColumns = mode === 'bulk' ? draftVisibleColumns : appliedVisibleColumns;
-    const handleChange = mode === 'bulk' ? handleDraftColumnChange : handleAppliedColumnChange;
+    const parsedAvailable = edited.available !== undefined ? parseInt(edited.available, 10) : undefined;
+    const parsedOnHand = edited.onHand !== undefined ? parseInt(edited.onHand, 10) : undefined;
 
-    return (
-      <Popover
-        active={isColumnsPopoverOpen}
-        activator={activator}
-        onClose={() => setIsColumnsPopoverOpen(false)}
-        preferredAlignment="right"
-      >
-        <Box padding="0" minWidth="260px">
-          <BlockStack gap="0">
-            <Box padding="300">
-              <TextField
-                label="Buscar campos"
-                labelHidden
-                autoComplete="off"
-                value={columnQuery}
-                onChange={setColumnQuery}
-                prefix={<Icon source={SearchIcon} tone="subdued" />}
-                placeholder="Buscar campos"
-              />
-            </Box>
-            <Divider />
-            <Scrollable shadow style={{ maxHeight: '420px' }}>
-              <Box padding="300">
-                <BlockStack gap="400">
-                  {groupedColumnDefinitions.map(({ group, columns }) => (
-                    <BlockStack gap="200" key={group}>
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        {group}
-                      </Text>
-                      {columns.map((column) => (
-                        <Checkbox
-                          key={column.key}
-                          label={column.label}
-                          checked={selectedColumns[column.key]}
-                          onChange={(checked) => handleChange(column.key, checked)}
-                        />
-                      ))}
-                    </BlockStack>
-                  ))}
-                </BlockStack>
-              </Box>
-            </Scrollable>
-          </BlockStack>
-        </Box>
-      </Popover>
-    );
-  }, [appliedVisibleColumns, columnQuery, draftVisibleColumns, groupedColumnDefinitions, handleAppliedColumnChange, handleDraftColumnChange, isColumnsPopoverOpen]);
+    const newStock = parsedOnHand !== undefined && !isNaN(parsedOnHand)
+      ? parsedOnHand
+      : parsedAvailable !== undefined && !isNaN(parsedAvailable)
+        ? parsedAvailable
+        : undefined;
+
+    if (newStock === undefined || newStock === product.currentStock) return;
+
+    try {
+      await updateProduct(product.id, { currentStock: newStock });
+      toast.showSuccess(`Stock de "${product.name}" actualizado a ${newStock}`);
+      setEditedValues((prev) => {
+        const next = { ...prev };
+        delete next[product.id];
+        return next;
+      });
+      onImportSuccess?.();
+    } catch {
+      toast.showError('Error al actualizar stock');
+    }
+  }, [editedValues, toast, onImportSuccess]);
+
+  // --- Bulk edit ---
+  const visibleColumnDefinitions = useMemo(
+    () => BULK_COLUMN_DEFINITIONS.filter((c) => draftVisibleColumns[c.key]),
+    [draftVisibleColumns]
+  );
 
   const handleOpenBulkEdit = useCallback(() => {
     if (selectedProducts.length === 0) {
-      toast.showError('Selecciona al menos un producto para usar edicion masiva');
+      toast.showError('Selecciona al menos un producto para edicion masiva');
       return;
     }
-
     setDraftVisibleColumns(appliedVisibleColumns);
-
     setBulkRows(
-      selectedProducts.map((product) => ({
-        id: product.id,
-        title: product.name,
-        sku: product.sku || '',
-        barcode: product.barcode || '',
-        category: product.category || '',
-        unitPrice: String(product.unitPrice),
-        costPrice: String(product.costPrice),
-        available: String(product.currentStock),
-        onHand: String(product.currentStock),
-        minStock: String(product.minStock),
-        expirationDate: product.expirationDate || '',
+      selectedProducts.map((p) => ({
+        id: p.id,
+        title: p.name,
+        sku: p.sku || '',
+        barcode: p.barcode || '',
+        category: p.category || '',
+        unitPrice: String(p.unitPrice),
+        costPrice: String(p.costPrice),
+        available: String(p.currentStock),
+        onHand: String(p.currentStock),
+        minStock: String(p.minStock),
+        expirationDate: p.expirationDate || '',
       }))
     );
     setIsBulkEditing(true);
@@ -366,78 +212,94 @@ export function InventoryGeneralView({ products, onProductClick, onImportSuccess
     setIsBulkEditing(false);
     setIsColumnsPopoverOpen(false);
     setColumnQuery('');
-    setActiveCell(null);
     setDraftVisibleColumns(appliedVisibleColumns);
   }, [appliedVisibleColumns]);
 
-  const handleSaveBulkEdit = useCallback(async () => {
-    if (bulkRows.length === 0) {
-      setIsBulkEditing(false);
-      return;
-    }
+  const handleBulkFieldChange = useCallback((id: string, field: BulkColumnKey, value: string) => {
+    setBulkRows((rows) => rows.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+  }, []);
 
+  const handleDraftColumnChange = useCallback((key: BulkColumnKey, checked: boolean) => {
+    setDraftVisibleColumns((c) => ({ ...c, [key]: checked }));
+  }, []);
+
+  const handleAppliedColumnChange = useCallback((key: BulkColumnKey, checked: boolean) => {
+    void handlePersistColumns({ ...appliedVisibleColumns, [key]: checked });
+  }, [appliedVisibleColumns, handlePersistColumns]);
+
+  const handleSaveBulkEdit = useCallback(async () => {
+    if (bulkRows.length === 0) { setIsBulkEditing(false); return; }
     setIsSavingBulkEdit(true);
     try {
       await Promise.all(
         bulkRows.map(async (row) => {
-          const product = products.find((item) => item.id === row.id);
+          const product = products.find((p) => p.id === row.id);
           if (!product) return;
-
-          const parsedOnHand = Number.parseInt(row.onHand, 10);
-          const parsedAvailable = Number.parseInt(row.available, 10);
-          const parsedMinStock = Number.parseInt(row.minStock, 10);
-          const parsedUnitPrice = Number.parseFloat(row.unitPrice);
-          const parsedCostPrice = Number.parseFloat(row.costPrice);
-
           await updateProduct(product.id, {
             name: row.title.trim() || product.name,
             sku: row.sku.trim(),
             barcode: row.barcode.trim(),
             category: row.category.trim() || product.category,
-            currentStock: Number.isNaN(parsedOnHand)
-              ? Number.isNaN(parsedAvailable)
-                ? product.currentStock
-                : parsedAvailable
-              : parsedOnHand,
-            minStock: Number.isNaN(parsedMinStock) ? product.minStock : parsedMinStock,
-            unitPrice: Number.isNaN(parsedUnitPrice) ? product.unitPrice : parsedUnitPrice,
-            costPrice: Number.isNaN(parsedCostPrice) ? product.costPrice : parsedCostPrice,
+            currentStock: parseInt(row.onHand, 10) || parseInt(row.available, 10) || product.currentStock,
+            minStock: parseInt(row.minStock, 10) || product.minStock,
+            unitPrice: parseFloat(row.unitPrice) || product.unitPrice,
+            costPrice: parseFloat(row.costPrice) || product.costPrice,
             expirationDate: row.expirationDate.trim() || null,
           });
         })
       );
-
-      const serializedColumns = serializeInventoryGeneralColumns(draftVisibleColumns);
-      await saveStoreConfig({ inventoryGeneralColumns: serializedColumns });
-
+      await saveStoreConfig({ inventoryGeneralColumns: serializeInventoryGeneralColumns(draftVisibleColumns) });
       toast.showSuccess(`Se actualizaron ${bulkRows.length} producto(s)`);
       setAppliedVisibleColumns(draftVisibleColumns);
       setIsBulkEditing(false);
       onImportSuccess?.();
-    } catch (error) {
+    } catch {
       toast.showError('No se pudo guardar la edicion masiva');
     } finally {
       setIsSavingBulkEdit(false);
     }
   }, [bulkRows, draftVisibleColumns, onImportSuccess, products, saveStoreConfig, toast]);
 
-  const promotedBulkActions = useMemo(
-    () => [
-      { content: 'Edicion masiva', onAction: handleOpenBulkEdit },
-      { content: 'Actualizar cantidades', onAction: () => {} },
-      { content: 'Crear transferencia', onAction: () => {} },
-      { content: 'Crear orden de compra', onAction: () => {} },
-    ],
-    [handleOpenBulkEdit]
+  // --- Promoted bulk actions ---
+  const promotedBulkActions = [
+    { content: 'Edicion masiva', onAction: handleOpenBulkEdit },
+  ];
+
+  // --- Export handler ---
+  const handleExport = useCallback(
+    (format: string) => {
+      const exportData = filteredProducts.map((p) => {
+        const unavailable = p.expirationDate && new Date(p.expirationDate) < new Date() ? p.currentStock : 0;
+        return {
+          Producto: p.name,
+          SKU: p.sku || 'Sin SKU',
+          'No disponible': unavailable,
+          Comprometido: 0,
+          Disponible: Math.max(p.currentStock - unavailable, 0),
+          'En existencia': p.currentStock,
+          'Nombre del contenedor': 'Sin nombre de contenedor',
+        };
+      });
+      const filename = `Inventario_General_${new Date().toISOString().split('T')[0]}`;
+      if (format === 'pdf') {
+        generatePDF('Inventario general', exportData as Record<string, unknown>[], `${filename}.pdf`);
+      } else {
+        const csvContent = generateCSV(exportData as Record<string, unknown>[], true);
+        const mime = format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/vnd.ms-excel;charset=utf-8;';
+        downloadFile(csvContent, `${filename}.csv`, mime);
+      }
+    },
+    [filteredProducts]
   );
 
+  // --- Row markup (7 columnas exactas del screenshot) ---
   const rowMarkup = filteredProducts.map((product, index) => {
     const unavailable = product.expirationDate && new Date(product.expirationDate) < new Date()
-      ? product.currentStock
-      : 0;
+      ? product.currentStock : 0;
     const committed = 0;
     const available = Math.max(product.currentStock - unavailable - committed, 0);
     const onHand = product.currentStock;
+    const edited = editedValues[product.id];
 
     return (
       <IndexTable.Row
@@ -447,380 +309,191 @@ export function InventoryGeneralView({ products, onProductClick, onImportSuccess
         selected={selectedResources.includes(product.id)}
         onClick={() => onProductClick?.(product)}
       >
-        {appliedColumnDefinitions.map((column) => {
-          switch (column.key) {
-            case 'title':
-              return (
-                <IndexTable.Cell key={column.key}>
-                  <InlineStack gap="300" blockAlign="center">
-                    <Thumbnail size="small" source={product.imageUrl || ImageIcon} alt={product.name} />
-                    <Text as="span" variant="bodyMd" fontWeight="semibold">
-                      {product.name}
-                    </Text>
-                  </InlineStack>
-                </IndexTable.Cell>
-              );
-            case 'sku':
-              return (
-                <IndexTable.Cell key={column.key}>
-                  <Text as="span" variant="bodyMd" tone="subdued">
-                    {product.sku || 'Sin SKU'}
-                  </Text>
-                </IndexTable.Cell>
-              );
-            case 'barcode':
-              return (
-                <IndexTable.Cell key={column.key}>
-                  <Text as="span" variant="bodyMd" tone="subdued">
-                    {product.barcode || 'Sin codigo'}
-                  </Text>
-                </IndexTable.Cell>
-              );
-            case 'category':
-              return (
-                <IndexTable.Cell key={column.key}>
-                  <Text as="span" variant="bodyMd">{product.category || 'Sin categoria'}</Text>
-                </IndexTable.Cell>
-              );
-            case 'unitPrice':
-              return (
-                <IndexTable.Cell key={column.key}>
-                  <Text as="span" variant="bodyMd">${product.unitPrice}</Text>
-                </IndexTable.Cell>
-              );
-            case 'costPrice':
-              return (
-                <IndexTable.Cell key={column.key}>
-                  <Text as="span" variant="bodyMd">${product.costPrice}</Text>
-                </IndexTable.Cell>
-              );
-            case 'available':
-              return (
-                <IndexTable.Cell key={column.key}>
-                  <div onClick={(event) => event.stopPropagation()}>
-                    <TextField label="Disponible" labelHidden autoComplete="off" value={String(available)} readOnly />
-                  </div>
-                </IndexTable.Cell>
-              );
-            case 'onHand':
-              return (
-                <IndexTable.Cell key={column.key}>
-                  <div onClick={(event) => event.stopPropagation()}>
-                    <TextField label="En existencia" labelHidden autoComplete="off" value={String(onHand)} readOnly />
-                  </div>
-                </IndexTable.Cell>
-              );
-            case 'minStock':
-              return (
-                <IndexTable.Cell key={column.key}>
-                  <Text as="span" variant="bodyMd">{product.minStock}</Text>
-                </IndexTable.Cell>
-              );
-            case 'expirationDate':
-              return (
-                <IndexTable.Cell key={column.key}>
-                  <Text as="span" variant="bodyMd" tone="subdued">
-                    {product.expirationDate || 'Sin fecha'}
-                  </Text>
-                </IndexTable.Cell>
-              );
-            default:
-              return null;
-          }
-        })}
+        {/* Producto */}
+        <IndexTable.Cell>
+          <InlineStack gap="300" blockAlign="center">
+            <Thumbnail size="small" source={product.imageUrl || ImageIcon} alt={product.name} />
+            <Text as="span" variant="bodyMd" fontWeight="semibold">
+              {product.name}
+            </Text>
+          </InlineStack>
+        </IndexTable.Cell>
+
+        {/* SKU */}
+        <IndexTable.Cell>
+          <Text as="span" variant="bodyMd" tone="subdued">
+            {product.sku || 'Sin SKU'}
+          </Text>
+        </IndexTable.Cell>
+
+        {/* No disponible */}
+        <IndexTable.Cell>
+          <Text as="span" variant="bodyMd">
+            {unavailable}
+          </Text>
+        </IndexTable.Cell>
+
+        {/* Comprometido */}
+        <IndexTable.Cell>
+          <Text as="span" variant="bodyMd">
+            {committed}
+          </Text>
+        </IndexTable.Cell>
+
+        {/* Disponible — editable inline */}
+        <IndexTable.Cell>
+          <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: '90px' }}>
+            <TextField
+              label="Disponible"
+              labelHidden
+              autoComplete="off"
+              type="number"
+              value={edited?.available !== undefined ? edited.available : String(available)}
+              onChange={(v) => handleInlineChange(product.id, 'available', v)}
+              onBlur={() => handleInlineSave(product)}
+            />
+          </div>
+        </IndexTable.Cell>
+
+        {/* En existencia — editable inline */}
+        <IndexTable.Cell>
+          <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: '90px' }}>
+            <TextField
+              label="En existencia"
+              labelHidden
+              autoComplete="off"
+              type="number"
+              value={edited?.onHand !== undefined ? edited.onHand : String(onHand)}
+              onChange={(v) => handleInlineChange(product.id, 'onHand', v)}
+              onBlur={() => handleInlineSave(product)}
+            />
+          </div>
+        </IndexTable.Cell>
+
+        {/* Nombre del contenedor */}
+        <IndexTable.Cell>
+          <Text as="span" variant="bodyMd" tone="subdued">
+            Sin nombre de contenedor
+          </Text>
+        </IndexTable.Cell>
       </IndexTable.Row>
     );
   });
 
-  const bulkEditMarkup = (
-    <Card padding="0">
-      <BlockStack gap="0">
-        <Box padding="400">
-          <InlineStack align="space-between" blockAlign="center">
-            <InlineStack gap="300" blockAlign="center">
-              <Button icon={ArrowLeftIcon} variant="plain" onClick={handleCloseBulkEdit}>
-                Volver
-              </Button>
-              <BlockStack gap="025">
-                <Text as="h3" variant="headingMd" fontWeight="semibold">
-                  Editando {bulkRows.length} producto{bulkRows.length === 1 ? '' : 's'}
-                </Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Hoja de edicion masiva con scroll y columnas configurables.
-                </Text>
-              </BlockStack>
-            </InlineStack>
-
-            <InlineStack gap="200" blockAlign="center">
-              {renderColumnsPopover(
-                'bulk',
-                <Button icon={SortIcon} onClick={() => setIsColumnsPopoverOpen((current) => !current)}>
-                  Columnas
-                </Button>
-              )}
-              <Button variant="primary" onClick={handleSaveBulkEdit} loading={isSavingBulkEdit} disabled={visibleColumnDefinitions.length === 0}>
-                Guardar
-              </Button>
-            </InlineStack>
-          </InlineStack>
-        </Box>
-
-        <Divider />
-
-        <div
-          style={{
-            overflow: 'auto',
-            maxHeight: 'calc(100vh - 260px)',
-            background: '#fff',
-          }}
-        >
-          <table style={{ width: '100%', minWidth: '1080px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <thead>
-              <tr style={{ background: '#f6f6f7' }}>
-                {visibleColumnDefinitions.map((column) => (
-                  <th
-                    key={column.key}
-                    style={{
-                      position: 'sticky',
-                      top: 0,
-                      zIndex: 2,
-                      textAlign: 'left',
-                      padding: '10px 8px',
-                      borderRight: '1px solid #e3e3e3',
-                      borderBottom: '1px solid #d9d9d9',
-                      minWidth: `${column.minWidth}px`,
-                      background: '#f6f6f7',
-                    }}
-                  >
-                    <Text as="span" variant="bodySm" tone="subdued">{column.label}</Text>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {bulkRows.map((row) => (
-                <tr key={row.id}>
-                  {visibleColumnDefinitions.map((column) => {
-                    const isActive = activeCell?.rowId === row.id && activeCell.column === column.key;
-                    const cellStyle = {
-                      padding: 0,
-                      borderRight: '1px solid #e3e3e3',
-                      borderBottom: '1px solid #e3e3e3',
-                      background: isActive ? '#f2f7ff' : '#ffffff',
-                    } as const;
-
-                    if (column.key === 'title') {
-                      const product = products.find((item) => item.id === row.id);
-                      return (
-                        <td key={column.key} style={cellStyle}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '10px',
-                              padding: '6px 8px',
-                              boxShadow: isActive ? 'inset 0 0 0 2px #0a66e2' : 'none',
-                            }}
-                          >
-                            <Thumbnail size="small" source={product?.imageUrl || ImageIcon} alt={row.title} />
-                            <input
-                              value={row.title}
-                              onChange={(event) => handleBulkFieldChange(row.id, 'title', event.target.value)}
-                              onFocus={() => setActiveCell({ rowId: row.id, column: 'title' })}
-                              style={{
-                                width: '100%',
-                                border: 'none',
-                                outline: 'none',
-                                background: 'transparent',
-                                fontSize: '13px',
-                                color: '#303030',
-                              }}
-                            />
-                          </div>
-                        </td>
-                      );
-                    }
-
-                    const inputValue = row[column.key];
-                    return (
-                      <td key={column.key} style={cellStyle}>
-                        <div
-                          style={{
-                            padding: '6px 8px',
-                            boxShadow: isActive ? 'inset 0 0 0 2px #0a66e2' : 'none',
-                          }}
-                        >
-                          <input
-                            value={inputValue}
-                            type={column.inputType}
-                            onChange={(event) => handleBulkFieldChange(row.id, column.key, event.target.value)}
-                            onFocus={() => setActiveCell({ rowId: row.id, column: column.key })}
-                            style={{
-                              width: '100%',
-                              border: 'none',
-                              outline: 'none',
-                              background: 'transparent',
-                              fontSize: '13px',
-                              color: '#303030',
-                            }}
-                          />
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </BlockStack>
-    </Card>
-  );
+  // --- Bulk edit mode ---
+  if (isBulkEditing) {
+    return (
+      <InventoryBulkEdit
+        bulkRows={bulkRows}
+        products={products}
+        visibleColumnDefinitions={visibleColumnDefinitions}
+        draftVisibleColumns={draftVisibleColumns}
+        isSavingBulkEdit={isSavingBulkEdit}
+        isColumnsPopoverOpen={isColumnsPopoverOpen}
+        columnQuery={columnQuery}
+        onColumnsPopoverToggle={() => setIsColumnsPopoverOpen((c) => !c)}
+        onColumnsPopoverClose={() => setIsColumnsPopoverOpen(false)}
+        onColumnQueryChange={setColumnQuery}
+        onDraftColumnChange={handleDraftColumnChange}
+        onBulkFieldChange={handleBulkFieldChange}
+        onClose={handleCloseBulkEdit}
+        onSave={handleSaveBulkEdit}
+      />
+    );
+  }
 
   return (
     <BlockStack gap="400">
-      <InlineStack align="space-between" blockAlign="center">
-        <InlineStack gap="200" blockAlign="center">
-          <Icon source={InventoryIcon} tone="base" />
-          <Text as="h2" variant="headingLg" fontWeight="bold">
-            Inventario
-          </Text>
-        </InlineStack>
+      <Card padding="0">
+        {/* Toolbar: Tabs a la izquierda, iconos a la derecha */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid var(--p-color-border-subdued, #e1e3e5)',
+        }}>
+          {/* Izquierda: Tabs + boton + */}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <Tabs tabs={INVENTORY_TABS} selected={selectedTab} onSelect={setSelectedTab} fitted={false} />
+            <Button icon={PlusIcon} variant="plain" accessibilityLabel="Agregar vista" />
+          </div>
 
-        <InlineStack gap="200">
-          <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>Exportar</Button>
-          <Button icon={ImportIcon} onClick={() => setIsImportOpen(true)}>Importar</Button>
-          <Popover
-            active={isActionsOpen}
-            activator={<Button onClick={toggleActions} disclosure>Más acciones</Button>}
-            onClose={toggleActions}
-          >
-            <ActionList
-              actionRole="menuitem"
-              items={[
-                {
-                  content: 'Mostrar barra de informes y estadísticas',
-                  icon: ViewIcon,
-                },
-                {
-                  content: 'Crear campaña por correo electrónico',
-                  icon: EmailIcon,
-                },
-              ]}
+          {/* Derecha: Search/Filter, Columnas, Sort */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', paddingRight: '12px' }}>
+            {showSearch ? (
+              <div style={{ width: '200px' }}>
+                <TextField
+                  label="Buscar"
+                  labelHidden
+                  autoComplete="off"
+                  value={queryValue}
+                  onChange={setQueryValue}
+                  onBlur={() => { if (!queryValue) setShowSearch(false); }}
+                  placeholder="Buscar productos..."
+                  prefix={<SearchIcon />}
+                  autoFocus
+                  clearButton
+                  onClearButtonClick={() => { setQueryValue(''); setShowSearch(false); }}
+                />
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 8px',
+                  border: '1px solid var(--p-color-border-subdued, #dcdfe3)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: 'var(--p-color-bg-surface, white)',
+                }}
+                onClick={() => setShowSearch(true)}
+              >
+                <SearchIcon />
+                <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--p-color-border-subdued, #e1e3e5)' }} />
+                <FilterIcon />
+              </div>
+            )}
+
+            <InventoryColumnsPopover
+              active={isColumnsPopoverOpen}
+              activator={
+                <Button icon={LayoutColumns3Icon} onClick={() => setIsColumnsPopoverOpen((c) => !c)} variant="tertiary" />
+              }
+              onClose={() => setIsColumnsPopoverOpen(false)}
+              columnQuery={columnQuery}
+              onColumnQueryChange={setColumnQuery}
+              selectedColumns={appliedVisibleColumns}
+              onColumnChange={handleAppliedColumnChange}
             />
-          </Popover>
-        </InlineStack>
+
+            <Button icon={SortIcon} variant="tertiary" onClick={() => {}} />
+          </div>
+        </div>
+
+        {/* Tabla con las 7 columnas exactas del screenshot */}
+        <IndexTable
+          resourceName={{ singular: 'producto', plural: 'productos' }}
+          itemCount={filteredProducts.length}
+          selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
+          onSelectionChange={handleSelectionChange}
+          headings={INVENTORY_HEADINGS as any}
+          promotedBulkActions={promotedBulkActions}
+          sortable={[true, false, false, false, false, false, false]}
+        >
+          {rowMarkup}
+        </IndexTable>
+      </Card>
+
+      {/* Footer */}
+      <InlineStack align="center">
+        <Button variant="monochromePlain">Más información sobre gestión de inventario</Button>
       </InlineStack>
 
-      {isBulkEditing ? bulkEditMarkup : (
-        <Card padding="0">
-          <BlockStack gap="0">
-            <div style={{ 
-              padding: '8px 12px', 
-              borderBottom: '1px solid #ebebeb',
-              backgroundColor: '#f9fafb',
-              display: 'flex',
-              alignItems: 'center'
-            }}>
-              <InlineStack align="space-between" blockAlign="center" gap="0">
-                <InlineStack gap="0" blockAlign="center">
-                  <div style={{ marginRight: '8px' }}>
-                    <Tabs tabs={INVENTORY_TABS} selected={selectedTab} onSelect={setSelectedTab} />
-                  </div>
-                  <div style={{ borderLeft: '1px solid #d1d1d1', height: '20px', margin: '0 8px' }} />
-                  <Button icon={PlusIcon} variant="plain" accessibilityLabel="Mas vistas" />
-                </InlineStack>
-
-                <InlineStack gap="100" blockAlign="center">
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {/* Boton Search + Filter como el de la imagen */}
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px',
-                      padding: '4px 8px',
-                      border: '1px solid #dcdfe3',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      backgroundColor: 'white',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                    }} onClick={() => {}}>
-                      <Icon source={SearchIcon} tone="base" />
-                      <div style={{ width: '1px', height: '14px', backgroundColor: '#e1e3e5' }} />
-                      <Icon source={FilterIcon} tone="base" />
-                    </div>
-                    
-                    {/* Boton Columnas */}
-                    {renderColumnsPopover(
-                      'main',
-                      <Button 
-                        icon={LayoutColumns3Icon} 
-                        onClick={() => setIsColumnsPopoverOpen((current) => !current)}
-                      />
-                    )}
-
-                    {/* Boton Sort */}
-                    <Button icon={SortIcon} onClick={() => {}} />
-                  </div>
-                </InlineStack>
-              </InlineStack>
-            </div>
-
-            <Divider />
-
-            <IndexTable
-              resourceName={{ singular: 'producto', plural: 'productos' }}
-              itemCount={filteredProducts.length}
-              selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
-              onSelectionChange={handleSelectionChange}
-              promotedBulkActions={promotedBulkActions}
-              headings={appliedColumnDefinitions.map((column) => ({ title: column.mainTableTitle || column.label }))}
-            >
-              {rowMarkup}
-            </IndexTable>
-          </BlockStack>
-        </Card>
-      )}
-
-      <ProductExportModal
-        open={isExportOpen}
-        onClose={() => setIsExportOpen(false)}
-        onExport={(format) => {
-          const exportData = filteredProducts.map((product) => {
-            const unavailable = product.expirationDate && new Date(product.expirationDate) < new Date()
-              ? product.currentStock
-              : 0;
-            const committed = 0;
-            const available = Math.max(product.currentStock - unavailable - committed, 0);
-
-            return {
-              Producto: product.name,
-              SKU: product.sku || 'Sin SKU',
-              'No disponible': unavailable,
-              Comprometido: committed,
-              Disponible: available,
-              'En existencia': product.currentStock,
-            };
-          });
-
-          const filename = `Inventario_General_${new Date().toISOString().split('T')[0]}`;
-
-          if (format === 'pdf') {
-            generatePDF('Inventario general', exportData as Record<string, unknown>[], `${filename}.pdf`);
-            return;
-          }
-
-          const csvContent = generateCSV(exportData as Record<string, unknown>[], true);
-          const mime = format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/vnd.ms-excel;charset=utf-8;';
-          downloadFile(csvContent, `${filename}.csv`, mime);
-        }}
-      />
-
-      <ProductImportModal
-        open={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        onImportSuccess={onImportSuccess}
-      />
+      {/* Modales controlados desde padre */}
+      <ProductExportModal open={exportOpen} onClose={onExportClose} onExport={handleExport} />
+      <ProductImportModal open={importOpen} onClose={onImportClose} onImportSuccess={onImportSuccess} />
     </BlockStack>
   );
 }

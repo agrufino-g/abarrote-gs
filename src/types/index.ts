@@ -70,6 +70,11 @@ export interface StoreConfig {
   // Branding
   logoUrl?: string;
   inventoryGeneralColumns: string;
+  // Ticket templates (custom HTML uploaded by user)
+  // If set, these override the default generated HTML for printing.
+  // Supports template variables: {{storeName}}, {{folio}}, {{fecha}}, {{items}}, {{total}}, etc.
+  ticketTemplateVenta?: string;
+  ticketTemplateProveedor?: string;
 }
 
 export const DEFAULT_STORE_CONFIG: StoreConfig = {
@@ -185,6 +190,8 @@ export interface SaleRecord {
   cajero: string;
   pointsEarned: number;
   pointsUsed: number;
+  discount: number;
+  discountType: 'amount' | 'percent';
 }
 
 export interface DashboardState {
@@ -201,6 +208,9 @@ export interface DashboardState {
   proveedores: Proveedor[];
   cortesHistory: CorteCaja[];
   inventoryAudits: InventoryAudit[];
+  devoluciones: Devolucion[];
+  cashMovements: CashMovement[];
+  loyaltyTransactions: LoyaltyTransaction[];
   isLoading: boolean;
   error: string | null;
 }
@@ -488,6 +498,70 @@ export const DEFAULT_SYSTEM_ROLES: Omit<RoleDefinition, 'id' | 'createdAt' | 'up
     createdBy: 'system',
   },
 ];
+
+// === Devoluciones ===
+export type DevolucionTipo = 'total' | 'parcial';
+export type DevolucionMotivo = 'producto_danado' | 'producto_incorrecto' | 'insatisfaccion' | 'otro';
+export type DevolucionMetodo = 'efectivo' | 'credito_cliente' | 'transferencia';
+
+export interface DevolucionItem {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  regresoInventario: boolean;
+}
+
+export interface Devolucion {
+  id: string;
+  saleId: string;
+  saleFolio: string;
+  tipo: DevolucionTipo;
+  motivo: DevolucionMotivo;
+  notas: string;
+  montoDevuelto: number;
+  metodoDev: DevolucionMetodo;
+  cajero: string;
+  clienteId?: string;
+  fecha: string;
+  items: DevolucionItem[];
+}
+
+// === Movimientos de Caja ===
+export type CashMovementTipo = 'entrada' | 'salida';
+export type CashMovementConcepto = 'fondo_inicial' | 'retiro_parcial' | 'deposito' | 'gasto' | 'ajuste' | 'otro';
+
+export interface CashMovement {
+  id: string;
+  corteId?: string;
+  tipo: CashMovementTipo;
+  concepto: CashMovementConcepto;
+  monto: number;
+  notas: string;
+  cajero: string;
+  fecha: string;
+}
+
+// === Loyalty Transactions ===
+export type LoyaltyTipo = 'acumulacion' | 'canje' | 'ajuste' | 'expiracion';
+
+export interface LoyaltyTransaction {
+  id: string;
+  clienteId: string;
+  clienteName: string;
+  tipo: LoyaltyTipo;
+  puntos: number;
+  saldoAnterior: number;
+  saldoNuevo: number;
+  saleId?: string;
+  saleFolio?: string;
+  notas: string;
+  cajero: string;
+  fecha: string;
+}
 
 // === Servicios (Recargas y Pagos) ===
 export interface Servicio {
