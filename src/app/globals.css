@@ -443,13 +443,13 @@ body::-webkit-scrollbar {
 
 /* Auth Pages Background */
 .auth-background {
-  background-image: url("/backgrounds/03.jpg");
+  background-image: radial-gradient(circle at 10% 20%, #f9fafe 0%, #e6efff 100%);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
+  background-color: #f1f2f4;
 }
-
 /* Glassmorphism card inside auth pages */
 .auth-background .Polaris-Card {
   background: rgba(255, 255, 255, 0.82) !important;
