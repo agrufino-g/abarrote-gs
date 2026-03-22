@@ -115,13 +115,33 @@ export async function createDevolucion(data: {
 // Precarga los items de una venta para poblar el formulario de devolución
 export async function getSaleItemsForDevolucion(saleId: string) {
   await requirePermission('sales.view');
-  const items = await db.select().from(saleItems).where(eq(saleItems.saleId, saleId));
-  return items.map(i => ({
-    productId: i.productId,
-    productName: i.productName,
-    sku: i.sku,
-    quantity: i.quantity,
-    unitPrice: numVal(i.unitPrice),
-    subtotal: numVal(i.subtotal),
-  }));
+  
+  // 1. Obtener todos los items de la venta original
+  const sItems = await db.select().from(saleItems).where(eq(saleItems.saleId, saleId));
+  
+  // 2. Obtener todas las devoluciones previas de esta venta
+  const prevDevs = await db.select().from(devolucionItems)
+    .innerJoin(devoluciones, eq(devolucionItems.devolucionId, devoluciones.id))
+    .where(eq(devoluciones.saleId, saleId));
+
+  // 3. Calcular cantidades ya devueltas por producto
+  const returnedQtyMap = new Map<string, number>();
+  for (const { devolucion_items: di } of prevDevs) {
+    returnedQtyMap.set(di.productId, (returnedQtyMap.get(di.productId) || 0) + di.quantity);
+  }
+
+  // 4. Retornar items con la cantidad restante disponible para devolver
+  return sItems.map(i => {
+    const returned = returnedQtyMap.get(i.productId) || 0;
+    const availableToReturn = Math.max(0, i.quantity - returned);
+    
+    return {
+      productId: i.productId,
+      productName: i.productName,
+      sku: i.sku,
+      quantity: availableToReturn, // Esta es la cantidad disponible para devolver ahora
+      unitPrice: numVal(i.unitPrice),
+      subtotal: availableToReturn * numVal(i.unitPrice),
+    };
+  }).filter(i => i.quantity > 0); // Solo mostrar items que aún tienen algo por devolver
 }

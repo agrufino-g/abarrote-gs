@@ -6,15 +6,28 @@ import {
   deleteCortes as dbDeleteCortes,
   createCorteCaja as dbCreateCorteCaja,
   createAutoCorteCaja as dbCreateAutoCorteCaja,
-  fetchInventoryAlerts,
-  fetchKPIData,
   fetchSaleRecords,
   fetchSalesData,
+} from '@/app/actions/sales-actions';
+import {
+  fetchInventoryAlerts,
+  fetchKPIData,
+} from '@/app/actions/inventory-actions';
+import {
   fetchAllProducts,
+} from '@/app/actions/product-actions';
+import {
   createDevolucion as dbCreateDevolucion,
+} from '@/app/actions/devolucion-actions';
+import {
+  fetchClientes,
+} from '@/app/actions/customer-actions';
+import {
   createCashMovement as dbCreateCashMovement,
+} from '@/app/actions/cash-movement-actions';
+import {
   fetchLoyaltyTransactions as dbFetchLoyaltyTransactions,
-} from '@/app/actions/db-actions';
+} from '@/app/actions/loyalty-actions';
 
 export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
   registerSale: async (saleData) => {
@@ -111,13 +124,13 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       const devolucion = await dbCreateDevolucion(data);
       const state = get();
       set({ devoluciones: [devolucion, ...state.devoluciones] });
-      // Devolucion restores stock → refresh products, alerts, KPIs
-      const [products, alerts, kpi] = await Promise.all([
-        fetchAllProducts(),
-        fetchInventoryAlerts(),
-        fetchKPIData(),
+      // Refresh context (stock, clientes saldo, etc)
+      await Promise.all([
+        fetchAllProducts().then(products => set({ products })),
+        fetchInventoryAlerts().then(alerts => set({ inventoryAlerts: alerts })),
+        fetchKPIData().then(kpi => set({ kpiData: kpi })),
+        fetchClientes().then(clientes => set({ clientes })),
       ]);
-      set({ products, inventoryAlerts: alerts, kpiData: kpi });
       return devolucion;
     } catch (error) {
       console.error('Error registering devolucion:', error);

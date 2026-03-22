@@ -8,6 +8,7 @@ import {
   Divider,
   IndexTable,
   InlineStack,
+  Scrollable,
   Tabs,
   Text,
   TextField,
@@ -23,7 +24,7 @@ import {
   SortIcon,
 } from '@shopify/polaris-icons';
 import { Product } from '@/types';
-import { updateProduct } from '@/app/actions/db-actions';
+import { saveStoreConfig } from '@/app/actions/db-actions';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { ProductExportModal, ProductImportModal } from './ShopifyModals';
@@ -81,7 +82,6 @@ export function InventoryGeneralView({
 }: InventoryGeneralViewProps) {
   const [selectedTab, setSelectedTab] = useState(0);
   const [queryValue, setQueryValue] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
   const [isColumnsPopoverOpen, setIsColumnsPopoverOpen] = useState(false);
   const [columnQuery, setColumnQuery] = useState('');
 
@@ -150,6 +150,8 @@ export function InventoryGeneralView({
     }));
   }, []);
 
+  const updateProductStore = useDashboardStore((s) => s.updateProduct);
+
   const handleInlineSave = useCallback(async (product: Product) => {
     const edited = editedValues[product.id];
     if (!edited) return;
@@ -166,18 +168,19 @@ export function InventoryGeneralView({
     if (newStock === undefined || newStock === product.currentStock) return;
 
     try {
-      await updateProduct(product.id, { currentStock: newStock });
+      // Usamos el store para actualización optimista instantánea
+      await updateProductStore(product.id, { currentStock: newStock });
       toast.showSuccess(`Stock de "${product.name}" actualizado a ${newStock}`);
       setEditedValues((prev) => {
         const next = { ...prev };
         delete next[product.id];
         return next;
       });
-      onImportSuccess?.();
+      // Ya no llamamos a onImportSuccess() para evitar el refetch masivo
     } catch {
       toast.showError('Error al actualizar stock');
     }
-  }, [editedValues, toast, onImportSuccess]);
+  }, [editedValues, toast, updateProductStore]);
 
   // --- Bulk edit ---
   const visibleColumnDefinitions = useMemo(
@@ -236,7 +239,8 @@ export function InventoryGeneralView({
         bulkRows.map(async (row) => {
           const product = products.find((p) => p.id === row.id);
           if (!product) return;
-          await updateProduct(product.id, {
+          // Usamos el store para cada actualización
+          await updateProductStore(product.id, {
             name: row.title.trim() || product.name,
             sku: row.sku.trim(),
             barcode: row.barcode.trim(),
@@ -253,13 +257,13 @@ export function InventoryGeneralView({
       toast.showSuccess(`Se actualizaron ${bulkRows.length} producto(s)`);
       setAppliedVisibleColumns(draftVisibleColumns);
       setIsBulkEditing(false);
-      onImportSuccess?.();
+      // Actualización masiva terminada, el store ya tiene los datos nuevos.
     } catch {
       toast.showError('No se pudo guardar la edicion masiva');
     } finally {
       setIsSavingBulkEdit(false);
     }
-  }, [bulkRows, draftVisibleColumns, onImportSuccess, products, saveStoreConfig, toast]);
+  }, [bulkRows, draftVisibleColumns, products, saveStoreConfig, toast, updateProductStore]);
 
   // --- Promoted bulk actions ---
   const promotedBulkActions = [
@@ -269,16 +273,23 @@ export function InventoryGeneralView({
   // --- Export handler ---
   const handleExport = useCallback(
     (format: string) => {
-      const exportData = filteredProducts.map((p) => {
+      const exportData = products.map((p) => {
         const unavailable = p.expirationDate && new Date(p.expirationDate) < new Date() ? p.currentStock : 0;
         return {
           Producto: p.name,
           SKU: p.sku || 'Sin SKU',
+          'Código de Barras': p.barcode || 'N/A',
+          Categoría: p.category || 'N/A',
+          'Costo Unitario ($)': p.costPrice,
+          'Precio Público ($)': p.unitPrice,
+          'Unidad de Venta': p.unit || 'N/A',
+          'Es Perecedero': p.isPerishable ? 'Sí' : 'No',
           'No disponible': unavailable,
           Comprometido: 0,
           Disponible: Math.max(p.currentStock - unavailable, 0),
           'En existencia': p.currentStock,
-          'Nombre del contenedor': 'Sin nombre de contenedor',
+          'Inventario Mínimo': p.minStock,
+          'Fecha de Vencimiento': p.expirationDate || 'N/A',
         };
       });
       const filename = `Inventario_General_${new Date().toISOString().split('T')[0]}`;
@@ -290,10 +301,20 @@ export function InventoryGeneralView({
         downloadFile(csvContent, `${filename}.csv`, mime);
       }
     },
-    [filteredProducts]
+    [products]
   );
 
-  // --- Row markup (7 columnas exactas del screenshot) ---
+  // --- Columnas Dinámicas para la vista ---
+  const activeColumns = useMemo(
+    () => BULK_COLUMN_DEFINITIONS.filter((c) => appliedVisibleColumns[c.key]),
+    [appliedVisibleColumns]
+  );
+
+  const dynamicHeadings = useMemo(
+    () => activeColumns.map((col) => ({ title: col.mainTableTitle || col.label })),
+    [activeColumns]
+  );
+
   const rowMarkup = filteredProducts.map((product, index) => {
     const unavailable = product.expirationDate && new Date(product.expirationDate) < new Date()
       ? product.currentStock : 0;
@@ -310,73 +331,125 @@ export function InventoryGeneralView({
         selected={selectedResources.includes(product.id)}
         onClick={() => onProductClick?.(product)}
       >
-        {/* Producto */}
-        <IndexTable.Cell>
-          <InlineStack gap="300" blockAlign="center">
-            <Thumbnail size="small" source={product.imageUrl || ImageIcon} alt={product.name} />
-            <Text as="span" variant="bodyMd" fontWeight="semibold">
-              {product.name}
-            </Text>
-          </InlineStack>
-        </IndexTable.Cell>
-
-        {/* SKU */}
-        <IndexTable.Cell>
-          <Text as="span" variant="bodyMd" tone="subdued">
-            {product.sku || 'Sin SKU'}
-          </Text>
-        </IndexTable.Cell>
-
-        {/* No disponible */}
-        <IndexTable.Cell>
-          <Text as="span" variant="bodyMd">
-            {unavailable}
-          </Text>
-        </IndexTable.Cell>
-
-        {/* Comprometido */}
-        <IndexTable.Cell>
-          <Text as="span" variant="bodyMd">
-            {committed}
-          </Text>
-        </IndexTable.Cell>
-
-        {/* Disponible — editable inline */}
-        <IndexTable.Cell>
-          <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: '90px' }}>
-            <TextField
-              label="Disponible"
-              labelHidden
-              autoComplete="off"
-              type="number"
-              value={edited?.available !== undefined ? edited.available : String(available)}
-              onChange={(v) => handleInlineChange(product.id, 'available', v)}
-              onBlur={() => handleInlineSave(product)}
-            />
-          </div>
-        </IndexTable.Cell>
-
-        {/* En existencia — editable inline */}
-        <IndexTable.Cell>
-          <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: '90px' }}>
-            <TextField
-              label="En existencia"
-              labelHidden
-              autoComplete="off"
-              type="number"
-              value={edited?.onHand !== undefined ? edited.onHand : String(onHand)}
-              onChange={(v) => handleInlineChange(product.id, 'onHand', v)}
-              onBlur={() => handleInlineSave(product)}
-            />
-          </div>
-        </IndexTable.Cell>
-
-        {/* Nombre del contenedor */}
-        <IndexTable.Cell>
-          <Text as="span" variant="bodyMd" tone="subdued">
-            Sin nombre de contenedor
-          </Text>
-        </IndexTable.Cell>
+        {activeColumns.map((col) => {
+          switch (col.key) {
+            case 'title':
+              return (
+                <IndexTable.Cell key={col.key}>
+                  <InlineStack gap="300" blockAlign="center">
+                    <Thumbnail size="small" source={product.imageUrl || ImageIcon} alt={product.name} key={product.imageUrl || 'no-image'} />
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">
+                      {product.name}
+                    </Text>
+                  </InlineStack>
+                </IndexTable.Cell>
+              );
+            case 'sku':
+              return (
+                <IndexTable.Cell key={col.key}>
+                  <Text as="span" variant="bodyMd" tone="subdued">
+                    {product.sku || 'Sin SKU'}
+                  </Text>
+                </IndexTable.Cell>
+              );
+            case 'barcode':
+              return (
+                <IndexTable.Cell key={col.key}>
+                  <Text as="span" variant="bodyMd" tone="subdued">
+                    {product.barcode || 'N/A'}
+                  </Text>
+                </IndexTable.Cell>
+              );
+            case 'category':
+              return (
+                <IndexTable.Cell key={col.key}>
+                  <Text as="span" variant="bodyMd">{product.category || 'N/A'}</Text>
+                </IndexTable.Cell>
+              );
+            case 'unitPrice':
+              return (
+                <IndexTable.Cell key={col.key}>
+                  <Text as="span" variant="bodyMd">${product.unitPrice.toFixed(2)}</Text>
+                </IndexTable.Cell>
+              );
+            case 'costPrice':
+              return (
+                <IndexTable.Cell key={col.key}>
+                  <Text as="span" variant="bodyMd">${product.costPrice.toFixed(2)}</Text>
+                </IndexTable.Cell>
+              );
+            case 'minStock':
+              return (
+                <IndexTable.Cell key={col.key}>
+                  <Text as="span" variant="bodyMd">{product.minStock}</Text>
+                </IndexTable.Cell>
+              );
+            case 'expirationDate':
+              return (
+                <IndexTable.Cell key={col.key}>
+                  <Text as="span" variant="bodyMd">{product.expirationDate || 'N/A'}</Text>
+                </IndexTable.Cell>
+              );
+            case 'available':
+              return (
+                <IndexTable.Cell key={col.key}>
+                  <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: '140px' }}>
+                    <InlineStack gap="100" wrap={false} align="start" blockAlign="center">
+                      <div style={{ flexGrow: 1 }}>
+                        <TextField
+                          label="Disponible"
+                          labelHidden
+                          autoComplete="off"
+                          type="number"
+                          value={edited?.available !== undefined ? edited.available : String(available)}
+                          onChange={(v) => handleInlineChange(product.id, 'available', v)}
+                        />
+                      </div>
+                      {edited?.available !== undefined && (
+                        <Button
+                          size="micro"
+                          variant="primary"
+                          onClick={() => handleInlineSave(product)}
+                        >
+                          Guardar
+                        </Button>
+                      )}
+                    </InlineStack>
+                  </div>
+                </IndexTable.Cell>
+              );
+            case 'onHand':
+              return (
+                <IndexTable.Cell key={col.key}>
+                  <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: '140px' }}>
+                    <InlineStack gap="100" wrap={false} align="start" blockAlign="center">
+                      <div style={{ flexGrow: 1 }}>
+                        <TextField
+                          label="En existencia"
+                          labelHidden
+                          autoComplete="off"
+                          type="number"
+                          value={edited?.onHand !== undefined ? edited.onHand : String(onHand)}
+                          onChange={(v) => handleInlineChange(product.id, 'onHand', v)}
+                        />
+                      </div>
+                      {edited?.onHand !== undefined && (
+                        <Button
+                          size="micro"
+                          variant="primary"
+                          onClick={() => handleInlineSave(product)}
+                        >
+                          Guardar
+                        </Button>
+                      )}
+                    </InlineStack>
+                  </div>
+                </IndexTable.Cell>
+              );
+            default:
+              return <IndexTable.Cell key={col.key}>-</IndexTable.Cell>;
+          }
+        })}
       </IndexTable.Row>
     );
   });
@@ -413,54 +486,35 @@ export function InventoryGeneralView({
           justifyContent: 'space-between',
           borderBottom: '1px solid var(--p-color-border-subdued, #e1e3e5)',
         }}>
-          {/* Izquierda: Tabs + boton + */}
+          {/* Izquierda: Tabs */}
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <Tabs tabs={INVENTORY_TABS} selected={selectedTab} onSelect={setSelectedTab} fitted={false} />
-            <Button icon={PlusIcon} variant="plain" accessibilityLabel="Agregar vista" />
           </div>
 
-          {/* Derecha: Search/Filter, Columnas, Sort */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', paddingRight: '12px' }}>
-            {showSearch ? (
-              <div style={{ width: '200px' }}>
-                <TextField
-                  label="Buscar"
-                  labelHidden
-                  autoComplete="off"
-                  value={queryValue}
-                  onChange={setQueryValue}
-                  onBlur={() => { if (!queryValue) setShowSearch(false); }}
-                  placeholder="Buscar productos..."
-                  prefix={<SearchIcon />}
-                  autoFocus
-                  clearButton
-                  onClearButtonClick={() => { setQueryValue(''); setShowSearch(false); }}
-                />
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 8px',
-                  border: '1px solid var(--p-color-border-subdued, #dcdfe3)',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  backgroundColor: 'var(--p-color-bg-surface, white)',
-                }}
-                onClick={() => setShowSearch(true)}
-              >
-                <SearchIcon />
-                <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--p-color-border-subdued, #e1e3e5)' }} />
-                <FilterIcon />
-              </div>
-            )}
+          {/* Derecha: Buscador fijo y botones */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '16px', paddingBottom: '6px', paddingTop: '6px' }}>
+            <div style={{ width: '280px' }}>
+              <TextField
+                label="Buscar"
+                labelHidden
+                autoComplete="off"
+                value={queryValue}
+                onChange={setQueryValue}
+                placeholder="Buscar productos, sku..."
+                prefix={<SearchIcon />}
+                clearButton
+                onClearButtonClick={() => setQueryValue('')}
+              />
+            </div>
 
             <InventoryColumnsPopover
               active={isColumnsPopoverOpen}
               activator={
-                <Button icon={LayoutColumns3Icon} onClick={() => setIsColumnsPopoverOpen((c) => !c)} variant="tertiary" />
+                <Button 
+                  icon={LayoutColumns3Icon} 
+                  onClick={() => setIsColumnsPopoverOpen((c) => !c)}
+                  accessibilityLabel="Administrar columnas"
+                />
               }
               onClose={() => setIsColumnsPopoverOpen(false)}
               columnQuery={columnQuery}
@@ -469,28 +523,25 @@ export function InventoryGeneralView({
               onColumnChange={handleAppliedColumnChange}
             />
 
-            <Button icon={SortIcon} variant="tertiary" onClick={() => {}} />
+            <Button icon={SortIcon} onClick={() => {}} accessibilityLabel="Ordenar" />
           </div>
         </div>
 
-        {/* Tabla con las 7 columnas exactas del screenshot */}
-        <IndexTable
-          resourceName={{ singular: 'producto', plural: 'productos' }}
-          itemCount={filteredProducts.length}
-          selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
-          onSelectionChange={handleSelectionChange}
-          headings={INVENTORY_HEADINGS as any}
-          promotedBulkActions={promotedBulkActions}
-          sortable={[true, false, false, false, false, false, false]}
-        >
-          {rowMarkup}
-        </IndexTable>
+        {/* Tabla con encabezados dinámicos */}
+        <Scrollable style={{ height: 'calc(100vh - 200px)' }}>
+          <IndexTable
+            resourceName={{ singular: 'producto', plural: 'productos' }}
+            itemCount={filteredProducts.length}
+            selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
+            onSelectionChange={handleSelectionChange}
+            headings={dynamicHeadings as any}
+            promotedBulkActions={promotedBulkActions}
+            sortable={[true, false, false, false, false, false, false]}
+          >
+            {rowMarkup}
+          </IndexTable>
+        </Scrollable>
       </Card>
-
-      {/* Footer */}
-      <InlineStack align="center">
-        <Button variant="monochromePlain">Más información sobre gestión de inventario</Button>
-      </InlineStack>
 
       {/* Modales controlados desde padre */}
       <ProductExportModal open={exportOpen} onClose={onExportClose} onExport={handleExport} />

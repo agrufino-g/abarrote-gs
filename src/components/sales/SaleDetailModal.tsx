@@ -16,12 +16,19 @@ import { formatCurrency } from '@/lib/utils';
 import type { SaleRecord } from '@/types';
 
 function paymentBadge(method: string) {
-  switch (method) {
-    case 'efectivo':      return <Badge tone="success">Efectivo</Badge>;
-    case 'tarjeta':       return <Badge tone="info">Tarjeta</Badge>;
-    case 'transferencia': return <Badge tone="attention">Transferencia</Badge>;
-    default:              return <Badge>{method}</Badge>;
-  }
+  const styles: Record<string, { tone: any, label: string }> = {
+    efectivo:      { tone: 'success',   label: 'Efectivo' },
+    tarjeta:       { tone: 'info',      label: 'Tarjeta' },
+    tarjeta_web:   { tone: 'info',      label: 'MP Web' },
+    tarjeta_manual:{ tone: 'info',      label: 'T. Manual' },
+    transferencia: { tone: 'attention', label: 'Transfer' },
+    fiado:         { tone: 'warning',   label: 'Fiado' },
+    puntos:        { tone: 'magic',    label: 'Puntos' },
+  };
+  const s = styles[method] || { tone: 'subdued', label: method };
+  return (
+    <Badge tone={s.tone}>{s.label}</Badge>
+  );
 }
 
 export interface SaleDetailModalProps {
@@ -67,7 +74,7 @@ export function SaleDetailModal({
       open={open}
       onClose={handleClose}
       title={`Venta ${sale.folio}`}
-      primaryAction={{ content: 'Reimprimir Ticket', icon: PrintIcon, onAction: onPrint }}
+      primaryAction={{ content: 'Reimprimir Ticket', onAction: onPrint }}
       secondaryActions={[{ content: 'Cerrar', onAction: handleClose }]}
     >
       <Modal.Section>
@@ -128,13 +135,12 @@ export function SaleDetailModal({
           ) : (
             <InlineStack align="space-between">
               <Button
-                icon={ReturnIcon}
                 onClick={onReturn}
                 variant="secondary"
               >
                 Iniciar Devolución
               </Button>
-              <Button variant="plain" tone="critical" icon={DeleteIcon} onClick={() => setCancelConfirm(true)}>
+              <Button variant="plain" tone="critical" onClick={() => setCancelConfirm(true)}>
                 Cancelar Venta
               </Button>
             </InlineStack>

@@ -31,25 +31,17 @@ export function SearchableSelect({
     labelHidden,
 }: SearchableSelectProps) {
     const [inputValue, setInputValue] = useState('');
-    const [optionsState, setOptionsState] = useState(options);
 
-    const updateText = useCallback(
-        (value: string) => {
-            setInputValue(value);
+    // Derive filtered options from props + input — always up to date
+    const filteredOptions = useMemo(() => {
+        if (inputValue === '') return options;
+        const filterRegex = new RegExp(inputValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        return options.filter((option) => option.label.match(filterRegex));
+    }, [options, inputValue]);
 
-            if (value === '') {
-                setOptionsState(options);
-                return;
-            }
-
-            const filterRegex = new RegExp(value, 'i');
-            const resultOptions = options.filter((option) =>
-                option.label.match(filterRegex)
-            );
-            setOptionsState(resultOptions);
-        },
-        [options]
-    );
+    const updateText = useCallback((value: string) => {
+        setInputValue(value);
+    }, []);
 
     const updateSelection = useCallback(
         (selection: string[]) => {
@@ -64,12 +56,14 @@ export function SearchableSelect({
         [options, onChange]
     );
 
+    const displayValue = inputValue || (selected ? options.find(o => o.value === selected)?.label || '' : '');
+
     const textField = (
         <Autocomplete.TextField
             onChange={updateText}
             label={label}
             labelHidden={labelHidden}
-            value={inputValue || (selected ? options.find(o => o.value === selected)?.label || '' : '')}
+            value={displayValue}
             placeholder={placeholder}
             prefix={<Icon source={SearchIcon} tone="subdued" />}
             autoComplete="off"
@@ -80,7 +74,7 @@ export function SearchableSelect({
 
     return (
         <Autocomplete
-            options={optionsState}
+            options={filteredOptions}
             selected={selected ? [selected] : []}
             onSelect={updateSelection}
             textField={textField}

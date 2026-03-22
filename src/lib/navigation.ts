@@ -8,6 +8,7 @@ export const SECTION_TO_PATH: Record<string, string> = {
   inventory: '/dashboard/products/inventory',
   'inventory-priority': '/dashboard/products/priority',
   'inventory-audit': '/dashboard/products/audit',
+  mermas: '/dashboard/products/mermas',
   pedidos: '/dashboard/products/pedidos',
   customers: '/dashboard/customers',
   fiado: '/dashboard/customers/fiado',

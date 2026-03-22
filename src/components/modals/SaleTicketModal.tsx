@@ -228,10 +228,15 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
     setPinPadAction(null);
   }, [pinPadAction, showSuccess]);
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const finishSale = useCallback(async (pmOverride?: string) => {
+    console.log('--- ENTRANDO A FINISHSALE ---');
+    setIsSaving(true);
     try {
       const pMethod = pmOverride || (paymentMethod === 'tarjeta_manual' ? 'tarjeta' : paymentMethod);
-      const sale = await registerSale({
+      
+      const payload = {
         items,
         subtotal: subtotalAfterDiscount,
         iva,
@@ -245,7 +250,12 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
         pointsUsed,
         discount: discountAmount,
         discountType,
-      } as any);
+        clienteId: clienteId || undefined,
+      } as any;
+
+      console.log('Payload de venta:', payload);
+      const sale = await registerSale(payload);
+      console.log('Venta registrada con éxito:', sale);
 
       if (paymentMethod === 'fiado') {
         const itemDescriptions = items.map((i) => `${i.productName} x${i.quantity}`).join(', ');
@@ -253,34 +263,57 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
         const cliente = clientes.find((c) => c.id === clienteId);
         showSuccess(`Venta ${sale.folio} registrada como fiado para ${cliente?.name || 'cliente'}. Total: ${formatCurrency(sale.total)}`);
       } else {
-        showSuccess(`Venta ${sale.folio} registrada. Total: ${formatCurrency(sale.total)}`);
+        showSuccess(`Venta ${sale.folio} registrada correctamente`);
       }
       setCompletedSale(sale);
-    } catch (error) {
-      showError('Error al registrar la venta');
+    } catch (error: any) {
+      console.error('Sale Registration Error (Modal):', error);
+      showError(`Error al registrar la venta: ${error?.message || 'Error de conexión o permisos'}`);
+    } finally {
+      setIsSaving(false);
     }
   }, [items, paymentMethod, amountPaid, total, subtotalAfterDiscount, iva, cardSurcharge, change, registerSale, currentUserRole, pointsEarned, pointsUsed, discountAmount, discountType, registerFiado, clienteId, clientes, showSuccess, showError]);
 
   const handleSale = useCallback(async () => {
+    console.log('--- EVENTO: CLICK EN COBRAR ---');
     if (items.length === 0) { showError('Agrega al menos un producto a la venta'); return; }
-    if (paymentMethod === 'efectivo' && parseFloat(amountPaid) < total) { showError('El monto pagado es insuficiente'); return; }
-    if (paymentMethod === 'fiado') {
-      if (!clienteId) { showError('Selecciona un cliente para el fiado'); return; }
-      const cliente = clientes.find((c) => c.id === clienteId);
-      if (cliente && cliente.balance + total > cliente.creditLimit) {
-        showError(`El cliente excede su límite de crédito de ${formatCurrency(cliente.creditLimit)}. Disponible: ${formatCurrency(Math.max(0, cliente.creditLimit - cliente.balance))}`);
+    
+    // Validación de efectivo robusta contra NaN
+    if (paymentMethod === 'efectivo') {
+      const paid = parseFloat(amountPaid);
+      if (isNaN(paid) || paid < total) {
+        showError(`Monto insuficiente. El total es ${formatCurrency(total)}`);
         return;
       }
     }
+
+    if (paymentMethod === 'fiado') {
+      if (!clienteId) { showError('Selecciona un cliente para el fiado'); return; }
+      const cliente = clientes.find((c) => c.id === clienteId);
+      if (cliente && (parseFloat(String(cliente.balance)) + total) > parseFloat(String(cliente.creditLimit))) {
+        showError(`El cliente excede su límite de crédito. Disponible: ${formatCurrency(Math.max(0, parseFloat(String(cliente.creditLimit)) - parseFloat(String(cliente.balance))))}`);
+        return;
+      }
+    }
+    
     if (paymentMethod === 'puntos') {
       if (!clienteId) { showError('Debes seleccionar un cliente para usar sus puntos'); return; }
       if (pointsAvailable <= 0) { showError('El cliente no tiene puntos disponibles'); return; }
     }
-    if (paymentMethod === 'tarjeta' && mpConfig.enabled) { handleMPTerminalPaymentRef.current?.(); return; }
-    if (paymentMethod === 'tarjeta_web') { showError('Por favor completa el pago interactivo en pantalla.'); return; }
+    
+    if (paymentMethod === 'tarjeta' && mpConfig.enabled) { 
+      if (handleMPTerminalPaymentRef.current) {
+        await handleMPTerminalPaymentRef.current(); 
+      } else {
+        showError('No se pudo iniciar el pago con terminal. Intenta de nuevo.');
+      }
+      return; 
+    }
+    
+    if (paymentMethod === 'tarjeta_web') { showError('Completa el pago mediante el formulario de Mercado Pago arriba.'); return; }
 
     await finishSale();
-  }, [items, paymentMethod, amountPaid, total, clienteId, clientes, pointsAvailable, mpConfig.enabled, showError, finishSale, handleMPTerminalPaymentRef]);
+  }, [items, paymentMethod, amountPaid, total, clienteId, clientes, pointsAvailable, mpConfig.enabled, showError, finishSale]);
 
   const handleClose = useCallback(() => { resetForm(); onClose(); }, [resetForm, onClose]);
 
@@ -308,9 +341,10 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
         onClose={handleClose}
         title="Registrar Venta"
         primaryAction={{
-          content: `Cobrar ${formatCurrency(total)}`,
+          content: isSaving ? 'Procesando...' : `Cobrar ${formatCurrency(total)}`,
           onAction: handleSale,
-          disabled: items.length === 0,
+          loading: isSaving,
+          disabled: items.length === 0 || isSaving,
         }}
         secondaryActions={[{ content: 'Cancelar', onAction: handleClose }]}
         size="large"
@@ -348,6 +382,7 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
                       onChange={setQuantity}
                       autoComplete="off"
                       min={1}
+                      selectTextOnFocus
                     />
                   </Box>
                   <Button variant="primary" onClick={addItem} disabled={!selectedProduct}>

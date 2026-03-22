@@ -31,7 +31,7 @@ interface SidebarNavProps {
 }
 
 const SALES_PATHS = ['/dashboard/sales', '/dashboard/sales/corte'];
-const PRODUCT_PATHS = ['/dashboard/products', '/dashboard/products/inventory', '/dashboard/products/priority', '/dashboard/products/audit', '/dashboard/products/pedidos'];
+const PRODUCT_PATHS = ['/dashboard/products', '/dashboard/products/inventory', '/dashboard/products/priority', '/dashboard/products/audit', '/dashboard/products/pedidos', '/dashboard/products/mermas'];
 const CUSTOMER_PATHS = ['/dashboard/customers', '/dashboard/customers/fiado'];
 const FINANCE_PATHS = ['/dashboard/finance/expenses', '/dashboard/finance/suppliers'];
 const ANALYTICS_PATHS = ['/dashboard/analytics', '/dashboard/analytics/reports'];
@@ -111,6 +111,12 @@ export function SidebarNav({ onSelect, badges }: SidebarNavProps) {
           label: 'Reposición (Pedidos)',
           matches: isPath('/dashboard/products/pedidos'),
           onClick: () => onSelect('pedidos'),
+        },
+        {
+          url: '#',
+          label: 'Mermas',
+          matches: isPath('/dashboard/products/mermas'),
+          onClick: () => onSelect('mermas'),
         },
         {
           url: '#',

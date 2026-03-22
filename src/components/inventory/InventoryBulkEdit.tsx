@@ -148,7 +148,7 @@ export function InventoryBulkEdit({
                               boxShadow: isActive ? 'inset 0 0 0 2px #0a66e2' : 'none',
                             }}
                           >
-                            <Thumbnail size="small" source={product?.imageUrl || ImageIcon} alt={row.title} />
+                            <Thumbnail size="small" source={product?.imageUrl || ImageIcon} alt={row.title} key={product?.imageUrl || 'no-image'} />
                             <input
                               value={row.title}
                               onChange={(event) => onBulkFieldChange(row.id, 'title', event.target.value)}

@@ -44,8 +44,6 @@ export async function POST(req: NextRequest) {
         Key: path,
         Body: buffer,
         ContentType: file.type,
-        // Acceso público de lectura
-        ACL: 'public-read',
       }),
     );
 

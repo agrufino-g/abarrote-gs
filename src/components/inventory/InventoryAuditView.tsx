@@ -72,43 +72,47 @@ export function InventoryAuditView() {
     ));
 
     return (
-        <BlockStack gap="400">
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 140px)' }}>
             <Card>
-                <BlockStack gap="400">
-                    <InlineStack align="space-between">
-                        <BlockStack gap="100">
-                            <Text as="h2" variant="headingMd">Auditorías de Inventario</Text>
-                            <Text as="p" variant="bodySm" tone="subdued">Gestiona revisiones ciegas y ajustes de stock</Text>
-                        </BlockStack>
-                        <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
-                            Nueva Auditoría
-                        </Button>
-                    </InlineStack>
+                <InlineStack align="space-between" blockAlign="center">
+                    <BlockStack gap="100">
+                        <Text as="h2" variant="headingMd">Auditorías de Inventario</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">Gestiona revisiones ciegas y ajustes de stock</Text>
+                    </BlockStack>
+                    <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
+                        Nueva Auditoría
+                    </Button>
+                </InlineStack>
+            </Card>
 
+            <div style={{ flex: 1, overflow: 'hidden', marginTop: '8px' }}>
+                <Card>
                     {inventoryAudits.length === 0 ? (
                         <EmptyState
                             heading="No hay auditorías registradas"
-                            image=""
+                            image="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'/>"
                         >
                             <p>Inicia una auditoría para verificar la precisión de tu inventario físico.</p>
                         </EmptyState>
                     ) : (
-                        <IndexTable
-                            itemCount={inventoryAudits.length}
-                            headings={[
-                                { title: 'Título' },
-                                { title: 'Fecha' },
-                                { title: 'Auditor' },
-                                { title: 'Estado' },
-                                { title: '' },
-                            ]}
-                            selectable={false}
-                        >
-                            {rowMarkup}
-                        </IndexTable>
+                        <div style={{ height: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+                            <IndexTable
+                                itemCount={inventoryAudits.length}
+                                headings={[
+                                    { title: 'Título' },
+                                    { title: 'Fecha' },
+                                    { title: 'Auditor' },
+                                    { title: 'Estado' },
+                                    { title: '' },
+                                ]}
+                                selectable={false}
+                            >
+                                {rowMarkup}
+                            </IndexTable>
+                        </div>
                     )}
-                </BlockStack>
-            </Card>
+                </Card>
+            </div>
 
             <Modal
                 open={createModalOpen}
@@ -140,6 +144,6 @@ export function InventoryAuditView() {
                     </FormLayout>
                 </Modal.Section>
             </Modal>
-        </BlockStack>
+        </div>
     );
 }

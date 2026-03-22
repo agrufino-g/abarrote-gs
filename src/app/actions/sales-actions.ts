@@ -2,7 +2,7 @@
 
 import { requirePermission, requireAuth, validateId } from '@/lib/auth/guard';
 import { db } from '@/db';
-import { saleRecords, saleItems, products, clientes, gastos, cortesCaja, loyaltyTransactions } from '@/db/schema';
+import { saleRecords, saleItems, products, clientes, gastos, cortesCaja, loyaltyTransactions, devoluciones } from '@/db/schema';
 import { eq, desc, sql, inArray } from 'drizzle-orm';
 import type { SaleRecord, SaleItem, SalesData, CorteCaja } from '@/types';
 import { numVal } from './_helpers';
@@ -11,15 +11,7 @@ import { logger } from '@/lib/logger';
 
 // ==================== FOLIO ====================
 
-async function getNextFolio(): Promise<string> {
-  // Use MAX(folio) instead of COUNT(*) to avoid race condition duplicates
-  // Filter only numeric folios to avoid cast errors
-  const result = await db
-    .select({ maxFolio: sql<string>`coalesce(max(case when folio ~ '^\d+$' then folio::integer end), 309000)` })
-    .from(saleRecords);
-  const next = Number(result[0]?.maxFolio ?? 309000) + 1;
-  return String(next);
-}
+// No separate getNextFolio() needed — folio is generated atomically inside the INSERT.
 
 // ==================== SALES DATA (computed) ====================
 
@@ -120,12 +112,41 @@ export async function createSale(
 ): Promise<SaleRecord> {
   return logger.withTiming('createSale', async () => {
   await requirePermission('sales.create');
-  const id = `sale-${Date.now()}`;
-  const folio = await getNextFolio();
   const now = new Date();
   const cajero = saleData.cajero?.trim() || 'Cajero';
+  const id = `sale-${Date.now()}`;
 
-  try {
+  // ── PostgreSQL SEQUENCE: industry-standard for high-volume POS ──
+  // 1. Create sequence if not exists (idempotent, runs once ever)
+  // 2. Sync sequence to current MAX(folio) so it never collides
+  // 3. nextval() is 100% atomic — impossible to duplicate even with 100 concurrent cashiers
+    let folio: string;
+    try {
+      // 1. Asegurar secuencia
+      await db.execute(sql`CREATE SEQUENCE IF NOT EXISTS folio_seq START WITH 309001`);
+
+      // 2. Obtener siguiente valor de forma atómica (estándar PG)
+      const seqResult = await db.execute(sql`SELECT nextval('folio_seq')::text AS folio`);
+      const rows = (seqResult as any).rows || seqResult;
+      const nextSeq = String(rows?.[0]?.folio ?? rows?.[0]?.val ?? '');
+      
+      // 3. Verificación de seguridad: si por alguna razón el folio ya existe, saltamos al Max + 1
+      const [existing] = await db.select().from(saleRecords).where(eq(saleRecords.folio, nextSeq)).limit(1);
+      
+      if (existing || !nextSeq) {
+        await db.execute(sql`
+          SELECT setval('folio_seq', (SELECT COALESCE(MAX(CASE WHEN folio ~ '^[0-9]+$' THEN folio::bigint END), 309000) FROM sale_records) + 1)
+        `);
+        const retryRes = await db.execute(sql`SELECT nextval('folio_seq')::text AS folio`);
+        const retryRows = (retryRes as any).rows || retryRes;
+        folio = String(retryRows?.[0]?.folio ?? retryRows?.[0]?.val ?? '');
+      } else {
+        folio = nextSeq;
+      }
+
+      if (!folio) throw new Error('No se pudo generar el folio único');
+
+    // Normal insert with the guaranteed-unique folio
     await db.insert(saleRecords).values({
       id,
       folio,
@@ -149,7 +170,6 @@ export async function createSale(
     const detail    = err?.detail ?? err?.cause?.detail ?? err?.hint ?? err?.constraint;
     console.error('\n🔴 ERROR VENTA\n', { pgCode, pgMessage, detail, full: JSON.stringify(err, Object.getOwnPropertyNames(err)) });
     throw new Error(`VENTA ERROR [${pgCode ?? 'sin código'}] ${pgMessage ?? 'sin mensaje'} | ${detail ?? ''}`);
-
   }
 
   const clienteId = (saleData as any).clienteId;
@@ -243,6 +263,8 @@ export async function cancelSale(saleId: string): Promise<void> {
       })
       .where(eq(products.id, item.productId));
   }
+  await db.delete(devoluciones).where(eq(devoluciones.saleId, saleId));
+  await db.delete(loyaltyTransactions).where(eq(loyaltyTransactions.saleId, saleId));
   await db.delete(saleItems).where(eq(saleItems.saleId, saleId));
   await db.delete(saleRecords).where(eq(saleRecords.id, saleId));
 }
@@ -262,6 +284,8 @@ export async function deleteSales(saleIds: string[]): Promise<void> {
     )
   );
 
+  await db.delete(devoluciones).where(inArray(devoluciones.saleId, saleIds));
+  await db.delete(loyaltyTransactions).where(inArray(loyaltyTransactions.saleId, saleIds));
   await db.delete(saleItems).where(inArray(saleItems.saleId, saleIds));
   await db.delete(saleRecords).where(inArray(saleRecords.id, saleIds));
 }

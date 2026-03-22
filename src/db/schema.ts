@@ -310,7 +310,7 @@ export const auditLogs = pgTable('audit_logs', {
 export const devoluciones = pgTable('devoluciones', {
   id: text('id').primaryKey(),
   // Venta original
-  saleId: text('sale_id').notNull().references(() => saleRecords.id),
+  saleId: text('sale_id').notNull().references(() => saleRecords.id, { onDelete: 'cascade' }),
   saleFolio: text('sale_folio').notNull(),
   // Tipo: 'total' | 'parcial'
   tipo: text('tipo').notNull().default('parcial'),
@@ -371,7 +371,7 @@ export const loyaltyTransactions = pgTable('loyalty_transactions', {
   saldoAnterior: numeric('saldo_anterior', { precision: 10, scale: 2 }).notNull(),
   saldoNuevo: numeric('saldo_nuevo', { precision: 10, scale: 2 }).notNull(),
   // Referencia a la venta que generó los puntos (opcional)
-  saleId: text('sale_id').references(() => saleRecords.id),
+  saleId: text('sale_id').references(() => saleRecords.id, { onDelete: 'cascade' }),
   saleFolio: text('sale_folio'),
   notas: text('notas').notNull().default(''),
   cajero: text('cajero').notNull(),

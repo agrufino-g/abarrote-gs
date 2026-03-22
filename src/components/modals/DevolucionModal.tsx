@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Modal,
   BlockStack,
@@ -91,9 +91,11 @@ export function DevolucionModal({ open, sale, cajero, onClose, onSuccess }: Prop
   }, [sale.id, showError]);
 
   // When modal opens, load items
-  if (open && items.length === 0 && !loadingItems) {
-    handleOpen();
-  }
+  useEffect(() => {
+    if (open && items.length === 0 && !loadingItems) {
+      handleOpen();
+    }
+  }, [open, items.length, loadingItems, handleOpen]);
 
   const selectedItems = items.filter((i) => i.selected && i.quantity > 0);
   const montoDevuelto = selectedItems.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);

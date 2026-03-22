@@ -6,7 +6,8 @@ import { ProductIcon, ViewIcon, EmailIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { AllProductsTable } from '@/components/inventory/AllProductsTable';
 import { RegisterProductModal } from '@/components/modals/RegisterProductModal';
-import { deleteProduct, updateProduct } from '@/app/actions/db-actions';
+import { UpdateProductModal } from '@/components/modals/UpdateProductModal';
+import { deleteProduct } from '@/app/actions/db-actions';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { Product } from '@/types';
 
@@ -20,12 +21,10 @@ export default function ProductsPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [updateProductOpen, setUpdateProductOpen] = useState(false);
   const [productToUpdate, setProductToUpdate] = useState<Product | null>(null);
-  const [updateStock, setUpdateStock] = useState('');
-  const [updatePrice, setUpdatePrice] = useState('');
-  const [updateCostPrice, setUpdateCostPrice] = useState('');
 
   const handleProductClick = useCallback((product: Product) => {
-    // TODO: integrate with layout product detail modal
+    setProductToUpdate(product);
+    setUpdateProductOpen(true);
   }, []);
 
   const handleDeleteProducts = useCallback(async (productsToDelete: Product[]) => {
@@ -41,31 +40,6 @@ export default function ProductsPage() {
       }
     }
   }, [toast, fetchDashboardData]);
-
-  const handleOpenUpdateProduct = useCallback((product: Product) => {
-    setProductToUpdate(product);
-    setUpdateStock(product.currentStock.toString());
-    setUpdatePrice(product.unitPrice.toString());
-    setUpdateCostPrice(product.costPrice.toString());
-    setUpdateProductOpen(true);
-  }, []);
-
-  const handleUpdateProductSubmit = useCallback(async () => {
-    if (!productToUpdate) return;
-    try {
-      await updateProduct(productToUpdate.id, {
-        currentStock: parseInt(updateStock, 10) || productToUpdate.currentStock,
-        unitPrice: parseFloat(updatePrice) || productToUpdate.unitPrice,
-        costPrice: parseFloat(updateCostPrice) || productToUpdate.costPrice,
-      });
-      toast.showSuccess(`Producto "${productToUpdate.name}" actualizado`);
-      setUpdateProductOpen(false);
-      setProductToUpdate(null);
-      fetchDashboardData();
-    } catch {
-      toast.showError('Error al actualizar el producto');
-    }
-  }, [productToUpdate, updateStock, updatePrice, updateCostPrice, toast, fetchDashboardData]);
 
   return (
     <>
@@ -95,7 +69,7 @@ export default function ProductsPage() {
           products={products}
           onProductClick={handleProductClick}
           onDeleteProducts={handleDeleteProducts}
-          onUpdateProduct={handleOpenUpdateProduct}
+          onUpdateProduct={handleProductClick}
           exportOpen={exportOpen}
           onExportClose={() => setExportOpen(false)}
           importOpen={importOpen}
@@ -106,21 +80,14 @@ export default function ProductsPage() {
 
       <RegisterProductModal open={registerProductOpen} onClose={() => setRegisterProductOpen(false)} />
 
-      <Modal
+      <UpdateProductModal
         open={updateProductOpen}
-        onClose={() => { setUpdateProductOpen(false); setProductToUpdate(null); }}
-        title={productToUpdate ? `Actualizar ${productToUpdate.name}` : 'Actualizar Producto'}
-        primaryAction={{ content: 'Guardar Cambios', onAction: handleUpdateProductSubmit }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => { setUpdateProductOpen(false); setProductToUpdate(null); } }]}
-      >
-        <Modal.Section>
-          <FormLayout>
-            <TextField label="Stock Actual" type="number" value={updateStock} onChange={setUpdateStock} autoComplete="off" />
-            <TextField label="Precio Venta" type="number" value={updatePrice} onChange={setUpdatePrice} autoComplete="off" prefix="$" />
-            <TextField label="Precio Costo" type="number" value={updateCostPrice} onChange={setUpdateCostPrice} autoComplete="off" prefix="$" />
-          </FormLayout>
-        </Modal.Section>
-      </Modal>
+        onClose={() => {
+          setUpdateProductOpen(false);
+          setProductToUpdate(null);
+        }}
+        product={productToUpdate}
+      />
     </>
   );
 }

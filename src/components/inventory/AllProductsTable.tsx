@@ -10,6 +10,7 @@ import {
   InlineStack,
   Button,
   Thumbnail,
+  Scrollable,
   IndexFilters,
   useSetIndexFiltersMode,
   IndexFiltersMode,
@@ -35,10 +36,10 @@ interface AllProductsTableProps {
   onImportSuccess?: () => void;
 }
 
-type ProductStatus = 'active' | 'draft' | 'archived';
+type ProductStatus = 'active' | 'draft' | 'agotado';
 
 function getProductStatus(product: Product): ProductStatus {
-  if (product.currentStock === 0) return 'archived';
+  if (product.currentStock === 0) return 'agotado';
   if (!product.barcode && product.currentStock <= product.minStock) return 'draft';
   return 'active';
 }
@@ -49,28 +50,24 @@ function getStatusBadge(status: ProductStatus) {
       return <Badge tone="success">Activo</Badge>;
     case 'draft':
       return <Badge>Borrador</Badge>;
-    case 'archived':
-      return <Badge tone="info">Archivado</Badge>;
+    case 'agotado':
+      return <Badge tone="warning">Agotado / Próx.</Badge>;
   }
 }
 
 function getInventoryText(product: Product) {
   if (product.currentStock === 0) {
     return (
-      <Text as="p" variant="bodyMd" tone="critical">
-        0 en stock
+      <Text as="span" variant="bodyMd" tone="caution">
+        0 en stock (Próx.)
       </Text>
     );
   }
+
   return (
-    <BlockStack gap="050">
-      <Text as="p" variant="bodyMd">
-        {product.currentStock} en stock
-      </Text>
-      <Text as="p" variant="bodySm" tone="subdued">
-        en 1 ubicación
-      </Text>
-    </BlockStack>
+    <Text as="span" variant="bodyMd">
+      {product.currentStock} en stock
+    </Text>
   );
 }
 
@@ -87,7 +84,7 @@ export function AllProductsTable({
 }: AllProductsTableProps) {
   // --- Tabs ---
   const [selected, setSelected] = useState(0);
-  const tabLabels = ['Todos', 'Activos', 'Borradores', 'Archivados'];
+  const tabLabels = ['Todos', 'Activos', 'Borradores', 'Agotados / Próx.'];
 
   const tabs: TabProps[] = tabLabels.map((label, index) => ({
     content: label,
@@ -119,7 +116,7 @@ export function AllProductsTable({
     // Tab filter
     if (selected === 1) result = result.filter((p) => getProductStatus(p) === 'active');
     else if (selected === 2) result = result.filter((p) => getProductStatus(p) === 'draft');
-    else if (selected === 3) result = result.filter((p) => getProductStatus(p) === 'archived');
+    else if (selected === 3) result = result.filter((p) => getProductStatus(p) === 'agotado');
 
     // Search filter
     if (queryValue) {
@@ -180,23 +177,27 @@ export function AllProductsTable({
   // --- Export handler ---
   const handleExport = useCallback(
     (format: string) => {
-      const exportData = filteredProducts.map((p) => ({
-        'Nombre Corto': p.name,
-        SKU: p.sku,
-        'Código de Barras': p.barcode,
-        Categoría: p.category,
-        'Inventario Actual': p.currentStock,
+      // Exportamos la lista COMPLETA de productos, no solo la filtrada
+      const exportData = products.map((p) => ({
+        'Nombre del Producto': p.name,
+        SKU: p.sku || 'N/A',
+        'Código de Barras': p.barcode || 'N/A',
+        Categoría: p.category || 'N/A',
+        'Costo Unitario ($)': p.costPrice,
+        'Precio Público ($)': p.unitPrice,
+        'Unidad de Venta': p.unit || 'N/A',
+        'Múltiplo de Unidad': p.unitMultiple || 1,
+        'Es Perecedero': p.isPerishable ? 'Sí' : 'No',
+        'Inventario Actual (En Existencia)': p.currentStock,
         'Inventario Mínimo': p.minStock,
-        'Costo Inicial': p.costPrice,
-        'Precio Público': p.unitPrice,
-        Vencimiento: p.expirationDate ? formatDate(p.expirationDate) : 'N/A',
+        'Fecha de Vencimiento': p.expirationDate ? formatDate(p.expirationDate) : 'N/A',
       }));
 
-      const filename = `Inventario_Productos_${new Date().toISOString().split('T')[0]}`;
+      const filename = `Todos_Los_Productos_${new Date().toISOString().split('T')[0]}`;
 
       if (format === 'pdf') {
         generatePDF(
-          'Reporte de Inventario Kiosco',
+          'Catálogo Completo de Productos',
           exportData as Record<string, unknown>[],
           `${filename}.pdf`
         );
@@ -209,7 +210,7 @@ export function AllProductsTable({
         downloadFile(csvContent, `${filename}.csv`, mime);
       }
     },
-    [filteredProducts]
+    [products]
   );
 
   // --- Row markup ---
@@ -230,6 +231,7 @@ export function AllProductsTable({
               size="small"
               source={product.imageUrl || ImageIcon}
               alt={product.name}
+              key={product.imageUrl || 'no-image'}
             />
             <Text as="p" variant="bodyMd" fontWeight="semibold">
               {product.name}
@@ -279,7 +281,8 @@ export function AllProductsTable({
           onClearAll={() => {}}
         />
 
-        <IndexTable
+        <Scrollable style={{ height: 'calc(100vh - 200px)' }}>
+          <IndexTable
           resourceName={resourceName}
           itemCount={filteredProducts.length}
           selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
@@ -295,6 +298,7 @@ export function AllProductsTable({
         >
           {rowMarkup}
         </IndexTable>
+        </Scrollable>
       </Card>
 
       <InlineStack align="center">

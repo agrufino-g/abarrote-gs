@@ -145,12 +145,8 @@ export function DateRangeFilter({ activeDateRange, onApply, onClear }: DateRange
           <Button
             icon={CalendarIcon}
             onClick={() => setPopoverActive(v => !v)}
-            disclosure
             tone={activeDateRange ? 'success' : undefined}
-            variant="plain"
-          >
-            {dateButtonLabel}
-          </Button>
+          />
         }
       >
         <Popover.Pane fixed>

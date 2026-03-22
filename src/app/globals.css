@@ -295,6 +295,13 @@ body::-webkit-scrollbar {
 
 .Polaris-Page-Header {
   margin-bottom: 24px !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50 !important;
+  background: var(--p-color-bg-surface-secondary, #f1f2f4) !important;
+  padding-top: 20px !important;
+  padding-bottom: 16px !important;
+  margin-top: -20px !important; /* Offset visual to keep spacing */
 }
 
 /* Fix the GREY AREA / bottom scrollbar line in Polaris IndexTable */
@@ -458,3 +465,25 @@ body::-webkit-scrollbar {
   border: 1px solid rgba(255, 255, 255, 0.65) !important;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18) !important;
 }
+
+/* Global Scrollbar Hiding — Modern Native App Feel */
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Keep Polaris default scroll behavior, but keep scrollbars hidden visually */
+
+/* Fix tables headers scrolling across all IndexTables */
+.Polaris-IndexTable thead th,
+.Polaris-IndexTable__TableHeading {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  background-color: var(--p-color-bg-surface-secondary, #f4f6f8) !important;
+  box-shadow: 0 1px 0 0 var(--p-color-border-subdued, #e1e3e5) !important;
+}
+
