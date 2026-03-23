@@ -32,6 +32,20 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
     const [inputValue, setInputValue] = useState('');
 
+    // Sync input value with selection changes from parent (e.g. clearing after add)
+    const [lastSelected, setLastSelected] = useState(selected);
+    if (selected !== lastSelected) {
+        setLastSelected(selected);
+        if (!selected) {
+            setInputValue('');
+        } else {
+            const selectedOption = options.find((opt) => opt.value === selected);
+            if (selectedOption) {
+                setInputValue(selectedOption.label);
+            }
+        }
+    }
+
     // Derive filtered options from props + input — always up to date
     const filteredOptions = useMemo(() => {
         if (inputValue === '') return options;
@@ -56,7 +70,7 @@ export function SearchableSelect({
         [options, onChange]
     );
 
-    const displayValue = inputValue || (selected ? options.find(o => o.value === selected)?.label || '' : '');
+    const displayValue = inputValue;
 
     const textField = (
         <Autocomplete.TextField

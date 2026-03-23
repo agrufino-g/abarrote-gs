@@ -12,6 +12,9 @@ import {
   TextField,
   DatePicker,
   Banner,
+  Icon,
+  Box,
+  InlineGrid,
 } from '@shopify/polaris';
 import { FormSelect } from '@/components/ui/FormSelect';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -191,66 +194,189 @@ export function QuickActions() {
 
   return (
     <>
-      <Card>
-        <BlockStack gap="400">
-          <Text as="h3" variant="headingMd">
-            Acciones Rápidas
-          </Text>
+      <Box padding="600">
+        <BlockStack gap="600">
+          <BlockStack gap="100">
+            <Text as="h2" variant="headingLg" fontWeight="bold">Operaciones Dinámicas</Text>
+            <Text as="p" variant="bodyMd" tone="subdued">Acceda de forma inmediata a los procesos críticos del negocio</Text>
+          </BlockStack>
 
-          <ButtonGroup>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+            gap: '24px' 
+          }}>
             {canCreateSales && (
-              <Button
-                icon={CartIcon}
-                variant="primary"
-                onClick={() => setSaleTicketOpen(true)}
-              >
-                Registrar Venta
-              </Button>
+              <div onClick={() => setSaleTicketOpen(true)} style={{ cursor: 'pointer' }}>
+                <Box
+                  shadow="300"
+                  background="bg-surface"
+                  borderRadius="400"
+                  borderColor="border"
+                  borderWidth="025"
+                  padding="600"
+                >
+                  <BlockStack gap="400" align="center">
+                    <Box
+                      padding="400"
+                      borderRadius="300"
+                      style={{ backgroundColor: 'var(--p-color-bg-fill-brand-subdued)', color: 'var(--p-color-text-brand)' }}
+                    >
+                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
+                        <Icon source={CartIcon} />
+                      </div>
+                    </Box>
+                    <BlockStack gap="100" align="center">
+                      <Text as="p" variant="headingMd" fontWeight="bold">Punto de Venta</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">Realizar venta rápida</Text>
+                    </BlockStack>
+                  </BlockStack>
+                </Box>
+              </div>
             )}
             {canManageServicios && (
-              <Button
-                icon={MobileIcon}
-                variant="primary"
-                onClick={() => setServiciosOpen(true)}
-              >
-                Recargas y Servicios
-              </Button>
+              <div onClick={() => setServiciosOpen(true)} style={{ cursor: 'pointer' }}>
+                <Box
+                  shadow="300"
+                  background="bg-surface"
+                  borderRadius="400"
+                  borderColor="border"
+                  borderWidth="025"
+                  padding="600"
+                >
+                  <BlockStack gap="400" align="center">
+                    <Box
+                      padding="400"
+                      borderRadius="300"
+                      style={{ backgroundColor: 'var(--p-color-bg-fill-success-subdued)', color: 'var(--p-color-text-success)' }}
+                    >
+                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
+                        <Icon source={MobileIcon} />
+                      </div>
+                    </Box>
+                    <BlockStack gap="100" align="center">
+                      <Text as="p" variant="headingMd" fontWeight="bold">Servicios</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">Recargas y pagos</Text>
+                    </BlockStack>
+                  </BlockStack>
+                </Box>
+              </div>
             )}
             {canCreateFiado && (
-              <Button
-                icon={CashDollarIcon}
-                onClick={() => setAbonoOpen(true)}
-              >
-                Registrar Abono
-              </Button>
+              <div onClick={() => setAbonoOpen(true)} style={{ cursor: 'pointer' }}>
+                <Box
+                  shadow="300"
+                  background="bg-surface"
+                  borderRadius="400"
+                  borderColor="border"
+                  borderWidth="025"
+                  padding="600"
+                >
+                  <BlockStack gap="400" align="center">
+                    <Box
+                      padding="400"
+                      borderRadius="300"
+                      style={{ backgroundColor: 'var(--p-color-bg-fill-warning-subdued)', color: 'var(--p-color-text-warning)' }}
+                    >
+                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
+                        <Icon source={CashDollarIcon} />
+                      </div>
+                    </Box>
+                    <BlockStack gap="100" align="center">
+                      <Text as="p" variant="headingMd" fontWeight="bold">Abonos</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">Registrar pagos</Text>
+                    </BlockStack>
+                  </BlockStack>
+                </Box>
+              </div>
             )}
             {canManageInventory && (
-              <Button
-                icon={ArchiveIcon}
-                onClick={() => setMermaModalOpen(true)}
-              >
-                Registrar Merma
-              </Button>
+              <div onClick={() => setMermaModalOpen(true)} style={{ cursor: 'pointer' }}>
+                <Box
+                  shadow="300"
+                  background="bg-surface"
+                  borderRadius="400"
+                  borderColor="border"
+                  borderWidth="025"
+                  padding="600"
+                >
+                  <BlockStack gap="400" align="center">
+                    <Box
+                      padding="400"
+                      borderRadius="300"
+                      style={{ backgroundColor: 'var(--p-color-bg-fill-critical-subdued)', color: 'var(--p-color-text-critical)' }}
+                    >
+                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
+                        <Icon source={ArchiveIcon} />
+                      </div>
+                    </Box>
+                    <BlockStack gap="100" align="center">
+                      <Text as="p" variant="headingMd" fontWeight="bold">Mermas</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">Control de pérdidas</Text>
+                    </BlockStack>
+                  </BlockStack>
+                </Box>
+              </div>
             )}
             {canManagePedidos && (
-              <Button
-                icon={PlusIcon}
-                onClick={() => setPedidoModalOpen(true)}
-              >
-                Crear Pedido a Proveedor
-              </Button>
+              <div onClick={() => setPedidoModalOpen(true)} style={{ cursor: 'pointer' }}>
+                <Box
+                  shadow="300"
+                  background="bg-surface"
+                  borderRadius="400"
+                  borderColor="border"
+                  borderWidth="025"
+                  padding="600"
+                >
+                  <BlockStack gap="400" align="center">
+                    <Box
+                      padding="400"
+                      borderRadius="300"
+                      style={{ backgroundColor: 'var(--p-color-bg-fill-info-subdued)', color: 'var(--p-color-text-info)' }}
+                    >
+                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
+                        <Icon source={PlusIcon} />
+                      </div>
+                    </Box>
+                    <BlockStack gap="100" align="center">
+                      <Text as="p" variant="headingMd" fontWeight="bold">Surtidos</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">Pedido proveedor</Text>
+                    </BlockStack>
+                  </BlockStack>
+                </Box>
+              </div>
             )}
             {canManageInventory && (
-              <Button
-                icon={AdjustIcon}
-                onClick={() => setAjusteModalOpen(true)}
-              >
-                Ajuste de Inventario
-              </Button>
+              <div onClick={() => setAjusteModalOpen(true)} style={{ cursor: 'pointer' }}>
+                <Box
+                  shadow="300"
+                  background="bg-surface"
+                  borderRadius="400"
+                  borderColor="border"
+                  borderWidth="025"
+                  padding="600"
+                >
+                  <BlockStack gap="400" align="center">
+                    <Box
+                      padding="400"
+                      borderRadius="300"
+                      style={{ backgroundColor: 'var(--p-color-bg-fill-secondary-subdued)', color: 'var(--p-color-text-secondary)' }}
+                    >
+                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
+                        <Icon source={AdjustIcon} />
+                      </div>
+                    </Box>
+                    <BlockStack gap="100" align="center">
+                      <Text as="p" variant="headingMd" fontWeight="bold">Ajuste Manual</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">Inventario físico</Text>
+                    </BlockStack>
+                  </BlockStack>
+                </Box>
+              </div>
             )}
-          </ButtonGroup>
+          </div>
         </BlockStack>
-      </Card>
+      </Box>
 
       {/* Modal para Registrar Merma */}
       <Modal

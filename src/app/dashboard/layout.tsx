@@ -82,8 +82,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <>
-      {topBarMarkup}
       <Frame
+        topBar={topBarMarkup}
         navigation={navigationMarkup}
         showMobileNavigation={mobileNavActive}
         onNavigationDismiss={toggleMobileNav}

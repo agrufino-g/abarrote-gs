@@ -2,7 +2,7 @@
 
 import { fetchKPIData, fetchInventoryAlerts, fetchMermaRecords, fetchInventoryAudits } from './inventory-actions';
 import { fetchAllProducts } from './product-actions';
-import { fetchSalesData, fetchSaleRecords, fetchCortesHistory } from './sales-actions';
+import { fetchSalesData, fetchSaleRecords, fetchCortesHistory, fetchHourlySalesData } from './sales-actions';
 import { fetchClientes, fetchFiadoTransactions } from './customer-actions';
 import { fetchGastos, fetchProveedores, fetchPedidos } from './finance-actions';
 import { fetchStoreConfig } from './store-config-actions';
@@ -52,6 +52,7 @@ export async function fetchDashboardFromDB() {
     devolucionesList,
     cashMovementsList,
     loyaltyTransactionsList,
+    hourlySalesList,
   ] = await Promise.all([
     safe(fetchKPIData(), DEFAULT_KPI, 'KPI'),
     safe(fetchAllProducts(), [], 'products'),
@@ -70,6 +71,7 @@ export async function fetchDashboardFromDB() {
     safe(fetchDevoluciones(), [], 'devoluciones'),
     safe(fetchCashMovements(), [], 'cash movements'),
     safe(fetchLoyaltyTransactions(), [], 'loyalty transactions'),
+    safe(fetchHourlySalesData(), [], 'hourly sales'),
   ]);
 
   return {
@@ -90,5 +92,6 @@ export async function fetchDashboardFromDB() {
     devoluciones: devolucionesList,
     cashMovements: cashMovementsList,
     loyaltyTransactions: loyaltyTransactionsList,
+    hourlySalesData: hourlySalesList,
   };
 }

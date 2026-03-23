@@ -4,6 +4,7 @@ import type {
   MermaRecord, PedidoRecord, Product, Gasto, Proveedor,
   RoleDefinition, UserRoleRecord, PermissionKey, InventoryAudit,
   Devolucion, DevolucionItem, CashMovement, LoyaltyTransaction,
+  HourlySalesData,
 } from '@/types';
 
 // Re-export for convenience
@@ -100,6 +101,7 @@ export interface CoreSlice extends DashboardState {
   setKPIData: (data: KPIData) => void;
   setInventoryAlerts: (alerts: InventoryAlert[]) => void;
   setSalesData: (data: SalesData[]) => void;
+  setHourlySalesData: (data: HourlySalesData[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   fetchDashboardData: () => Promise<void>;

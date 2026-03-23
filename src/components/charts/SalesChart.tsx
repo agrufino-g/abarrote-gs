@@ -17,16 +17,16 @@ interface SalesChartProps {
 export function SalesChart({ data }: SalesChartProps) {
   const chartData = [
     {
-      name: 'Esta semana',
-      color: '#2c6ecb' as const,
+      name: 'Semana actual',
+      color: '#0518d2' as const,
       data: data.map((d) => ({
         key: d.date,
         value: d.currentWeek,
       })),
     },
     {
-      name: 'Semana anterior',
-      color: '#8c9196' as const,
+      name: 'Semana pasada',
+      color: '#c1c4cd' as const,
       isComparison: true,
       data: data.map((d) => ({
         key: d.date,
@@ -36,16 +36,18 @@ export function SalesChart({ data }: SalesChartProps) {
   ];
 
   return (
-    <Card>
+    <Card padding="500">
       <BlockStack gap="400">
-        <Text as="h3" variant="headingMd">
-          Tendencia de Ventas
-        </Text>
-        <Text as="p" variant="bodySm" tone="subdued">
-          Comparativa: Esta semana vs Semana anterior
-        </Text>
+        <BlockStack gap="100">
+          <Text as="h3" variant="headingMd" fontWeight="semibold">
+            Tendencia de Ingresos
+          </Text>
+          <Text as="p" variant="bodySm" tone="subdued">
+            Comparativa de desempeño semanal
+          </Text>
+        </BlockStack>
 
-        <div style={{ height: 300 }}>
+        <div style={{ height: 400, marginTop: '12px' }}>
           <LineChart
             data={chartData}
             theme="Light"
@@ -53,8 +55,11 @@ export function SalesChart({ data }: SalesChartProps) {
               valueFormatter: (value: string | number | null) => formatCurrency(Number(value ?? 0)),
             }}
             yAxisOptions={{
-              labelFormatter: (value: string | number | null) =>
-                `$${(Number(value ?? 0) / 1000).toFixed(0)}k`,
+              labelFormatter: (value: string | number | null) => {
+                const val = Number(value ?? 0);
+                if (val >= 1000) return `$${(val / 1000).toFixed(1)}k`;
+                return `$${val}`;
+              },
             }}
           />
         </div>

@@ -238,7 +238,7 @@
   padding-top: 0 !important;
   background-color: #f6f6f7 !important;
   border-top-left-radius: 12px !important;
-  overflow: hidden !important;
+  overflow-y: auto !important;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
@@ -249,7 +249,7 @@
 }
 
 .Polaris-Frame__Content {
-  overflow: hidden !important;
+  overflow-y: auto !important;
   scrollbar-width: none !important;
 }
 
@@ -260,7 +260,7 @@
 
 html,
 body {
-  overflow: hidden !important;
+  overflow-y: auto !important;
   scrollbar-width: none !important;
 }
 
@@ -278,8 +278,6 @@ body::-webkit-scrollbar {
 .Polaris-Page {
   padding-top: 24px !important;
   padding-bottom: 40px !important;
-  max-width: 1750px !important; /* Wide layout for professional feel */
-  width: 95% !important; /* Responsive width */
   margin: 0 auto !important;
 }
 

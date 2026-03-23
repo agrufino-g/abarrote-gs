@@ -47,108 +47,59 @@ export function HourlySalesChart({ data = defaultData }: HourlySalesChartProps) 
 
   const chartData = [
     {
-      name: 'Horario Normal',
-      color: '#2c6ecb' as const,
-      data: data
-        .filter((d) => !d.isPeak)
-        .map((d) => ({
-          key: d.hour,
-          value: d.sales,
-        })),
-    },
-    {
-      name: 'Hora Pico',
-      color: '#f49342' as const,
-      data: data
-        .filter((d) => d.isPeak)
-        .map((d) => ({
-          key: d.hour,
-          value: d.sales,
-        })),
-    },
-  ];
-
-  // Single series with all hours for a cleaner timeline
-  const singleSeriesData = [
-    {
-      name: 'Ventas por Hora',
+      name: 'Ventas por hora',
       data: data.map((d) => ({
         key: d.hour,
         value: d.sales,
-        color: d.isPeak ? '#f49342' : '#2c6ecb',
+        color: d.isPeak ? '#f15b24' : '#c1c4cd', // Vibrant peak, steel gray normal
       })),
     },
   ];
 
   return (
-    <Card>
-      <BlockStack gap="400">
+    <Card padding="500">
+      <BlockStack gap="500">
         <InlineStack align="space-between" blockAlign="center">
           <BlockStack gap="100">
-            <Text as="h3" variant="headingMd">
-              Ventas por Hora
+            <Text as="h3" variant="headingMd" fontWeight="semibold">
+              Desglose Horario
             </Text>
             <Text as="p" variant="bodySm" tone="subdued">
-              Análisis de hoy - Identifica horarios para asignación de personal
+              Análisis diario de afluencia
             </Text>
           </BlockStack>
 
           <InlineStack gap="400">
-            <BlockStack gap="100">
-              <Text as="p" variant="bodySm" tone="subdued">
-                Horas Pico
-              </Text>
-              <Badge tone="attention">{`${peakHours.length} horarios`}</Badge>
-            </BlockStack>
-            <BlockStack gap="100">
-              <Text as="p" variant="bodySm" tone="subdued">
-                % en Picos
-              </Text>
-              <Badge tone="success">{`${peakPercentage}%`}</Badge>
-            </BlockStack>
+            <Badge tone="attention">{`${peakHours.length} Picos`}</Badge>
+            <Badge tone="success">{`${peakPercentage}% de ventas`}</Badge>
           </InlineStack>
         </InlineStack>
 
-        <div style={{ height: 280 }}>
+        <div style={{ height: 400, marginTop: '12px' }}>
           <BarChart
-            data={singleSeriesData}
+            data={chartData}
             theme="Light"
             tooltipOptions={{
               valueFormatter: (value: string | number | null) => formatCurrency(Number(value) || 0),
             }}
             yAxisOptions={{
-              labelFormatter: (value: string | number | null) =>
-                `$${(Number(value || 0) / 1000).toFixed(0)}k`,
+              labelFormatter: (value: string | number | null) => {
+                const val = Number(value || 0);
+                if (val >= 1000) return `$${(val / 1000).toFixed(1)}k`;
+                return `$${val}`;
+              },
             }}
           />
         </div>
 
-        <InlineStack gap="400" align="center">
+        <InlineStack gap="600" align="center">
           <InlineStack gap="100" blockAlign="center">
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                backgroundColor: '#2c6ecb',
-                borderRadius: 2,
-              }}
-            />
-            <Text as="span" variant="bodySm" tone="subdued">
-              Horario Normal
-            </Text>
+            <div style={{ width: 10, height: 10, backgroundColor: '#c1c4cd', borderRadius: '50%' }} />
+            <Text as="span" variant="bodySm" tone="subdued">Frecuencia Base</Text>
           </InlineStack>
           <InlineStack gap="100" blockAlign="center">
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                backgroundColor: '#f49342',
-                borderRadius: 2,
-              }}
-            />
-            <Text as="span" variant="bodySm" tone="subdued">
-              Hora Pico (requiere más personal)
-            </Text>
+            <div style={{ width: 10, height: 10, backgroundColor: '#f15b24', borderRadius: '50%' }} />
+            <Text as="span" variant="bodySm" tone="subdued">Hora Pico Detectada</Text>
           </InlineStack>
         </InlineStack>
       </BlockStack>

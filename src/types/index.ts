@@ -152,6 +152,13 @@ export interface SalesData {
   previousWeek: number;
 }
 
+export interface HourlySalesData {
+  hour: string;
+  sales: number;
+  transactions: number;
+  isPeak: boolean;
+}
+
 export interface MermaRecord {
   id: string;
   productId: string;
@@ -206,6 +213,7 @@ export interface DashboardState {
   inventoryAlerts: InventoryAlert[];
   products: Product[];
   salesData: SalesData[];
+  hourlySalesData: HourlySalesData[];
   saleRecords: SaleRecord[];
   mermaRecords: MermaRecord[];
   pedidos: PedidoRecord[];

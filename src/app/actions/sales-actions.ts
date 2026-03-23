@@ -4,7 +4,7 @@ import { requirePermission, requireAuth, validateId } from '@/lib/auth/guard';
 import { db } from '@/db';
 import { saleRecords, saleItems, products, clientes, gastos, cortesCaja, loyaltyTransactions, devoluciones } from '@/db/schema';
 import { eq, desc, sql, inArray } from 'drizzle-orm';
-import type { SaleRecord, SaleItem, SalesData, CorteCaja } from '@/types';
+import type { SaleRecord, SaleItem, SalesData, CorteCaja, HourlySalesData } from '@/types';
 import { numVal } from './_helpers';
 import { sendNotification } from './_notifications';
 import { logger } from '@/lib/logger';
@@ -59,6 +59,43 @@ export async function fetchSalesData(): Promise<SalesData[]> {
     currentWeek: currentByDay.get(i) ?? 0,
     previousWeek: prevByDay.get(i) ?? 0,
   }));
+}
+
+export async function fetchHourlySalesData(): Promise<HourlySalesData[]> {
+  await requirePermission('sales.view');
+  const today = new Date();
+  const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+  const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+  const rows = await db.select({
+    hour: sql<number>`extract(hour from date)::int`,
+    sales: sql<string>`coalesce(sum(total::numeric), 0)`,
+    count: sql<number>`count(*)::int`,
+  })
+    .from(saleRecords)
+    .where(sql`date >= ${startOfDay.toISOString()} and date < ${endOfDay.toISOString()}`)
+    .groupBy(sql`extract(hour from date)`)
+    .orderBy(sql`extract(hour from date)`);
+
+  const salesByHour = new Map(rows.map(r => [r.hour, { sales: numVal(r.sales), count: r.count }]));
+  
+  // Encontrar el umbral para "Hora Pico" (Ej: top 25% de ventas o basado en promedio)
+  const allSales = rows.map(r => numVal(r.sales));
+  const avgSales = allSales.length > 0 ? allSales.reduce((a, b) => a + b, 0) / allSales.length : 0;
+  const peakThreshold = avgSales * 1.5;
+
+  return Array.from({ length: 24 }, (_, i) => {
+    const data = salesByHour.get(i) || { sales: 0, count: 0 };
+    return {
+      hour: `${i}:00`,
+      sales: data.sales,
+      transactions: data.count,
+      isPeak: data.sales > peakThreshold && data.sales > 0,
+    };
+  }).filter(h => {
+    const hourInt = parseInt(h.hour);
+    return hourInt >= 6 && hourInt <= 22; // Horario de tienda típico
+  });
 }
 
 // ==================== SALES ====================

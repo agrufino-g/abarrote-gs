@@ -36,6 +36,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
     devoluciones: [],
     cashMovements: [],
     loyaltyTransactions: [],
+    hourlySalesData: [],
     isLoading: false,
     error: null,
 
@@ -43,6 +44,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
     setKPIData: (data) => set({ kpiData: data }),
     setInventoryAlerts: (alerts) => set({ inventoryAlerts: alerts }),
     setSalesData: (data) => set({ salesData: data }),
+    setHourlySalesData: (data) => set({ hourlySalesData: data }),
     setLoading: (loading) => set({ isLoading: loading }),
     setError: (error) => set({ error }),
 
@@ -69,6 +71,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
           devoluciones: data.devoluciones,
           cashMovements: data.cashMovements,
           loyaltyTransactions: data.loyaltyTransactions,
+          hourlySalesData: data.hourlySalesData,
           isLoading: false,
         });
       } catch (error) {
