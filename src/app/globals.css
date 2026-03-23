@@ -66,13 +66,18 @@
   color: #004d40 !important;
 }
 
-/* Ensuring Polaris Container Backgrounds are Standard */
-.Polaris-Frame {
-  background-color: #f1f2f4 !important;
-}
-
-.Polaris-Frame__Main {
-  background-color: #f6f6f7 !important;
+/* Forced "hidden but functional" containers */
+html.p-theme-light, 
+body,
+.Polaris-Frame,
+.Polaris-Frame__Main,
+.Polaris-Frame__Content,
+.Polaris-Frame__Scrollable,
+.Polaris-Frame__ContextualSaveBar {
+  background-color: #ffffff !important;
+  box-shadow: none !important;
+  border: none !important;
+  margin: 0 !important;
 }
 
 .Polaris-TopBar {
@@ -104,10 +109,26 @@
 .accent-teal { color: var(--atoll-500); }
 .accent-green { color: var(--feijoa-500); }
 
-/* Scrollbar Hiding (Keeping the native feel) */
+/* Ocultación radical de scrollbar en todos los niveles */
+html, 
+body, 
 * {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0,0,0,0.1) transparent;
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+::-webkit-scrollbar {
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+  display: none !important;
+}
+
+*::-webkit-scrollbar {
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+  display: none !important;
 }
 
 /* KPI Classes */

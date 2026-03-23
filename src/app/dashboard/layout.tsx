@@ -47,21 +47,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [error, signOut]);
 
-  // Prevent ANY visualization if loading or no user
-  if (authLoading || !user) {
-    return (
-      <div style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        width: '100vw', 
-        height: '100vh', 
-        backgroundColor: '#f6f6f7', // Shopify Neutral BG
-        zIndex: 10000 
-      }} />
-    );
-  }
-
   const toggleMobileNav = useCallback(() => {
     setMobileNavActive((prev) => !prev);
   }, []);
@@ -79,6 +64,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const criticalAlerts = inventoryAlerts.filter(
     (alert) => alert.severity === 'critical'
   );
+
+  // Prevent ANY visualization if loading or no user
+  if (authLoading || !user) {
+    return (
+      <div style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        width: '100vw', 
+        height: '100vh', 
+        backgroundColor: '#f6f6f7', // Shopify Neutral BG
+        zIndex: 10000 
+      }} />
+    );
+  }
 
   const topBarMarkup = (
     <CustomTopBar
@@ -127,9 +127,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Layout>
           </SkeletonPage>
         ) : (
-          <Box padding="600" minHeight="calc(100vh - 56px)">
-            {children}
-          </Box>
+          children
         )}
 
         {isProductDetailActive && selectedProduct && (

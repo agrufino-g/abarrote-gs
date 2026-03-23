@@ -16,7 +16,10 @@ interface EmptyStateCardProps {
 export function EmptyStateCard({ heading, description, action }: EmptyStateCardProps) {
   return (
     <Card>
-      <EmptyState heading={heading} image="">
+      <EmptyState 
+        heading={heading} 
+        image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+      >
         <p>{description}</p>
         {action && (
           <Button variant="primary" icon={action.icon} onClick={action.onAction}>

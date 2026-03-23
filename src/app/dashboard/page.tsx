@@ -14,13 +14,9 @@ import {
   Badge,
 } from '@shopify/polaris';
 import {
-  MoneyIcon,
-  InventoryIcon,
-  CalendarIcon,
   CartIcon,
   ExportIcon,
   RefreshIcon,
-  HomeFilledIcon,
 } from '@shopify/polaris-icons';
 import { Icon } from '@shopify/polaris';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -32,8 +28,59 @@ import { ExportModal } from '@/components/export/ExportModal';
 import { exportDashboardData } from '@/components/export/exportUtils';
 import { Product } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import { useAuth } from '@/lib/auth/AuthContext';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToWindowEdges } from '@dnd-kit/modifiers';
+
+interface SortableItemProps {
+  id: string;
+  children: React.ReactNode;
+}
+
+function SortableItem({ id, children }: SortableItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    cursor: 'grab',
+    touchAction: 'none',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  );
+}
 
 export default function DashboardOverviewPage() {
+  const { user } = useAuth();
   const kpiData = useDashboardStore((s) => s.kpiData);
   const currentUserRole = useDashboardStore((s) => s.currentUserRole);
   const inventoryAlerts = useDashboardStore((s) => s.inventoryAlerts);
@@ -99,6 +146,36 @@ export default function DashboardOverviewPage() {
   }, [todaySales]);
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [kpiOrder, setKpiOrder] = useState(['sales', 'stock', 'expiry', 'merma']);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: any) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (active.id !== over?.id) {
+      setKpiOrder((items) => {
+        const oldIndex = items.indexOf(active.id);
+        const newIndex = items.indexOf(over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
 
   const handleProductClick = useCallback((product: Product) => {
     // TODO: integrate with layout's product detail modal via context or URL
@@ -114,131 +191,176 @@ export default function DashboardOverviewPage() {
     exportDashboardData(options, exportData);
   }, [inventoryAlerts, salesData]);
 
-  const welcomeMarkup = (
-    <Box paddingBlockEnd="800">
-      <Card padding="600">
-        <InlineStack align="space-between" blockAlign="center" gap="400">
-          <InlineStack gap="500" blockAlign="center">
-            <div style={{ backgroundColor: 'var(--blue-zodiac-50)', borderRadius: 'var(--p-border-radius-400)', border: '1px solid var(--blue-zodiac-200)' }}>
-              <Box
-                padding="400"
-              >
-                <div style={{ color: 'var(--blue-zodiac-600)', display: 'flex' }}>
-                  <Icon source={HomeFilledIcon} />
-                </div>
-              </Box>
-            </div>
-            <BlockStack gap="100">
-              <Text as="h1" variant="heading2xl" fontWeight="bold">
-                Escritorio Principal
-              </Text>
-              <InlineStack gap="200" blockAlign="center">
-                <Badge tone="info">Abarrote-GS v2.0</Badge>
-                <Text as="p" variant="bodyMd" tone="subdued">
-                  Tu centro de control para ventas e inventarios
-                </Text>
-              </InlineStack>
-            </BlockStack>
-          </InlineStack>
-          <InlineStack gap="300">
-            <Button size="large" icon={RefreshIcon} onClick={fetchDashboardData}>
-              Sincronizar
-            </Button>
-            <Button size="large" variant="primary" icon={ExportIcon} onClick={() => setExportModalOpen(true)}>
-              Reporte Ejecutivo
-            </Button>
-          </InlineStack>
-        </InlineStack>
-      </Card>
-    </Box>
-  );
+  const renderKPI = (id: string) => {
+    switch (id) {
+      case 'sales':
+        return (
+          <KPICard
+            key="sales"
+            title="Venta del día"
+            value={kpiData?.dailySales || 0}
+            type="currency"
+            data={hourlySalesData && hourlySalesData.length > 1
+              ? hourlySalesData.map(h => h.sales)
+              : [0, 12, 28, 45, 80, 120, kpiData?.dailySales || 0]
+            }
+          />
+        );
+      case 'stock':
+        return (
+          <KPICard
+            key="stock"
+            title="Stock bajo"
+            value={kpiData?.lowStockProducts || 0}
+            type="number"
+            data={(() => {
+              const v = kpiData?.lowStockProducts || 0;
+              return [v + 3, v + 5, v + 2, v + 4, v + 1, v + 2, v];
+            })()}
+          />
+        );
+      case 'expiry':
+        return (
+          <KPICard
+            key="expiry"
+            title="Por caducar"
+            value={kpiData?.expiringProducts || 0}
+            type="number"
+            data={(() => {
+              const v = kpiData?.expiringProducts || 0;
+              return [v + 2, v + 1, v + 3, v + 1, v + 2, v + 1, v];
+            })()}
+          />
+        );
+      case 'merma':
+        return (
+          <KPICard
+            key="merma"
+            title="Tasa de merma"
+            value={kpiData?.mermaRate || 0}
+            type="percentage"
+            data={(() => {
+              const v = kpiData?.mermaRate || 0;
+              return [v + 0.5, v + 0.3, v + 0.8, v + 0.2, v + 0.4, v + 0.1, v];
+            })()}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <>
-      <Page title="" compactTitle>
-        <Box paddingBlockStart="800" paddingBlockEnd="800">
-          {welcomeMarkup}
+      <Page
+        title={`Hola, ${user?.displayName?.split(' ')[0] || 'Administrador'}`}
+        subtitle="Resumen de tu tienda para hoy"
+        primaryAction={{
+          content: 'Generar Reporte',
+          icon: ExportIcon,
+          onAction: () => setExportModalOpen(true),
+        }}
+        secondaryActions={[
+          {
+            content: 'Actualizar',
+            icon: RefreshIcon,
+            onAction: fetchDashboardData,
+          },
+        ]}
+      >
+        <BlockStack gap="600">
+          {/* Fila 1: KPIs con Sparkline y Drag and Drop */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToWindowEdges]}
+          >
+            <SortableContext
+              items={kpiOrder}
+              strategy={rectSortingStrategy}
+            >
+              <Grid>
+                {kpiOrder.map((id) => (
+                  <Grid.Cell key={id} columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3 }}>
+                    <SortableItem id={id}>
+                      {renderKPI(id)}
+                    </SortableItem>
+                  </Grid.Cell>
+                ))}
+              </Grid>
+            </SortableContext>
+            <DragOverlay dropAnimation={{
+              sideEffects: defaultDropAnimationSideEffects({
+                styles: {
+                  active: {
+                    opacity: '0.5',
+                  },
+                },
+              }),
+            }}>
+              {activeId ? (
+                <div style={{ cursor: 'grabbing', width: '100%' }}>
+                  {renderKPI(activeId)}
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
 
-          <BlockStack gap="600">
-            <Layout>
-              <Layout.Section>
-                <Grid>
-                  <Grid.Cell columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3 }}>
-                    <KPICard title="Venta Neta (Hoy)" value={kpiData?.dailySales || 0} type="currency" icon={<MoneyIcon />} />
-                  </Grid.Cell>
-                  <Grid.Cell columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3 }}>
-                    <KPICard title="Reponer Stock" value={kpiData?.lowStockProducts || 0} type="number" icon={<InventoryIcon />} />
-                  </Grid.Cell>
-                  <Grid.Cell columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3 }}>
-                    <KPICard title="Caducidad Próxima" value={kpiData?.expiringProducts || 0} type="number" icon={<CalendarIcon />} />
-                  </Grid.Cell>
-                  <Grid.Cell columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3 }}>
-                    <KPICard title="Tasa de Merma" value={kpiData?.mermaRate || 0} type="percentage" icon={<CartIcon />} />
-                  </Grid.Cell>
-                </Grid>
-              </Layout.Section>
+          {/* Fila 2: Acciones Rápidas (ancho completo) */}
+          <QuickActions />
 
-              <Layout.Section>
-                <Box
-                  background="bg-surface"
-                  borderRadius="300"
-                  shadow="300"
-                  borderWidth="025"
-                  borderColor="border"
-                  overflowX="hidden"
-                  overflowY="hidden"
-                >
-                  <QuickActions />
+          {/* Fila 3: Ventas del día (grande) + Top Productos (lateral) */}
+          <Layout>
+            <Layout.Section>
+              <Card padding="0">
+                <Box padding="400" borderBlockEndWidth="025" borderColor="border">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd" fontWeight="semibold">Ventas de hoy</Text>
+                    <Badge tone="info">{`${todaySales.length} transacciones`}</Badge>
+                  </InlineStack>
                 </Box>
-              </Layout.Section>
-            </Layout>
-
-            <Layout>
-              <Layout.Section>
-                <Card padding="0">
-                  <Box padding="400" borderBlockEndWidth="025" borderColor="border">
-                    <Text as="h2" variant="headingMd" fontWeight="semibold">Últimas Transacciones (Hoy)</Text>
+                {todaySales.length === 0 ? (
+                  <Box padding="800">
+                    <BlockStack gap="200" align="center">
+                      <Text as="p" alignment="center" tone="subdued">No hay ventas registradas hoy.</Text>
+                    </BlockStack>
                   </Box>
-                  <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--p-font-size-200)' }}>
+                ) : (
+                  <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--p-color-border-subdued)' }}>
-                          <th style={{ padding: '12px 16px' }}>Folio</th>
-                          <th style={{ padding: '12px 16px' }}>Hora</th>
-                          <th style={{ padding: '12px 16px' }}>Cajero</th>
-                          <th style={{ padding: '12px 16px' }}>Total</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'right' }}>Estado</th>
+                        <tr style={{ borderBottom: '1px solid #e1e3e5', backgroundColor: '#f9fafb' }}>
+                          <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', color: '#6d7175', fontWeight: 600 }}>Folio</th>
+                          <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', color: '#6d7175', fontWeight: 600 }}>Hora</th>
+                          <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', color: '#6d7175', fontWeight: 600 }}>Cajero</th>
+                          <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '12px', color: '#6d7175', fontWeight: 600 }}>Total</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {todaySales.slice(0, 8).map((sale) => (
-                          <tr key={sale.id} style={{ borderBottom: '1px solid var(--p-color-border-subdued)' }}>
-                            <td style={{ padding: '12px 16px' }}>{sale.folio}</td>
-                            <td style={{ padding: '12px 16px' }}>{new Date(sale.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                            <td style={{ padding: '12px 16px' }}>{sale.cajero || 'Central'}</td>
-                            <td style={{ padding: '12px 16px', fontWeight: 'bold' }}>{formatCurrency(sale.total)}</td>
-                            <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                              <Badge tone="success">Completado</Badge>
-                            </td>
+                        {todaySales.slice(0, 10).map((sale) => (
+                          <tr key={sale.id} style={{ borderBottom: '1px solid #f1f2f4' }}>
+                            <td style={{ padding: '10px 16px', fontWeight: 600 }}>{sale.folio}</td>
+                            <td style={{ padding: '10px 16px', color: '#6d7175' }}>{new Date(sale.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                            <td style={{ padding: '10px 16px' }}>{sale.cajero || 'Central'}</td>
+                            <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(sale.total)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                </Card>
-              </Layout.Section>
-            </Layout>
+                )}
+              </Card>
+            </Layout.Section>
+            <Layout.Section variant="oneThird">
+              <TopProducts products={topProductsData} />
+            </Layout.Section>
+          </Layout>
 
-            <Layout>
-              <Layout.Section variant="oneHalf">
-                <InventoryTable alerts={inventoryAlerts} onProductClick={handleProductClick} />
-              </Layout.Section>
-              <Layout.Section variant="oneHalf">
-                <TopProducts products={topProductsData} />
-              </Layout.Section>
-            </Layout>
-          </BlockStack>
-        </Box>
+          {/* Fila 4: Alertas de Inventario (ancho completo) */}
+          <InventoryTable alerts={inventoryAlerts} onProductClick={handleProductClick} />
+        </BlockStack>
       </Page>
       <ExportModal open={exportModalOpen} onClose={() => setExportModalOpen(false)} onExport={handleExport} />
     </>

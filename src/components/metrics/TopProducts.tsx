@@ -68,67 +68,36 @@ export function TopProducts({ products = defaultTopProducts, title = "Productos 
           <Badge tone="info">Hoy</Badge>
         </InlineStack>
 
-        <BlockStack gap="300">
-          {products.map((product, index) => (
-            <Box
-              key={product.id}
-              padding="300"
-              background={index % 2 === 0 ? 'bg-surface-secondary' : 'bg-surface'}
-              borderRadius="200"
-            >
-              <BlockStack gap="200">
-                <InlineStack align="space-between" blockAlign="start">
-                  <InlineStack gap="300" blockAlign="center">
-                    <Avatar
-                      size="sm"
-                      initials={getInitials(product.name)}
-                      name={product.name}
-                    />
-                    <BlockStack gap="050">
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        {product.name}
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        {product.sku}
-                      </Text>
-                    </BlockStack>
-                  </InlineStack>
+        <BlockStack gap="200">
+          {products.map((product) => (
+            <div key={product.id} style={{ padding: '8px 0' }}>
+              <InlineStack align="space-between" blockAlign="center">
+                <InlineStack gap="300" blockAlign="center">
+                  <Avatar
+                    size="sm"
+                    initials={getInitials(product.name)}
+                    name={product.name}
+                  />
+                  <BlockStack gap="050">
+                    <Text as="p" variant="bodyMd" fontWeight="bold">
+                      {product.name}
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {product.unitsSold} uds. · {formatCurrency(product.revenue)}
+                    </Text>
+                  </BlockStack>
+                </InlineStack>
+                <div style={{ paddingRight: '12px' }}>
                   {getTrendBadge(product.trend)}
-                </InlineStack>
-
-                <InlineStack gap="400">
-                  <BlockStack gap="050">
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Unidades
-                    </Text>
-                    <Text as="p" variant="bodyMd" fontWeight="semibold">
-                      {product.unitsSold}
-                    </Text>
-                  </BlockStack>
-                  <BlockStack gap="050">
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Ingresos
-                    </Text>
-                    <Text as="p" variant="bodyMd" fontWeight="semibold">
-                      {formatCurrency(product.revenue)}
-                    </Text>
-                  </BlockStack>
-                  <BlockStack gap="050">
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Margen
-                    </Text>
-                    <Text as="p" variant="bodyMd" fontWeight="semibold" tone="success">
-                      {product.margin}%
-                    </Text>
-                  </BlockStack>
-                </InlineStack>
-
+                </div>
+              </InlineStack>
+              <Box paddingBlockStart="300">
                 <ProgressBar
                   progress={(product.unitsSold / maxUnits) * 100}
                   size="small"
                 />
-              </BlockStack>
-            </Box>
+              </Box>
+            </div>
           ))}
         </BlockStack>
       </BlockStack>

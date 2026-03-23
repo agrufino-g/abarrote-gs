@@ -192,191 +192,73 @@ export function QuickActions() {
     (a) => a.product.currentStock < a.product.minStock
   ).length;
 
+  const actions = [
+    canCreateSales && { label: 'Punto de Venta', desc: 'Venta rápida', icon: CartIcon, onClick: () => setSaleTicketOpen(true), tone: 'var(--p-color-bg-fill-brand-subdued)', color: 'var(--p-color-text-brand)', disabled: false },
+    { label: 'Servicios', desc: 'Próximamente', icon: MobileIcon, onClick: () => {}, tone: '#f4f6f8', color: '#b5b5b5', disabled: true },
+    canCreateFiado && { label: 'Abonos', desc: 'Registrar pagos', icon: CashDollarIcon, onClick: () => setAbonoOpen(true), tone: 'var(--p-color-bg-fill-warning-subdued)', color: 'var(--p-color-text-warning)', disabled: false },
+    canManageInventory && { label: 'Mermas', desc: 'Control de pérdidas', icon: ArchiveIcon, onClick: () => setMermaModalOpen(true), tone: 'var(--p-color-bg-fill-critical-subdued)', color: 'var(--p-color-text-critical)', disabled: false },
+    canManagePedidos && { label: 'Surtidos', desc: 'Pedido a proveedor', icon: PlusIcon, onClick: () => setPedidoModalOpen(true), tone: 'var(--p-color-bg-fill-info-subdued)', color: 'var(--p-color-text-info)', disabled: false },
+    canManageInventory && { label: 'Ajuste Manual', desc: 'Inventario físico', icon: AdjustIcon, onClick: () => setAjusteModalOpen(true), tone: '#f4f6f8', color: '#6d7175', disabled: false },
+  ].filter(Boolean) as { label: string; desc: string; icon: any; onClick: () => void; tone: string; color: string; disabled: boolean }[];
+
   return (
     <>
-      <Box padding="600">
-        <BlockStack gap="600">
+      <Card>
+        <BlockStack gap="400">
           <BlockStack gap="100">
-            <Text as="h2" variant="headingLg" fontWeight="bold">Operaciones Dinámicas</Text>
-            <Text as="p" variant="bodyMd" tone="subdued">Acceda de forma inmediata a los procesos críticos del negocio</Text>
+            <Text as="h2" variant="headingMd" fontWeight="semibold">Operaciones</Text>
+            <Text as="p" variant="bodySm" tone="subdued">Accesos directos a procesos del negocio</Text>
           </BlockStack>
 
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-            gap: '24px' 
-          }}>
-            {canCreateSales && (
-              <div onClick={() => setSaleTicketOpen(true)} style={{ cursor: 'pointer' }}>
-                <Box
-                  shadow="300"
-                  background="bg-surface"
-                  borderRadius="400"
-                  borderColor="border"
-                  borderWidth="025"
-                  padding="600"
-                >
-                  <BlockStack gap="400" align="center">
-                    <Box
-                      padding="400"
-                      borderRadius="300"
-                      style={{ backgroundColor: 'var(--p-color-bg-fill-brand-subdued)', color: 'var(--p-color-text-brand)' }}
-                    >
-                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
-                        <Icon source={CartIcon} />
-                      </div>
-                    </Box>
-                    <BlockStack gap="100" align="center">
-                      <Text as="p" variant="headingMd" fontWeight="bold">Punto de Venta</Text>
-                      <Text as="p" variant="bodySm" tone="subdued">Realizar venta rápida</Text>
-                    </BlockStack>
+          <InlineGrid columns={{ xs: 2, sm: 3, md: 6 }} gap="300">
+            {actions.map((action) => (
+              <div
+                key={action.label}
+                onClick={action.disabled ? undefined : action.onClick}
+                style={{
+                  cursor: action.disabled ? 'default' : 'pointer',
+                  padding: '16px 12px',
+                  borderRadius: '12px',
+                  border: '1px solid #e3e5e7',
+                  backgroundColor: '#fff',
+                  textAlign: 'center',
+                  transition: 'all 0.15s ease',
+                  opacity: action.disabled ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!action.disabled) {
+                    e.currentTarget.style.backgroundColor = '#f9fafb';
+                    e.currentTarget.style.borderColor = '#c9cccf';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#fff';
+                  e.currentTarget.style.borderColor = '#e3e5e7';
+                }}
+              >
+                <BlockStack gap="300" align="center" inlineAlign="center">
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '10px',
+                    backgroundColor: action.tone,
+                    color: action.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Icon source={action.icon} />
+                  </div>
+                  <BlockStack gap="050">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">{action.label}</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">{action.desc}</Text>
                   </BlockStack>
-                </Box>
+                </BlockStack>
               </div>
-            )}
-            {canManageServicios && (
-              <div onClick={() => setServiciosOpen(true)} style={{ cursor: 'pointer' }}>
-                <Box
-                  shadow="300"
-                  background="bg-surface"
-                  borderRadius="400"
-                  borderColor="border"
-                  borderWidth="025"
-                  padding="600"
-                >
-                  <BlockStack gap="400" align="center">
-                    <Box
-                      padding="400"
-                      borderRadius="300"
-                      style={{ backgroundColor: 'var(--p-color-bg-fill-success-subdued)', color: 'var(--p-color-text-success)' }}
-                    >
-                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
-                        <Icon source={MobileIcon} />
-                      </div>
-                    </Box>
-                    <BlockStack gap="100" align="center">
-                      <Text as="p" variant="headingMd" fontWeight="bold">Servicios</Text>
-                      <Text as="p" variant="bodySm" tone="subdued">Recargas y pagos</Text>
-                    </BlockStack>
-                  </BlockStack>
-                </Box>
-              </div>
-            )}
-            {canCreateFiado && (
-              <div onClick={() => setAbonoOpen(true)} style={{ cursor: 'pointer' }}>
-                <Box
-                  shadow="300"
-                  background="bg-surface"
-                  borderRadius="400"
-                  borderColor="border"
-                  borderWidth="025"
-                  padding="600"
-                >
-                  <BlockStack gap="400" align="center">
-                    <Box
-                      padding="400"
-                      borderRadius="300"
-                      style={{ backgroundColor: 'var(--p-color-bg-fill-warning-subdued)', color: 'var(--p-color-text-warning)' }}
-                    >
-                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
-                        <Icon source={CashDollarIcon} />
-                      </div>
-                    </Box>
-                    <BlockStack gap="100" align="center">
-                      <Text as="p" variant="headingMd" fontWeight="bold">Abonos</Text>
-                      <Text as="p" variant="bodySm" tone="subdued">Registrar pagos</Text>
-                    </BlockStack>
-                  </BlockStack>
-                </Box>
-              </div>
-            )}
-            {canManageInventory && (
-              <div onClick={() => setMermaModalOpen(true)} style={{ cursor: 'pointer' }}>
-                <Box
-                  shadow="300"
-                  background="bg-surface"
-                  borderRadius="400"
-                  borderColor="border"
-                  borderWidth="025"
-                  padding="600"
-                >
-                  <BlockStack gap="400" align="center">
-                    <Box
-                      padding="400"
-                      borderRadius="300"
-                      style={{ backgroundColor: 'var(--p-color-bg-fill-critical-subdued)', color: 'var(--p-color-text-critical)' }}
-                    >
-                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
-                        <Icon source={ArchiveIcon} />
-                      </div>
-                    </Box>
-                    <BlockStack gap="100" align="center">
-                      <Text as="p" variant="headingMd" fontWeight="bold">Mermas</Text>
-                      <Text as="p" variant="bodySm" tone="subdued">Control de pérdidas</Text>
-                    </BlockStack>
-                  </BlockStack>
-                </Box>
-              </div>
-            )}
-            {canManagePedidos && (
-              <div onClick={() => setPedidoModalOpen(true)} style={{ cursor: 'pointer' }}>
-                <Box
-                  shadow="300"
-                  background="bg-surface"
-                  borderRadius="400"
-                  borderColor="border"
-                  borderWidth="025"
-                  padding="600"
-                >
-                  <BlockStack gap="400" align="center">
-                    <Box
-                      padding="400"
-                      borderRadius="300"
-                      style={{ backgroundColor: 'var(--p-color-bg-fill-info-subdued)', color: 'var(--p-color-text-info)' }}
-                    >
-                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
-                        <Icon source={PlusIcon} />
-                      </div>
-                    </Box>
-                    <BlockStack gap="100" align="center">
-                      <Text as="p" variant="headingMd" fontWeight="bold">Surtidos</Text>
-                      <Text as="p" variant="bodySm" tone="subdued">Pedido proveedor</Text>
-                    </BlockStack>
-                  </BlockStack>
-                </Box>
-              </div>
-            )}
-            {canManageInventory && (
-              <div onClick={() => setAjusteModalOpen(true)} style={{ cursor: 'pointer' }}>
-                <Box
-                  shadow="300"
-                  background="bg-surface"
-                  borderRadius="400"
-                  borderColor="border"
-                  borderWidth="025"
-                  padding="600"
-                >
-                  <BlockStack gap="400" align="center">
-                    <Box
-                      padding="400"
-                      borderRadius="300"
-                      style={{ backgroundColor: 'var(--p-color-bg-fill-secondary-subdued)', color: 'var(--p-color-text-secondary)' }}
-                    >
-                      <div style={{ transform: 'scale(1.5)', display: 'flex' }}>
-                        <Icon source={AdjustIcon} />
-                      </div>
-                    </Box>
-                    <BlockStack gap="100" align="center">
-                      <Text as="p" variant="headingMd" fontWeight="bold">Ajuste Manual</Text>
-                      <Text as="p" variant="bodySm" tone="subdued">Inventario físico</Text>
-                    </BlockStack>
-                  </BlockStack>
-                </Box>
-              </div>
-            )}
-          </div>
+            ))}
+          </InlineGrid>
         </BlockStack>
-      </Box>
+      </Card>
 
       {/* Modal para Registrar Merma */}
       <Modal

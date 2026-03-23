@@ -61,21 +61,25 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
     }
     setSaving(true);
     try {
-      let finalAvatarUrl = avatarUrl;
+      const profileData: { displayName: string; avatarUrl?: string } = {
+        displayName: displayName.trim(),
+      };
+
       if (file) {
         const path = getUserAvatarPath(user.uid, file.name);
-        finalAvatarUrl = await uploadFile(file, path);
+        const uploadedUrl = await uploadFile(file, path);
+        profileData.avatarUrl = uploadedUrl;
+      } else if (avatarUrl) {
+        profileData.avatarUrl = avatarUrl.trim();
       }
 
-      await updateUserProfile(user.uid, {
-        displayName: displayName.trim(),
-        avatarUrl: finalAvatarUrl.trim(),
-      });
+      await updateUserProfile(user.uid, profileData);
       showSuccess('Perfil actualizado correctamente');
       setFile(null);
       onClose();
-    } catch {
-      showError('Error al actualizar el perfil');
+    } catch (error: any) {
+      const msg = error?.message || 'Error al actualizar el perfil';
+      showError(msg);
     }
     setSaving(false);
   }, [user, currentUserRole, displayName, avatarUrl, file, updateUserProfile, showSuccess, showError, onClose]);
@@ -221,38 +225,6 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
                 />
               </FormLayout.Group>
             </FormLayout>
-          </BlockStack>
-
-          <Divider />
-
-          {/* Foto de perfil */}
-          <BlockStack gap="400">
-            <Text as="h3" variant="headingMd">Foto de perfil</Text>
-            <TextField
-              label="URL de la imagen"
-              value={avatarUrl}
-              onChange={setAvatarUrl}
-              autoComplete="off"
-              placeholder="https://ejemplo.com/foto.jpg"
-              helpText="Puedes usar servicios como Gravatar, Imgur o subir tu imagen a cualquier hosting"
-            />
-            {avatarUrl && (
-              <Box padding="300" background="bg-surface-secondary" borderRadius="200">
-                <InlineStack gap="300" blockAlign="center">
-                  <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden' }}>
-                    <img
-                      src={avatarUrl}
-                      alt="Preview"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '';
-                      }}
-                    />
-                  </div>
-                  <Text as="p" variant="bodySm" tone="subdued">Vista previa de tu foto</Text>
-                </InlineStack>
-              </Box>
-            )}
           </BlockStack>
 
           <Divider />

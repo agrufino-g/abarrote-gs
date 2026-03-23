@@ -83,31 +83,48 @@ export function AnalyticsView() {
       .reduce((sum, s) => sum + parseFloat(s.total.toString()), 0);
   }, [saleRecords]);
 
-  // Ventas por día en el período (gráfica)
-  const ventasPorDia = useMemo(() => {
+  // Ventas y conteo por día en el período (gráfica)
+  const datosPorDia = useMemo(() => {
     const dias = parseInt(periodo);
     const fechas = Array.from({ length: dias }, (_, i) => {
       const date = new Date();
       date.setDate(date.getDate() - (dias - 1 - i));
       return date.toISOString().split('T')[0];
     });
-    const ventasPorFecha = salesEnPeriodo.reduce((acc, sale) => {
+
+    const agrupado = salesEnPeriodo.reduce((acc, sale) => {
       const fecha = new Date(sale.date).toISOString().split('T')[0];
-      acc[fecha] = (acc[fecha] || 0) + parseFloat(sale.total.toString());
+      if (!acc[fecha]) acc[fecha] = { total: 0, count: 0 };
+      acc[fecha].total += parseFloat(String(sale.total || 0));
+      acc[fecha].count += 1;
       return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, { total: number, count: number }>);
 
     return fechas.map(fecha => ({
-      key: fecha,
-      value: ventasPorFecha[fecha] || 0,
+      fecha,
+      total: agrupado[fecha]?.total || 0,
+      ticketPromedio: agrupado[fecha]?.count > 0 ? agrupado[fecha].total / agrupado[fecha].count : 0,
     }));
   }, [salesEnPeriodo, periodo]);
 
+  const ventasPorDia = useMemo(() => 
+    datosPorDia.map(d => ({ key: d.fecha, value: d.total })),
+  [datosPorDia]);
+
+  const ticketPromedioPorDia = useMemo(() => 
+    datosPorDia.map(d => ({ key: d.fecha, value: d.ticketPromedio })),
+  [datosPorDia]);
+
   // Ventas por método de pago (en período)
   const ventasPorMetodo = useMemo(() => {
+    if (!salesEnPeriodo.length) return [];
+    
     const metodos = salesEnPeriodo.reduce((acc, sale) => {
-      const metodo = sale.paymentMethod;
-      acc[metodo] = (acc[metodo] || 0) + parseFloat(sale.total.toString());
+      const metodo = sale.paymentMethod || 'Otros';
+      const val = parseFloat(String(sale.total || 0));
+      if (!isNaN(val)) {
+        acc[metodo] = (acc[metodo] || 0) + val;
+      }
       return acc;
     }, {} as Record<string, number>);
 
@@ -144,7 +161,7 @@ export function AnalyticsView() {
       .map(([id, data]) => ({ id, ...data }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
-  }, [saleRecords]);
+  }, [salesEnPeriodo]);
 
   // Productos con bajo stock
   const productosStockBajo = useMemo(() => {
@@ -362,13 +379,11 @@ export function AnalyticsView() {
                     ) : (
                       <DonutChart
                         data={[{
-                          name: 'Ventas por Canal',
                           data: ventasPorMetodo.map(({ metodo, total }) => ({
                             key: metodo,
                             value: total,
                           })),
                         }]}
-                        theme="Light"
                         legendPosition="bottom"
                       />
                     )}
@@ -387,14 +402,16 @@ export function AnalyticsView() {
                     <Text as="span" variant="bodySm" tone="subdued">—</Text>
                   </InlineStack>
                   <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {ventasPorDia.length === 0 ? (
+                    {datosPorDia.length === 0 ? (
                       <Text as="p" tone="subdued">No hay datos para este rango de fechas</Text>
                     ) : (
                       <LineChart
-                        data={[{ name: 'Promedio', data: ventasPorDia.map(d => ({ key: d.key, value: ticketPromedio })) }]}
+                        data={[{ name: 'Promedio de ticket', data: ticketPromedioPorDia }]}
                         theme="Light"
                         xAxisOptions={{ labelFormatter: () => '' }}
-                        yAxisOptions={{ labelFormatter: () => '' }}
+                        yAxisOptions={{ 
+                          labelFormatter: (value) => formatCurrency(Number(value || 0))
+                        }}
                       />
                     )}
                   </div>
