@@ -14,8 +14,8 @@ import {
 import { 
   OrderIcon, 
   CreditCardIcon, 
-  CashIcon, 
-  TickIcon,
+  CashDollarIcon, 
+  CheckIcon,
   StoreIcon
 } from '@shopify/polaris-icons';
 
@@ -166,14 +166,14 @@ export default function CustomerDisplayPage() {
             ) : sale.status === 'finished' ? (
               <div className="finished-box">
                 <div className="success-icon">
-                   <Icon source={TickIcon} tone="success" />
+                   <Icon source={CheckIcon} tone="success" />
                 </div>
                 <Text variant="headingLg" as="p">¡Pago Exitoso!</Text>
                 <Text variant="bodyMd" as="p" tone="subdued">Folio: {sale.folio}</Text>
               </div>
             ) : (
               <div className="payment-method-icon">
-                 <Icon source={sale.paymentMethod === 'efectivo' ? CashIcon : CreditCardIcon} />
+                 <Icon source={sale.paymentMethod === 'efectivo' ? CashDollarIcon : CreditCardIcon} />
                  <Text variant="bodyMd" as="p" tone="subdued">Pago con {sale.paymentMethod}</Text>
               </div>
             )}
