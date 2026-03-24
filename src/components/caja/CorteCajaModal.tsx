@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   Modal,
   FormLayout,
@@ -40,7 +40,7 @@ export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
   const defaultCajero = currentUserRole?.globalId || currentUserRole?.employeeNumber || '';
 
   const [cajero, setCajero] = useState(defaultCajero);
-  const [fondoInicial, setFondoInicial] = useState('500');
+  const [fondoInicial, setFondoInicial] = useState(String(storeConfig.defaultStartingFund || '500'));
   const [efectivoContado, setEfectivoContado] = useState('');
   const [notas, setNotas] = useState('');
   const [completedCorte, setCompletedCorte] = useState<CorteCaja | null>(null);
@@ -66,6 +66,18 @@ export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
 
   // Today's cash movements
   const todayMovements = useMemo(() => cashMovements.filter((m) => m.fecha.startsWith(today)), [cashMovements, today]);
+
+  // AUTO-SET fondoInicial from Apertura
+  useEffect(() => {
+    if (open && !completedCorte) {
+      const apertura = todayMovements.find(m => m.concepto === 'fondo_inicial');
+      if (apertura) {
+        setFondoInicial(String(apertura.monto));
+      } else {
+        setFondoInicial(String(storeConfig.defaultStartingFund || '500'));
+      }
+    }
+  }, [open, todayMovements, storeConfig.defaultStartingFund, completedCorte]);
 
   const efectivoEsperado = parseFloat(fondoInicial || '0') + todayEfectivo - todayGastos;
   const diferencia = (parseFloat(efectivoContado || '0')) - efectivoEsperado;
@@ -439,7 +451,9 @@ ${completedCorte.notas ? `<div class="data-row" style="font-size:10px"><span>NOT
               onChange={setFondoInicial}
               autoComplete="off"
               prefix="$"
-              helpText="Cantidad con la que se abrió la caja"
+              helpText={todayMovements.some(m => m.concepto === 'fondo_inicial') 
+                ? "Detectado automáticamente de la apertura de hoy" 
+                : "Cantidad con la que se inició la caja (no se detectó apertura manual)"}
             />
             <TextField
               label="Efectivo contado en caja"

@@ -1,8 +1,15 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { Page, Modal, FormLayout, TextField } from '@shopify/polaris';
-import { ProductIcon, ViewIcon, EmailIcon } from '@shopify/polaris-icons';
+import { Page, Badge, InlineStack, Text } from '@shopify/polaris';
+import { 
+  PlusIcon, 
+  ExportIcon, 
+  ImportIcon, 
+  ViewIcon, 
+  EmailIcon, 
+  SettingsIcon 
+} from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { AllProductsTable } from '@/components/inventory/AllProductsTable';
 import { RegisterProductModal } from '@/components/modals/RegisterProductModal';
@@ -45,22 +52,34 @@ export default function ProductsPage() {
     <>
       <Page
         fullWidth
+        backAction={{ content: 'Dashboard', url: '/dashboard' }}
         title="Productos"
-        titleMetadata={<ProductIcon />}
+        titleMetadata={<Badge tone="info">{`${products.length} artículos`}</Badge>}
+        subtitle="Listado general y control de inventario de toda la tienda."
         primaryAction={{
           content: 'Agregar producto',
+          icon: PlusIcon,
           onAction: () => setRegisterProductOpen(true),
         }}
         secondaryActions={[
-          { content: 'Exportar', onAction: () => setExportOpen(true) },
-          { content: 'Importar', onAction: () => setImportOpen(true) },
+          { 
+            content: 'Exportar', 
+            icon: ExportIcon,
+            onAction: () => setExportOpen(true) 
+          },
+          { 
+            content: 'Importar', 
+            icon: ImportIcon,
+            onAction: () => setImportOpen(true) 
+          },
         ]}
         actionGroups={[
           {
-            title: 'Más acciones',
+            title: 'Más herramientas',
+            icon: SettingsIcon,
             actions: [
-              { content: 'Ver estadísticas', icon: ViewIcon, onAction: () => {} },
-              { content: 'Crear campaña por correo', icon: EmailIcon, onAction: () => {} },
+              { content: 'Análisis de ventas', icon: ViewIcon, onAction: () => {} },
+              { content: 'Marketing masivo', icon: EmailIcon, onAction: () => {} },
             ],
           },
         ]}

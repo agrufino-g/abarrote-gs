@@ -81,6 +81,7 @@ export interface StoreConfig {
   // System Schedules
   closeSystemTime: string;
   autoCorteTime: string;
+  defaultStartingFund: number;
 }
 
 export const DEFAULT_STORE_CONFIG: StoreConfig = {
@@ -114,6 +115,7 @@ export const DEFAULT_STORE_CONFIG: StoreConfig = {
   defaultMargin: '30',
   closeSystemTime: '23:00',
   autoCorteTime: '00:00',
+  defaultStartingFund: 500,
 };
 
 export interface Product {

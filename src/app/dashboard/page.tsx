@@ -21,6 +21,7 @@ import {
 } from '@shopify/polaris-icons';
 import { Icon } from '@shopify/polaris';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { StatsBar } from '@/components/dashboard/StatsBar';
 import { KPICard } from '@/components/kpi/KPICard';
 import { InventoryTable } from '@/components/inventory/InventoryTable';
 import { QuickActions } from '@/components/actions/QuickActions';
@@ -282,13 +283,12 @@ export default function DashboardOverviewPage() {
               items={kpiOrder}
               strategy={rectSortingStrategy}
             >
-              <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
-                {kpiOrder.map((id) => (
-                  <SortableItem key={id} id={id}>
-                    {renderKPI(id)}
-                  </SortableItem>
-                ))}
-              </InlineGrid>
+              <StatsBar data={{
+                dailySales: kpiData?.dailySales || 0,
+                unitsSold: todaySales.reduce((acc, sale) => acc + sale.items.reduce((s, it) => s + it.quantity, 0), 0),
+                lowStock: kpiData?.lowStockProducts || 0,
+                returnRate: "0%"
+              }} />
             </SortableContext>
             <DragOverlay dropAnimation={{
               sideEffects: defaultDropAnimationSideEffects({

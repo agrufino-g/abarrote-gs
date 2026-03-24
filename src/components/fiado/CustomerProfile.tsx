@@ -41,6 +41,7 @@ import {
     OrderFilledIcon,
 } from '@shopify/polaris-icons';
 import { useState, useMemo } from 'react';
+import { useDashboardStore } from '@/store/dashboardStore';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Cliente, FiadoTransaction, LoyaltyTransaction } from '@/types';
 

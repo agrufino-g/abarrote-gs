@@ -8,9 +8,11 @@ import {
   ProgressBar,
   BlockStack,
   InlineStack,
+  Box,
 } from '@shopify/polaris';
 import { InventoryAlert, Product } from '@/types';
 import { formatDate, getDaysUntil, getStockStatus } from '@/lib/utils';
+import { Chip } from '@/components/ui/Chip';
 
 interface InventoryTableProps {
   alerts: InventoryAlert[];
@@ -67,9 +69,9 @@ export function InventoryTable({ alerts, onProductClick }: InventoryTableProps) 
           <Text as="p" variant="bodyMd" fontWeight="semibold">
             {product.name}
           </Text>
-          <Text as="p" variant="bodySm" tone="subdued">
-            {product.sku}
-          </Text>
+          <Box paddingBlockStart="100">
+             <Chip tone="subdued" pill>{product.sku}</Chip>
+          </Box>
         </IndexTable.Cell>
         
         <IndexTable.Cell>

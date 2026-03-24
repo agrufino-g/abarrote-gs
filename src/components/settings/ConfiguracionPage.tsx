@@ -104,6 +104,7 @@ export function ConfiguracionPage() {
       ticketTemplateProveedor: useField(storeConfig.ticketTemplateProveedor || ''),
       closeSystemTime: useField(storeConfig.closeSystemTime || '23:00'),
       autoCorteTime: useField(storeConfig.autoCorteTime || '00:00'),
+      defaultStartingFund: useField(storeConfig.defaultStartingFund ?? 500),
     },
     onSubmit: async (f) => {
       await saveStoreConfig(f as any);

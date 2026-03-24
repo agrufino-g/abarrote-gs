@@ -97,9 +97,20 @@ ${center(`Vigencia ${config.ticketVigencia || 'N/A'}`)}
         </Card>
       </Layout.AnnotatedSection>
 
-      <Layout.AnnotatedSection title="Horarios de operación" description="Configura el cierre automático del sistema y la ejecución del corte diario.">
+      <Layout.AnnotatedSection title="Horarios y Operación de Caja" description="Configura el cierre automático del sistema y la base de efectivo predeterminada para el cambio.">
         <Card>
           <FormLayout>
+            <FormLayout.Group>
+              <TextField
+                label="Fondo inicial predeterminado (Base)"
+                type="number"
+                value={String(config.defaultStartingFund)}
+                onChange={(v) => updateField('defaultStartingFund', parseFloat(v) || 0)}
+                autoComplete="off"
+                prefix="$"
+                helpText="Dinero que usualmente le entregas al cajero para iniciar su turno."
+              />
+            </FormLayout.Group>
             <FormLayout.Group>
               <TextField
                 label="Hora de cierre de sistema"

@@ -48,6 +48,7 @@ export const storeConfig = pgTable('store_config', {
   ticketTemplateProveedor: text('ticket_template_proveedor'),
   inventoryGeneralColumns: text('inventory_general_columns').notNull().default('["title","sku","available","onHand"]'),
   defaultMargin: text('default_margin').notNull().default('30'),
+  defaultStartingFund: numeric('default_starting_fund', { precision: 10, scale: 2 }).notNull().default('500'),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 

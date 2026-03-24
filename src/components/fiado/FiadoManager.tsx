@@ -462,7 +462,7 @@ export function FiadoManager({ mode = 'all' }: FiadoManagerProps) {
                 { title: 'Suscripción por email' },
                 { title: 'Ubicación' },
                 { title: 'Pedidos' },
-                { title: 'Importe gastado' },
+                { title: 'Saldo Pendiente' },
               ]}
               promotedBulkActions={[
                 {
@@ -508,9 +508,11 @@ export function FiadoManager({ mode = 'all' }: FiadoManagerProps) {
                     </IndexTable.Cell>
                     <IndexTable.Cell>
                       <div style={{ textAlign: 'right', width: '100%' }}>
-                         <Text as="span" variant="bodyMd">
-                            {formatCurrency(totalSpent).replace('$', '')} $
-                         </Text>
+                         {cliente.balance > 0 ? (
+                           <Badge tone="critical">{formatCurrency(cliente.balance)}</Badge>
+                         ) : (
+                           <Text as="span" tone="subdued">$0.00</Text>
+                         )}
                       </div>
                     </IndexTable.Cell>
                   </IndexTable.Row>
