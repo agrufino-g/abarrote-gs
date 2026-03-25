@@ -126,26 +126,31 @@ export async function deleteProveedor(id: string): Promise<void> {
 
 export async function fetchPedidos(): Promise<PedidoRecord[]> {
   await requirePermission('suppliers.view');
-  const rows = await db.select().from(pedidos).orderBy(desc(pedidos.fecha));
-  const records: PedidoRecord[] = [];
+  const rows = await db.select().from(pedidos).orderBy(desc(pedidos.fecha)).limit(50);
+  if (rows.length === 0) return [];
 
-  for (const row of rows) {
-    const items = await db.select().from(pedidoItems).where(eq(pedidoItems.pedidoId, row.id));
-    records.push({
-      id: row.id,
-      proveedor: row.proveedor,
-      productos: items.map((item) => ({
-        productId: item.productId,
-        productName: item.productName,
-        cantidad: item.cantidad,
-      })),
-      notas: row.notas,
-      fecha: row.fecha.toISOString(),
-      estado: row.estado as 'pendiente' | 'enviado' | 'recibido',
+  const pedidoIds = rows.map(r => r.id);
+  const allItems = await db.select().from(pedidoItems).where(sql`${pedidoItems.pedidoId} IN ${pedidoIds}`);
+  
+  const itemsByPedidoId = new Map<string, any[]>();
+  for (const item of allItems) {
+    const list = itemsByPedidoId.get(item.pedidoId) || [];
+    list.push({
+      productId: item.productId,
+      productName: item.productName,
+      cantidad: item.cantidad,
     });
+    itemsByPedidoId.set(item.pedidoId, list);
   }
 
-  return records;
+  return rows.map((row) => ({
+    id: row.id,
+    proveedor: row.proveedor,
+    productos: itemsByPedidoId.get(row.id) || [],
+    notas: row.notas,
+    fecha: row.fecha.toISOString(),
+    estado: row.estado as 'pendiente' | 'enviado' | 'recibido',
+  }));
 }
 
 export async function createPedido(

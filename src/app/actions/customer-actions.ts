@@ -76,7 +76,7 @@ export async function deleteCliente(id: string): Promise<void> {
 
 export async function fetchFiadoTransactions(): Promise<FiadoTransaction[]> {
   await requirePermission('customers.view');
-  const rows = await db.select().from(fiadoTransactions).orderBy(desc(fiadoTransactions.date));
+  const rows = await db.select().from(fiadoTransactions).orderBy(desc(fiadoTransactions.date)).limit(100);
   if (rows.length === 0) return [];
 
   // Batch fetch all fiado items for 'fiado' type transactions

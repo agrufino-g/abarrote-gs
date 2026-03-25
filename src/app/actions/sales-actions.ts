@@ -102,7 +102,7 @@ export async function fetchHourlySalesData(): Promise<HourlySalesData[]> {
 
 export async function fetchSaleRecords(): Promise<SaleRecord[]> {
   await requirePermission('sales.view');
-  const rows = await db.select().from(saleRecords).orderBy(desc(saleRecords.date));
+  const rows = await db.select().from(saleRecords).orderBy(desc(saleRecords.date)).limit(100);
   if (rows.length === 0) return [];
 
   // Batch fetch all items for all sales in one query
@@ -348,7 +348,7 @@ export async function deleteSales(saleIds: string[]): Promise<void> {
 
 export async function fetchCortesHistory(): Promise<CorteCaja[]> {
   await requirePermission('corte.view');
-  const rows = await db.select().from(cortesCaja).orderBy(desc(cortesCaja.fecha));
+  const rows = await db.select().from(cortesCaja).orderBy(desc(cortesCaja.fecha)).limit(30);
   return rows.map((r) => ({
     id: r.id,
     fecha: r.fecha.toISOString(),
