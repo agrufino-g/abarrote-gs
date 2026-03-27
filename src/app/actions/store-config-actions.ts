@@ -11,13 +11,14 @@ import { numVal } from './_helpers';
 // ==================== STORE CONFIG ====================
 
 function isMissingColumnError(error: unknown): boolean {
-  const msg = String(error);
+  const msg = String(error).toLowerCase();
   return (
     msg.includes('column') ||
     msg.includes('does not exist') ||
     msg.includes('inventory_general_columns') ||
     msg.includes('ticket_template') ||
-    msg.includes('default_margin')
+    msg.includes('default_margin') ||
+    msg.includes('default_starting_fund')
   );
 }
 
@@ -151,7 +152,15 @@ export async function saveStoreConfig(data: Partial<StoreConfig>): Promise<Store
     if (!isMissingColumnError(error)) {
       throw error;
     }
-    const { inventoryGeneralColumns: _ignored, ticketTemplateVenta: _tv, ticketTemplateProveedor: _tp, ...legacyRest } = rest;
+    // Fallback: Filter out all modern columns that might be missing in older DB tables
+    const { 
+      inventoryGeneralColumns: _ignored1, 
+      ticketTemplateVenta: _ignored2, 
+      ticketTemplateProveedor: _ignored3, 
+      defaultMargin: _ignored4,
+      defaultStartingFund: _ignored5,
+      ...legacyRest 
+    } = rest;
     await persist(legacyRest);
   }
 

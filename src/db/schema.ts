@@ -406,3 +406,27 @@ export const servicios = pgTable('servicios', {
   cajero: text('cajero').notNull(),
   fecha: timestamp('fecha').notNull().defaultNow(),
 });
+
+// ==================== PROMOCIONES ====================
+export const promotions = pgTable('promotions', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  type: text('type').notNull(), // 'percentage' | 'fixed' | 'bogo' | 'bundle'
+  value: numeric('value', { precision: 10, scale: 2 }).notNull(), // discount % or fixed amount
+  minPurchase: numeric('min_purchase', { precision: 10, scale: 2 }).notNull().default('0'),
+  maxDiscount: numeric('max_discount', { precision: 10, scale: 2 }), // cap for percentage discounts
+  applicableTo: text('applicable_to').notNull().default('all'), // 'all' | 'category' | 'product'
+  applicableIds: jsonb('applicable_ids').$type<string[]>().notNull().default([]), // product IDs or category IDs
+  startDate: timestamp('start_date').notNull(),
+  endDate: timestamp('end_date').notNull(),
+  active: boolean('active').notNull().default(true),
+  usageLimit: integer('usage_limit'), // null = unlimited
+  usageCount: integer('usage_count').notNull().default(0),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => [
+  index('promotions_active_idx').on(t.active),
+  index('promotions_dates_idx').on(t.startDate, t.endDate),
+]);

@@ -10,11 +10,11 @@ import {
   Button,
   Checkbox,
   DropZone,
-  Thumbnail,
   Box,
   Spinner,
   Layout,
 } from '@shopify/polaris';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import type { SettingsSectionProps } from './types';
 
 interface GeneralSectionProps extends SettingsSectionProps {
@@ -49,7 +49,7 @@ export function GeneralSection({
               <Text as="p" variant="bodySm" tone="subdued">Imagen que aparecerá impresa en los tickets. Ideal en blanco y negro, máx. 5 MB.</Text>
               {config.logoUrl ? (
                 <InlineStack gap="300" align="start" blockAlign="center">
-                  <Thumbnail source={config.logoUrl} alt="Logo de la tienda" size="large" />
+                  <OptimizedImage source={config.logoUrl} alt="Logo de la tienda" size="large" />
                   <BlockStack gap="100">
                     <Button
                       size="slim"

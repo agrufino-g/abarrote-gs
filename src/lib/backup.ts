@@ -24,10 +24,15 @@ export async function createBackup(): Promise<{ success: boolean; url?: string; 
       'user_roles',
     ];
 
-    const backup: Record<string, any[]> = {};
+    const ALLOWED_TABLES = new Set(tables);
+    const backup: Record<string, unknown[]> = {};
 
     for (const table of tables) {
-      const result = await db.execute(sql.raw(`SELECT * FROM ${table}`));
+      if (!ALLOWED_TABLES.has(table)) {
+        throw new Error(`Tabla no permitida: ${table}`);
+      }
+      const identifier = `"${table.replace(/"/g, '""')}"`;
+      const result = await db.execute(sql.raw(`SELECT * FROM ${identifier}`));
       backup[table] = result.rows;
     }
 

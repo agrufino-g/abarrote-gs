@@ -5,6 +5,7 @@ import {
   fetchDashboardFromDB,
   saveStoreConfig as dbSaveStoreConfig,
 } from '@/app/actions/db-actions';
+import { logger } from '@/lib/logger';
 
 // Slices
 import { createSalesSlice } from './slices/salesSlice';
@@ -40,6 +41,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
     hourlySalesData: [],
     isLoading: false,
     error: null,
+    lastSyncAt: 0,
 
     // ── Core setters ──
     setKPIData: (data) => set({ kpiData: data }),
@@ -50,8 +52,13 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
     setError: (error) => set({ error }),
 
     // ── Fetch all dashboard data ──
+    // Shows loading spinner only on initial load (when kpiData is null).
+    // Background refreshes (SyncEngine polling, visibility, cross-tab) are silent.
     fetchDashboardData: async () => {
-      set({ isLoading: true, error: null });
+      const isInitialLoad = get().kpiData === null;
+      if (isInitialLoad) {
+        set({ isLoading: true, error: null });
+      }
       try {
         const data = await fetchDashboardFromDB();
         set({
@@ -75,13 +82,20 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
           hourlySalesData: data.hourlySalesData,
           categories: data.categories || [],
           isLoading: false,
+          lastSyncAt: Date.now(),
         });
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        set({
-          error: 'Error al cargar los datos del dashboard. Verifica tu conexión a la base de datos.',
-          isLoading: false,
+        logger.error('Dashboard fetch failed', {
+          error: error instanceof Error ? error.message : String(error),
+          action: 'fetchDashboardData',
         });
+        // Only show error to user on initial load — background failures are silent
+        if (isInitialLoad) {
+          set({
+            error: 'Error al cargar los datos del dashboard. Verifica tu conexión a la base de datos.',
+            isLoading: false,
+          });
+        }
       }
     },
 

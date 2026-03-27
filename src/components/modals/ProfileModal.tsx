@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Modal,
   FormLayout,
@@ -15,9 +15,18 @@ import {
   Badge,
   Banner,
   Divider,
-  Button
+  Button,
+  Icon,
 } from '@shopify/polaris';
-import { ImageIcon, EmailIcon, PersonIcon, PhoneIcon } from '@shopify/polaris-icons';
+import {
+  PersonIcon,
+  LockIcon,
+  LinkIcon,
+  ClockIcon,
+  HashtagIcon,
+  CameraIcon,
+  ChevronRightIcon,
+} from '@shopify/polaris-icons';
 import { uploadFile, getUserAvatarPath } from '@/lib/storage';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
@@ -30,6 +39,8 @@ interface ProfileModalProps {
   onClose: () => void;
 }
 
+type ProfileView = 'overview' | 'edit-name' | 'edit-photo' | 'link-accounts';
+
 export function ProfileModal({ open, onClose }: ProfileModalProps) {
   const { user } = useAuth();
   const currentUserRole = useDashboardStore((s) => s.currentUserRole);
@@ -37,55 +48,62 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
   const { roleName } = usePermissions();
   const { showSuccess, showError } = useToast();
 
+  const [view, setView] = useState<ProfileView>('overview');
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [linkingMicrosoft, setLinkingMicrosoft] = useState(false);
 
   useEffect(() => {
     if (open && currentUserRole) {
-      const newDisplayName = currentUserRole.displayName || user?.displayName || '';
-      const newAvatarUrl = currentUserRole.avatarUrl || user?.photoURL || '';
-      setDisplayName(newDisplayName);
-      setAvatarUrl(newAvatarUrl);
-      setPhoneNumber(user?.phoneNumber || '');
+      setDisplayName(currentUserRole.displayName || user?.displayName || '');
+      setAvatarUrl(currentUserRole.avatarUrl || user?.photoURL || '');
+      setFile(null);
+      setView('overview');
     }
   }, [open, currentUserRole, user]);
 
-  const handleSave = useCallback(async () => {
-    if (!user || !currentUserRole) return;
-    if (!displayName.trim()) {
-      showError('El nombre no puede estar vacío');
-      return;
-    }
+  const handleSaveName = useCallback(async () => {
+    if (!user || !currentUserRole || !displayName.trim()) return;
     setSaving(true);
     try {
-      const profileData: { displayName: string; avatarUrl?: string } = {
-        displayName: displayName.trim(),
-      };
+      await updateUserProfile(user.uid, { displayName: displayName.trim() });
+      showSuccess('Nombre actualizado');
+      setView('overview');
+    } catch (error: unknown) {
+      showError(error instanceof Error ? error.message : 'Error al actualizar');
+    } finally {
+      setSaving(false);
+    }
+  }, [user, currentUserRole, displayName, updateUserProfile, showSuccess, showError]);
 
+  const handleSavePhoto = useCallback(async () => {
+    if (!user || !currentUserRole) return;
+    setSaving(true);
+    try {
+      let newUrl = avatarUrl;
       if (file) {
         const path = getUserAvatarPath(user.uid, file.name);
-        const uploadedUrl = await uploadFile(file, path);
-        profileData.avatarUrl = uploadedUrl;
-      } else if (avatarUrl) {
-        profileData.avatarUrl = avatarUrl.trim();
+        newUrl = await uploadFile(file, path);
       }
-
-      await updateUserProfile(user.uid, profileData);
-      showSuccess('Perfil actualizado correctamente');
+      await updateUserProfile(user.uid, {
+        displayName: currentUserRole.displayName || displayName.trim(),
+        avatarUrl: newUrl,
+      });
+      showSuccess('Foto actualizada');
       setFile(null);
-      onClose();
-    } catch (error: any) {
-      const msg = error?.message || 'Error al actualizar el perfil';
-      showError(msg);
+      setView('overview');
+    } catch (error: unknown) {
+      showError(error instanceof Error ? error.message : 'Error al subir la foto');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-  }, [user, currentUserRole, displayName, avatarUrl, file, updateUserProfile, showSuccess, showError, onClose]);
+  }, [user, currentUserRole, displayName, avatarUrl, file, updateUserProfile, showSuccess, showError]);
 
   const handleLinkMicrosoft = useCallback(async () => {
     if (!user) return;
+    setLinkingMicrosoft(true);
     try {
       const provider = new OAuthProvider('microsoft.com');
       const customParams: Record<string, string> = { prompt: 'select_account' };
@@ -95,13 +113,15 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
       provider.setCustomParameters(customParams);
       await linkWithPopup(user, provider);
       showSuccess('Cuenta de Microsoft vinculada correctamente');
-    } catch (error: any) {
-      console.error('Error linking Microsoft:', error);
-      if (error?.code === 'auth/credential-already-in-use') {
+    } catch (error: unknown) {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/credential-already-in-use') {
         showError('Esta cuenta de Microsoft ya está ligada a otro usuario.');
       } else {
         showError('Error al vincular con Microsoft.');
       }
+    } finally {
+      setLinkingMicrosoft(false);
     }
   }, [user, showSuccess, showError]);
 
@@ -111,169 +131,425 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
     [],
   );
 
-  const initials = displayName
-    ? displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : user?.email?.charAt(0).toUpperCase() || 'U';
+  const initials = useMemo(() => {
+    if (displayName) {
+      return displayName.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+    return user?.email?.charAt(0).toUpperCase() || 'U';
+  }, [displayName, user?.email]);
 
-  // Detectar proveedor de autenticación
-  const getAuthProvider = () => {
+  const authProvider = useMemo(() => {
     if (!user?.providerData || user.providerData.length === 0) return 'Email';
     const providerId = user.providerData[0]?.providerId;
     if (providerId?.includes('google')) return 'Google';
     if (providerId?.includes('microsoft')) return 'Microsoft';
     if (providerId?.includes('password')) return 'Email';
     return 'Email';
+  }, [user?.providerData]);
+
+  const memberSince = useMemo(() => {
+    if (!currentUserRole) return '—';
+    return new Date(currentUserRole.createdAt).toLocaleDateString('es-MX', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }, [currentUserRole]);
+
+  const previewSource = useMemo(() => {
+    if (file) return window.URL.createObjectURL(file);
+    return avatarUrl || undefined;
+  }, [file, avatarUrl]);
+
+  const getRoleTone = (): 'success' | 'info' | 'attention' => {
+    if (currentUserRole?.roleId === 'owner') return 'success';
+    if (currentUserRole?.roleId === 'cashier') return 'info';
+    return 'attention';
   };
 
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Configuración de perfil"
-      primaryAction={{
-        content: 'Guardar cambios',
-        onAction: handleSave,
-        loading: saving,
-        disabled: !displayName.trim(),
-      }}
-      secondaryActions={[{ content: 'Cancelar', onAction: onClose }]}
-      size="large"
-    >
-      <Modal.Section>
-        <BlockStack gap="600">
-          {/* Header con avatar */}
-          <InlineStack align="space-between" blockAlign="start">
-            <InlineStack gap="400" blockAlign="center">
+  const handleClose = useCallback(() => {
+    setView('overview');
+    onClose();
+  }, [onClose]);
+
+  // ─── Sub-view: Edit Name ───
+  if (view === 'edit-name') {
+    return (
+      <Modal
+        open={open}
+        onClose={handleClose}
+        title="Editar nombre"
+        primaryAction={{
+          content: 'Guardar',
+          onAction: handleSaveName,
+          loading: saving,
+          disabled: !displayName.trim(),
+        }}
+        secondaryActions={[{ content: 'Regresar', onAction: () => setView('overview') }]}
+      >
+        <Modal.Section>
+          <FormLayout>
+            <TextField
+              label="Nombre completo"
+              value={displayName}
+              onChange={setDisplayName}
+              autoComplete="name"
+              placeholder="Tu nombre completo"
+              requiredIndicator
+              maxLength={100}
+              showCharacterCount
+              disabled={saving}
+              autoFocus
+            />
+          </FormLayout>
+        </Modal.Section>
+      </Modal>
+    );
+  }
+
+  // ─── Sub-view: Edit Photo ───
+  if (view === 'edit-photo') {
+    return (
+      <Modal
+        open={open}
+        onClose={handleClose}
+        title="Cambiar foto de perfil"
+        primaryAction={{
+          content: 'Guardar foto',
+          onAction: handleSavePhoto,
+          loading: saving,
+          disabled: !file,
+        }}
+        secondaryActions={[{ content: 'Regresar', onAction: () => { setFile(null); setView('overview'); } }]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <InlineStack align="center">
               <Avatar
                 size="xl"
                 name={displayName}
                 initials={initials}
-                source={file ? window.URL.createObjectURL(file) : avatarUrl}
+                source={previewSource}
               />
-              <Box minWidth="250px">
-                <DropZone
-                  onDrop={handleDropZoneDrop}
-                  variableHeight
-                  label="Cambiar foto de perfil"
-                  accept="image/*"
-                  type="image"
-                  disabled={saving}
-                >
-                  {!file && <DropZone.FileUpload actionTitle="Subir nueva foto" actionHint="JPG, PNG o GIF" />}
-                  {file && (
-                    <div style={{ padding: '8px' }}>
-                      <InlineStack gap="200" blockAlign="center">
-                        <Thumbnail size="small" alt={file.name} source={window.URL.createObjectURL(file)} />
-                        <Text variant="bodySm" as="span">{file.name}</Text>
-                      </InlineStack>
-                    </div>
-                  )}
-                </DropZone>
-              </Box>
-              <BlockStack gap="100">
-                <Text as="h2" variant="headingLg">{displayName || 'Sin nombre'}</Text>
-                <Text as="p" variant="bodySm" tone="subdued">{user?.email}</Text>
-                <InlineStack gap="200">
-                  <Badge tone="success" progress="complete">{roleName}</Badge>
-                  <Badge tone="info">{getAuthProvider()}</Badge>
-                </InlineStack>
-              </BlockStack>
             </InlineStack>
-          </InlineStack>
-
-          <Divider />
-
-          {/* Información personal */}
-          <BlockStack gap="400">
-            <Text as="h3" variant="headingMd">Información personal</Text>
-            <FormLayout>
-              <FormLayout.Group>
-                <TextField
-                  label="Nombre completo"
-                  value={displayName}
-                  onChange={setDisplayName}
-                  autoComplete="name"
-                  placeholder="Ingresa tu nombre completo"
-                  requiredIndicator
-                />
-                <TextField
-                  label="Correo electrónico"
-                  value={user?.email || ''}
-                  disabled
-                  autoComplete="email"
-                  helpText="No se puede modificar"
-                />
-              </FormLayout.Group>
-
-              <FormLayout.Group>
-                <TextField
-                  label="Número de empleado"
-                  value={currentUserRole?.employeeNumber || 'Sin asignar'}
-                  disabled
-                  autoComplete="off"
-                  helpText="Asignado por el administrador"
-                />
-                <TextField
-                  label="Teléfono"
-                  value={phoneNumber}
-                  onChange={setPhoneNumber}
-                  type="tel"
-                  autoComplete="tel"
-                  placeholder="+52 123 456 7890"
-                  disabled
-                  helpText="Contacta al administrador para actualizar"
-                />
-              </FormLayout.Group>
-            </FormLayout>
-          </BlockStack>
-
-          <Divider />
-
-          {/* Información de cuenta */}
-          <BlockStack gap="400">
-            <Text as="h3" variant="headingMd">Información de cuenta</Text>
-            <Box padding="400" background="bg-surface-secondary" borderRadius="300">
-              <BlockStack gap="300">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodyMd" tone="subdued">Rol en el sistema</Text>
-                  <Badge tone="success" size="large">{roleName}</Badge>
-                </InlineStack>
-
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodyMd" tone="subdued">Método de autenticación</Text>
-                  <InlineStack gap="200" align="center">
-                    <Badge tone="info" size="large">{getAuthProvider()}</Badge>
-                    {getAuthProvider() !== 'Microsoft' && (
-                      <Button size="micro" onClick={handleLinkMicrosoft}>
-                        Vincular Microsoft
-                      </Button>
-                    )}
+            <DropZone
+              onDrop={handleDropZoneDrop}
+              variableHeight
+              accept="image/*"
+              type="image"
+              disabled={saving}
+            >
+              {file ? (
+                <Box padding="300">
+                  <InlineStack gap="300" blockAlign="center">
+                    <Thumbnail
+                      size="small"
+                      alt={file.name}
+                      source={window.URL.createObjectURL(file)}
+                    />
+                    <BlockStack gap="050">
+                      <Text as="span" variant="bodySm" fontWeight="medium">
+                        {file.name}
+                      </Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        {`${(file.size / 1024).toFixed(0)} KB`}
+                      </Text>
+                    </BlockStack>
                   </InlineStack>
-                </InlineStack>
+                </Box>
+              ) : (
+                <DropZone.FileUpload
+                  actionTitle="Seleccionar imagen"
+                  actionHint="JPG, PNG o GIF — máximo 2 MB"
+                />
+              )}
+            </DropZone>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+    );
+  }
 
+  // ─── Sub-view: Link Accounts ───
+  if (view === 'link-accounts') {
+    const hasMicrosoft = authProvider === 'Microsoft';
+    return (
+      <Modal
+        open={open}
+        onClose={handleClose}
+        title="Cuentas vinculadas"
+        secondaryActions={[{ content: 'Regresar', onAction: () => setView('overview') }]}
+      >
+        <Modal.Section>
+          <BlockStack gap="300">
+            <Text as="p" variant="bodySm" tone="subdued">
+              Vincula proveedores de autenticación adicionales a tu cuenta. Podrás iniciar sesión con cualquiera de ellos.
+            </Text>
+
+            <Box borderStyle="solid" borderWidth="025" borderColor="border" borderRadius="300">
+              {/* Email provider */}
+              <Box padding="400">
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodyMd" tone="subdued">Miembro desde</Text>
-                  <Text as="span" variant="bodyMd" fontWeight="medium">
-                    {currentUserRole
-                      ? new Date(currentUserRole.createdAt).toLocaleDateString('es-MX', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })
-                      : '—'}
-                  </Text>
+                  <InlineStack gap="300" blockAlign="center">
+                    <Box padding="200" background="bg-fill-success-secondary" borderRadius="200">
+                      <Icon source={LockIcon} tone="success" />
+                    </Box>
+                    <BlockStack gap="050">
+                      <Text as="span" variant="bodyMd" fontWeight="semibold">Correo electrónico</Text>
+                      <Text as="span" variant="bodySm" tone="subdued">{user?.email}</Text>
+                    </BlockStack>
+                  </InlineStack>
+                  <Badge tone="success">Principal</Badge>
                 </InlineStack>
-              </BlockStack>
+              </Box>
+
+              <Divider />
+
+              {/* Microsoft provider */}
+              <Box padding="400">
+                <InlineStack align="space-between" blockAlign="center">
+                  <InlineStack gap="300" blockAlign="center">
+                    <Box
+                      padding="200"
+                      background={hasMicrosoft ? 'bg-fill-success-secondary' : 'bg-surface-secondary'}
+                      borderRadius="200"
+                    >
+                      <Icon source={LinkIcon} tone={hasMicrosoft ? 'success' : 'subdued'} />
+                    </Box>
+                    <BlockStack gap="050">
+                      <Text as="span" variant="bodyMd" fontWeight="semibold">Microsoft</Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        {hasMicrosoft ? 'Cuenta vinculada' : 'No vinculada'}
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
+                  {hasMicrosoft ? (
+                    <Badge tone="success">Vinculada</Badge>
+                  ) : (
+                    <Button size="slim" onClick={handleLinkMicrosoft} loading={linkingMicrosoft}>
+                      Vincular
+                    </Button>
+                  )}
+                </InlineStack>
+              </Box>
             </Box>
           </BlockStack>
+        </Modal.Section>
 
-          {/* Banner informativo */}
-          <Banner tone="info">
+        <Modal.Section>
+          <Banner tone="info" title="Cambiar contraseña">
             <p>
-              <strong>Cambiar contraseña:</strong> Cierra sesión y usa la opción "Olvidé mi contraseña"
-              en la pantalla de inicio de sesión.
+              Cierra sesión y selecciona &quot;Olvidé mi contraseña&quot; en la pantalla de inicio para restablecerla.
             </p>
           </Banner>
+        </Modal.Section>
+      </Modal>
+    );
+  }
+
+  // ─── Main overview view ───
+  return (
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title="Mi perfil"
+    >
+      {/* ── Hero: Avatar + Identity ── */}
+      <Modal.Section>
+        <BlockStack gap="400">
+          <InlineStack gap="400" blockAlign="center" wrap={false}>
+            <div style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }} onClick={() => setView('edit-photo')}>
+              <Avatar
+                size="xl"
+                name={displayName}
+                initials={initials}
+                source={previewSource}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: -2,
+                  right: -2,
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  background: 'var(--p-color-bg-fill-emphasis)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid var(--p-color-bg-surface)',
+                }}
+              >
+                <div style={{ display: 'flex', color: 'var(--p-color-text-inverse)' }}>
+                  <Icon source={CameraIcon} tone="inherit" />
+                </div>
+              </div>
+            </div>
+
+            <BlockStack gap="100">
+              <Text as="h2" variant="headingLg" fontWeight="bold">
+                {displayName || 'Sin nombre'}
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                {user?.email || ''}
+              </Text>
+              <InlineStack gap="200" blockAlign="center">
+                <Badge tone={getRoleTone()}>{roleName}</Badge>
+                {currentUserRole?.employeeNumber && (
+                  <Badge tone="info">{currentUserRole.employeeNumber}</Badge>
+                )}
+              </InlineStack>
+            </BlockStack>
+          </InlineStack>
+        </BlockStack>
+      </Modal.Section>
+
+      {/* ── Personal Information ── */}
+      <Modal.Section>
+        <BlockStack gap="300">
+          <Text variant="headingSm" as="h3">Información personal</Text>
+
+          <Box borderStyle="solid" borderWidth="025" borderColor="border" borderRadius="300">
+            {/* Name row */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setView('edit-name')}
+              onKeyDown={(e) => { if (e.key === 'Enter') setView('edit-name'); }}
+              style={{ cursor: 'pointer' }}
+            >
+              <Box padding="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <InlineStack gap="300" blockAlign="center">
+                    <Box padding="200" background="bg-fill-success-secondary" borderRadius="200">
+                      <Icon source={PersonIcon} tone="success" />
+                    </Box>
+                    <BlockStack gap="050">
+                      <Text as="span" variant="bodySm" tone="subdued">Nombre completo</Text>
+                      <Text as="span" variant="bodyMd" fontWeight="semibold">{displayName || '—'}</Text>
+                    </BlockStack>
+                  </InlineStack>
+                  <Icon source={ChevronRightIcon} tone="subdued" />
+                </InlineStack>
+              </Box>
+            </div>
+
+            <Divider />
+
+            {/* Email row */}
+            <Box padding="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <InlineStack gap="300" blockAlign="center">
+                  <Box padding="200" background="bg-fill-success-secondary" borderRadius="200">
+                    <Icon source={LockIcon} tone="success" />
+                  </Box>
+                  <BlockStack gap="050">
+                    <Text as="span" variant="bodySm" tone="subdued">Correo electrónico</Text>
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">{user?.email || '—'}</Text>
+                  </BlockStack>
+                </InlineStack>
+                <Badge tone="info">Verificado</Badge>
+              </InlineStack>
+            </Box>
+
+            <Divider />
+
+            {/* Employee number */}
+            <Box padding="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <InlineStack gap="300" blockAlign="center">
+                  <Box
+                    padding="200"
+                    background={currentUserRole?.employeeNumber ? 'bg-fill-success-secondary' : 'bg-surface-secondary'}
+                    borderRadius="200"
+                  >
+                    <Icon source={HashtagIcon} tone={currentUserRole?.employeeNumber ? 'success' : 'subdued'} />
+                  </Box>
+                  <BlockStack gap="050">
+                    <Text as="span" variant="bodySm" tone="subdued">Número de empleado</Text>
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">
+                      {currentUserRole?.employeeNumber || 'Sin asignar'}
+                    </Text>
+                  </BlockStack>
+                </InlineStack>
+              </InlineStack>
+            </Box>
+          </Box>
+        </BlockStack>
+      </Modal.Section>
+
+      {/* ── Account & Security ── */}
+      <Modal.Section>
+        <BlockStack gap="300">
+          <Text variant="headingSm" as="h3">Cuenta y seguridad</Text>
+
+          <Box borderStyle="solid" borderWidth="025" borderColor="border" borderRadius="300">
+            {/* Role */}
+            <Box padding="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <InlineStack gap="300" blockAlign="center">
+                  <Box padding="200" background="bg-fill-success-secondary" borderRadius="200">
+                    <Icon source={PersonIcon} tone="success" />
+                  </Box>
+                  <BlockStack gap="050">
+                    <Text as="span" variant="bodySm" tone="subdued">Rol en el sistema</Text>
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">{roleName}</Text>
+                  </BlockStack>
+                </InlineStack>
+                <Badge tone={getRoleTone()}>{roleName}</Badge>
+              </InlineStack>
+            </Box>
+
+            <Divider />
+
+            {/* Auth / Linked accounts */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setView('link-accounts')}
+              onKeyDown={(e) => { if (e.key === 'Enter') setView('link-accounts'); }}
+              style={{ cursor: 'pointer' }}
+            >
+              <Box padding="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <InlineStack gap="300" blockAlign="center">
+                    <Box
+                      padding="200"
+                      background={authProvider !== 'Email' ? 'bg-fill-success-secondary' : 'bg-surface-secondary'}
+                      borderRadius="200"
+                    >
+                      <Icon source={LinkIcon} tone={authProvider !== 'Email' ? 'success' : 'subdued'} />
+                    </Box>
+                    <BlockStack gap="050">
+                      <Text as="span" variant="bodySm" tone="subdued">Cuentas vinculadas</Text>
+                      <Text as="span" variant="bodyMd" fontWeight="semibold">{authProvider}</Text>
+                    </BlockStack>
+                  </InlineStack>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Badge tone="info">{authProvider}</Badge>
+                    <Icon source={ChevronRightIcon} tone="subdued" />
+                  </InlineStack>
+                </InlineStack>
+              </Box>
+            </div>
+
+            <Divider />
+
+            {/* Member since */}
+            <Box padding="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <InlineStack gap="300" blockAlign="center">
+                  <Box padding="200" background="bg-fill-success-secondary" borderRadius="200">
+                    <Icon source={ClockIcon} tone="success" />
+                  </Box>
+                  <BlockStack gap="050">
+                    <Text as="span" variant="bodySm" tone="subdued">Miembro desde</Text>
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">{memberSince}</Text>
+                  </BlockStack>
+                </InlineStack>
+              </InlineStack>
+            </Box>
+          </Box>
         </BlockStack>
       </Modal.Section>
     </Modal>

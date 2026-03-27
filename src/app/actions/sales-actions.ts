@@ -151,7 +151,7 @@ export async function createSale(
   await requirePermission('sales.create');
   const now = new Date();
   const cajero = saleData.cajero?.trim() || 'Cajero';
-  const id = `sale-${Date.now()}`;
+  const id = `sale-${crypto.randomUUID()}`;
 
   // ── PostgreSQL SEQUENCE: industry-standard for high-volume POS ──
   // 1. Create sequence if not exists (idempotent, runs once ever)
@@ -226,7 +226,7 @@ export async function createSale(
 
     // Write loyalty history only when points change
     if (puntosNetos !== 0) {
-      const ltId = `lt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const ltId = `lt-${crypto.randomUUID()}`;
       await db.insert(loyaltyTransactions).values({
         id: ltId,
         clienteId,
@@ -245,7 +245,7 @@ export async function createSale(
 
   for (const item of saleData.items) {
     await db.insert(saleItems).values({
-      id: `si-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `si-${crypto.randomUUID()}`,
       saleId: id,
       productId: item.productId,
       productName: item.productName,
@@ -397,7 +397,7 @@ export async function createCorteCaja(data: {
   const diferencia = data.efectivoContado - efectivoEsperado;
 
   const corte: CorteCaja = {
-    id: `corte-${Date.now()}`,
+    id: `corte-${crypto.randomUUID()}`,
     fecha: new Date().toISOString(),
     cajero: data.cajero,
     ventasEfectivo,

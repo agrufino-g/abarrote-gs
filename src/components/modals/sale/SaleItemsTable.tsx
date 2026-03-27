@@ -5,10 +5,10 @@ import {
   BlockStack,
   Text,
   IndexTable,
-  Icon,
   Button,
 } from '@shopify/polaris';
-import { DeleteIcon, BarcodeIcon } from '@shopify/polaris-icons';
+import { DeleteIcon } from '@shopify/polaris-icons';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { formatCurrency } from '@/lib/utils';
 import type { SaleItem, Product } from '@/types';
 
@@ -44,16 +44,7 @@ export function SaleItemsTable({ items, allProducts, onRemove }: SaleItemsTableP
             return (
               <IndexTable.Row id={item.productId} key={item.productId} position={idx}>
                 <IndexTable.Cell>
-                  {productInfo?.imageUrl ? (
-                    <div style={{ width: '40px', height: '40px', borderRadius: '4px', overflow: 'hidden', border: '1px solid #e1e3e5' }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={productInfo.imageUrl} alt={item.productName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  ) : (
-                    <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: '#f4f6f8', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e1e3e5' }}>
-                      <Icon source={BarcodeIcon} tone="subdued" />
-                    </div>
-                  )}
+                  <OptimizedImage source={productInfo?.imageUrl} alt={item.productName} size="small" />
                 </IndexTable.Cell>
                 <IndexTable.Cell>
                   <Text as="span" variant="bodyMd" fontWeight="semibold">{item.productName}</Text>

@@ -19,6 +19,9 @@ export const SECTION_TO_PATH: Record<string, string> = {
   settings: '/dashboard/settings',
   roles: '/dashboard/settings/roles',
   notifications: '/dashboard/notifications',
+  promotions: '/dashboard/others/promotions',
+  categories: '/dashboard/others/categories',
+  servicios: '/dashboard/others/servicios',
 };
 
 /** Converts a section key to its corresponding URL path */

@@ -46,7 +46,7 @@ export async function createLoyaltyTransaction(data: {
 }): Promise<LoyaltyTransaction> {
   await requirePermission('sales.create');
 
-  const id = `lt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const id = `lt-${crypto.randomUUID()}`;
   const now = new Date();
 
   await db.insert(loyaltyTransactions).values({

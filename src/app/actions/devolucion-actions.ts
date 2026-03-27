@@ -59,7 +59,7 @@ export async function createDevolucion(data: {
 }): Promise<Devolucion> {
   await requirePermission('sales.cancel');
 
-  const id = `dev-${Date.now()}`;
+  const id = `dev-${crypto.randomUUID()}`;
   const now = new Date();
 
   await db.insert(devoluciones).values({
@@ -78,7 +78,7 @@ export async function createDevolucion(data: {
 
   const savedItems: DevolucionItem[] = [];
   for (const item of data.items) {
-    const itemId = `devi-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const itemId = `devi-${crypto.randomUUID()}`;
     await db.insert(devolucionItems).values({
       id: itemId,
       devolucionId: id,

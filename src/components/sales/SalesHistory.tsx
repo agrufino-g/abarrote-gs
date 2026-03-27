@@ -35,13 +35,13 @@ import type { SaleRecord } from '@/types';
 
 function paymentBadge(method: string) {
   const styles: Record<string, { tone: any, label: string }> = {
-    efectivo:      { tone: 'success',   label: 'Efectivo' },
-    tarjeta:       { tone: 'info',      label: 'Tarjeta' },
-    tarjeta_web:   { tone: 'info',      label: 'MP Web' },
-    tarjeta_manual:{ tone: 'info',      label: 'T. Manual' },
+    efectivo: { tone: 'success', label: 'Efectivo' },
+    tarjeta: { tone: 'info', label: 'Tarjeta' },
+    tarjeta_web: { tone: 'info', label: 'MP Web' },
+    tarjeta_manual: { tone: 'info', label: 'T. Manual' },
     transferencia: { tone: 'attention', label: 'Transfer' },
-    fiado:         { tone: 'warning',   label: 'Fiado' },
-    puntos:        { tone: 'magic',    label: 'Puntos' },
+    fiado: { tone: 'warning', label: 'Fiado' },
+    puntos: { tone: 'magic', label: 'Puntos' },
   };
   const s = styles[method] || { tone: 'subdued', label: method };
   return (
@@ -57,11 +57,11 @@ export function SalesHistory() {
   const devolucionesStore = useDashboardStore((s) => s.devoluciones);
   const { showSuccess, showError } = useToast();
 
-  const [searchFolio,    setSearchFolio]    = useState('');
-  const [filterMethod,   setFilterMethod]   = useState('');
-  const [selectedSale,   setSelectedSale]   = useState<SaleRecord | null>(null);
-  const [detailOpen,     setDetailOpen]     = useState(false);
-  const [isExportOpen,   setIsExportOpen]   = useState(false);
+  const [searchFolio, setSearchFolio] = useState('');
+  const [filterMethod, setFilterMethod] = useState('');
+  const [selectedSale, setSelectedSale] = useState<SaleRecord | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [devolucionOpen, setDevolucionOpen] = useState(false);
 
   const [activeDateRange, setActiveDateRange] = useState<RangeOption | null>(null);
@@ -92,7 +92,7 @@ export function SalesHistory() {
     const dateStr = saleDate.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const timeStr = saleDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
     const now = new Date().toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
-    
+
     const paymentLabels: Record<string, string> = {
       efectivo: 'Efectivo', tarjeta: 'Tarjeta bancaria', tarjeta_manual: 'Tarjeta (manual)',
       tarjeta_web: 'Mercado Pago Web', transferencia: 'Transferencia',
@@ -216,16 +216,14 @@ export function SalesHistory() {
           <InlineGrid columns="1fr auto">
             <Text as="h2" variant="headingMd">Historial de ventas</Text>
             <InlineStack gap="200">
-              <Button 
+              <Button
                 onClick={() => window.location.reload()}
-                icon={RefreshIcon}
               >
                 Actualizar
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={() => setIsExportOpen(true)}
-                icon={ExportIcon}
               >
                 Exportar
               </Button>
@@ -249,7 +247,7 @@ export function SalesHistory() {
           }}
           tabs={[]}
           selected={0}
-          onSelect={() => {}}
+          onSelect={() => { }}
           filters={searchFilters}
           appliedFilters={appliedFilters}
           onClearAll={() => {
@@ -319,11 +317,11 @@ export function SalesHistory() {
                       <IndexTable.Cell>
                         <ButtonGroup variant="segmented">
                           <Button size="slim" onClick={() => handleViewSale(sale)}>Ver</Button>
-                          <Button 
-                            size="slim" 
-                            onClick={() => { 
-                              setSelectedSale(sale); 
-                              setTimeout(() => handlePrint(), 0); 
+                          <Button
+                            size="slim"
+                            onClick={() => {
+                              setSelectedSale(sale);
+                              setTimeout(() => handlePrint(), 0);
                             }}
                           >
                             Imprimir

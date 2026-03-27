@@ -25,7 +25,7 @@ export async function fetchGastos(): Promise<Gasto[]> {
 
 export async function createGasto(data: Omit<Gasto, 'id'>): Promise<Gasto> {
   await requirePermission('expenses.create');
-  const id = `gasto-${Date.now()}`;
+  const id = `gasto-${crypto.randomUUID()}`;
 
   await db.insert(gastos).values({
     id,
@@ -84,7 +84,7 @@ export async function createProveedor(
   data: Omit<Proveedor, 'id' | 'ultimoPedido'>
 ): Promise<Proveedor> {
   await requirePermission('suppliers.edit');
-  const id = `prov-${Date.now()}`;
+  const id = `prov-${crypto.randomUUID()}`;
   await db.insert(proveedores).values({
     id,
     nombre: data.nombre,
@@ -157,7 +157,7 @@ export async function createPedido(
   data: Omit<PedidoRecord, 'id' | 'fecha' | 'estado'>
 ): Promise<PedidoRecord> {
   await requirePermission('suppliers.edit');
-  const id = `pedido-${Date.now()}`;
+  const id = `pedido-${crypto.randomUUID()}`;
   const now = new Date();
 
   await db.insert(pedidos).values({
@@ -170,7 +170,7 @@ export async function createPedido(
 
   for (const prod of data.productos) {
     await db.insert(pedidoItems).values({
-      id: `pi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `pi-${crypto.randomUUID()}`,
       pedidoId: id,
       productId: prod.productId,
       productName: prod.productName,

@@ -118,7 +118,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
     set({ products, inventoryAlerts: alerts, kpiData: kpi, inventoryAudits: audits });
   },
   
-  createCategory: async (data: { id: string; name: string; description: string | null; icon: string | null }) => {
+  createCategory: async (data: { id?: string; name: string; description: string | null; icon: string | null }) => {
     try {
       const newCat = await dbCreateCategory(data);
       const state = get();

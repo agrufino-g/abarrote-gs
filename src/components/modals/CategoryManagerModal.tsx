@@ -40,9 +40,7 @@ export function CategoryManagerModal({ open, onClose }: CategoryManagerModalProp
     if (!newName.trim()) return;
     setIsSubmitting(true);
     try {
-      const id = newName.toLowerCase().trim().replace(/\s+/g, '_');
       await createCategory({
-        id,
         name: newName.trim(),
         description: null,
         icon: null,

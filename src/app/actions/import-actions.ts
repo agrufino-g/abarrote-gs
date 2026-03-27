@@ -49,7 +49,7 @@ export async function importProductsFromCSV(formData: FormData, overwrite: boole
                 const row = rowData as Record<string, string>;
                 const barcode = row['Codigo_Barras'] || row['Barcode'];
                 const name = row['Producto'] || row['Title'];
-                const sku = row['SKU'] || `IMP-${Date.now()}-${index}`;
+                const sku = row['SKU'] || `IMP-${crypto.randomUUID().slice(0, 8)}`;
                 const category = row['Categoria'] || row['Product category'] || 'General';
                 const costPrice = String(parseFloat(row['Precio_Costo'] || row['Cost per item'] || '0'));
                 const unitPrice = String(parseFloat(row['Precio_Venta'] || row['Price'] || '0'));
@@ -83,7 +83,7 @@ export async function importProductsFromCSV(formData: FormData, overwrite: boole
                         updatedCount++;
                     }
                 } else {
-                    const newId = `p${Date.now()}${index}`;
+                    const newId = `p-${crypto.randomUUID()}`;
                     await db.insert(products).values({
                         id: newId,
                         name: sanitize(name),
@@ -170,7 +170,7 @@ export async function importCustomersFromCSV(formData: FormData) {
                     throw new Error(`Fila ${index + 2}: No se pudo determinar el nombre del cliente.`);
                 }
 
-                const id = `cli-${Date.now()}-${index}`;
+                const id = `cli-${crypto.randomUUID()}`;
                 await db.insert(clientes).values({
                     id,
                     name: sanitize(name),

@@ -19,6 +19,8 @@ import {
   SettingsFilledIcon,
   PersonLockIcon,
   PersonLockFilledIcon,
+  AppsIcon,
+  AppsFilledIcon,
 } from '@shopify/polaris-icons';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -35,6 +37,7 @@ const PRODUCT_PATHS = ['/dashboard/products', '/dashboard/products/inventory', '
 const CUSTOMER_PATHS = ['/dashboard/customers', '/dashboard/customers/fiado'];
 const FINANCE_PATHS = ['/dashboard/finance/expenses', '/dashboard/finance/suppliers'];
 const ANALYTICS_PATHS = ['/dashboard/analytics', '/dashboard/analytics/reports'];
+const OTHERS_PATHS = ['/dashboard/others/promotions', '/dashboard/others/categories', '/dashboard/others/servicios'];
 
 export function SidebarNav({ onSelect, badges }: SidebarNavProps) {
   const { hasAnyPermission, isLoaded } = usePermissions();
@@ -196,6 +199,39 @@ export function SidebarNav({ onSelect, badges }: SidebarNavProps) {
       expanded: isSel,
       onClick: () => onSelect('analytics'),
       ...(subNav.length > 0 ? { subNavigationItems: subNav } : {}),
+    });
+  }
+
+  // "Otros" section — Promociones y Categorías
+  if (can('inventory.view', 'inventory.edit')) {
+    const isSel = isAnyPath(OTHERS_PATHS);
+    adminItems.push({
+      url: '#',
+      label: 'Otros',
+      icon: isSel ? AppsIcon : AppsFilledIcon,
+      selected: isSel,
+      expanded: isSel,
+      onClick: () => onSelect('promotions'),
+      subNavigationItems: [
+        {
+          url: '#',
+          label: 'Servicios y Recargas',
+          matches: isPath('/dashboard/others/servicios'),
+          onClick: () => onSelect('servicios'),
+        },
+        {
+          url: '#',
+          label: 'Promociones',
+          matches: isPath('/dashboard/others/promotions'),
+          onClick: () => onSelect('promotions'),
+        },
+        {
+          url: '#',
+          label: 'Categorías',
+          matches: isPath('/dashboard/others/categories'),
+          onClick: () => onSelect('categories'),
+        },
+      ],
     });
   }
 

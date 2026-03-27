@@ -8,11 +8,13 @@ import {
   InlineStack,
   Button,
   Banner,
-  Layout,
   Page,
   Icon,
-  Grid,
   Box,
+  Divider,
+  Card,
+  Badge,
+  ContextualSaveBar,
 } from '@shopify/polaris';
 import {
   getMPConfig,
@@ -22,8 +24,8 @@ import {
 import type { MercadoPagoConfig } from '@/lib/mercadopago';
 import { useDashboardStore } from '@/store/dashboardStore';
 import type { StoreConfig } from '@/types';
-import { uploadFile } from '@/lib/storage';
 import {
+  ChevronRightIcon,
   StoreIcon,
   ReceiptIcon,
   InventoryIcon,
@@ -55,9 +57,12 @@ const SETTINGS_CATEGORIES = [
   { id: 'payments', title: 'Pagos Integrados', description: 'Vincula tu terminal Point de Mercado Pago para cobros físicos.', icon: CreditCardIcon },
 ];
 
+import { uploadFile } from '@/lib/storage';
+
 export function ConfiguracionPage() {
   const storeConfig = useDashboardStore((s) => s.storeConfig);
   const saveStoreConfig = useDashboardStore((s) => s.saveStoreConfig);
+
 
   const {
     fields,
@@ -121,6 +126,18 @@ export function ConfiguracionPage() {
   useEffect(() => {
     resetConfig();
   }, [storeConfig, resetConfig]);
+
+  // === PROTECCIÓN DE DATOS (leaveConfirmation) ===
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   // Derived config object for sub-components (read-only or for preview)
   const config = useMemo(() => {
@@ -290,100 +307,235 @@ export function ConfiguracionPage() {
 
   const activeCategory = SETTINGS_CATEGORIES.find(c => c.id === selectedCategory);
 
+  // ── Detail view when a category is selected ──
   if (selectedCategory !== null) {
     return (
-      <BlockStack gap="400">
-        {saved && (
-          <Banner tone="success" title="Cambios guardados" onDismiss={() => setSaved(false)}>
-            <p>Tu configuración se ha actualizado correctamente en todos los módulos del sistema.</p>
-          </Banner>
+      <>
+        {isDirty && (
+          <ContextualSaveBar
+            message="Cambios sin guardar en la configuración"
+            saveAction={{
+              onAction: handleSave,
+              loading: saving,
+            }}
+            discardAction={{
+              onAction: resetConfig,
+            }}
+          />
         )}
         <Page
           backAction={{ content: 'Configuración', onAction: () => setSelectedCategory(null) }}
           title={activeCategory?.title || 'Configuración'}
           subtitle={activeCategory?.description}
-          primaryAction={isDirty ? {
-            content: 'Guardar cambios',
-            onAction: handleSave,
-            loading: saving,
-          } : undefined}
-          secondaryActions={isDirty ? [{
-            content: 'Descartar',
-            onAction: resetConfig,
-            destructive: true,
-          }] : []}
         >
-          <Box paddingBlockEnd="1200">
-            {getActiveView()}
-          </Box>
+          <form 
+            data-save-bar 
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            onReset={(e) => {
+              e.preventDefault();
+              resetConfig();
+            }}
+          >
+            <Box paddingBlockEnd="1200">
+              {getActiveView()}
+            </Box>
+          </form>
         </Page>
-      </BlockStack>
+      </>
     );
   }
 
-  return (
-    <Page
-      title={(
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Icon source={SettingsFilledIcon} tone="base" />
-          <span>Configuración</span>
-        </div>
-      ) as any}
-      subtitle="Administra las políticas operativas, la identidad fiscal y la infraestructura de tu negocio."
-    >
-      {saved && (
-        <Box paddingBlockEnd="400">
-          <Banner tone="success" title="Cambios guardados" onDismiss={() => setSaved(false)}>
-            <p>Tu configuración se ha actualizado correctamente.</p>
-          </Banner>
-        </Box>
-      )}
+  // ── Computed status badges ──
+  const storeConfigured = !!(config.storeName && config.address);
+  const fiscalConfigured = !!(config.rfc && config.regimenFiscal);
+  const notificationsConfigured = !!(config.enableNotifications && config.telegramToken && config.telegramChatId);
+  const mpLinked = mpConfig.enabled;
+  const hardwareConfigured = !!(config.printerIp);
+  const loyaltyConfigured = config.loyaltyEnabled;
 
-      <Layout>
-        <Layout.Section>
-          <Grid>
-            {SETTINGS_CATEGORIES.map((cat) => (
-              <Grid.Cell key={cat.id} columnSpan={{ xs: 6, sm: 3, md: 3, lg: 4, xl: 4 }}>
-                <Box
-                  background="bg-surface"
-                  borderWidth="025"
-                  borderColor="border"
-                  borderRadius="300"
-                  padding="500"
-                  shadow="100"
-                  minHeight="160px"
-                >
-                  <BlockStack gap="400">
-                    <InlineStack align="space-between" blockAlign="start">
-                      <Box
-                        background="bg-fill-secondary"
-                        borderRadius="200"
-                        padding="200"
-                      >
-                        <Icon source={cat.icon} tone="base" />
-                      </Box>
-                      <Button
-                        variant="plain"
-                        onClick={() => setSelectedCategory(cat.id)}
-                      >
-                        Abrir
-                      </Button>
-                    </InlineStack>
-                    <BlockStack gap="100">
-                      <Text as="h3" variant="headingSm" fontWeight="semibold">
-                        {cat.title}
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        {cat.description}
-                      </Text>
-                    </BlockStack>
+  const STATUS_MAP: Record<string, { configured: boolean; label: string }> = {
+    general: { configured: storeConfigured, label: storeConfigured ? 'Configurado' : 'Pendiente' },
+    fiscal: { configured: fiscalConfigured, label: fiscalConfigured ? 'Configurado' : 'Pendiente' },
+    pos: { configured: true, label: 'Activo' },
+    hardware: { configured: hardwareConfigured, label: hardwareConfigured ? 'Conectado' : 'Sin conectar' },
+    loyalty: { configured: loyaltyConfigured, label: loyaltyConfigured ? 'Activo' : 'Inactivo' },
+    inventory: { configured: true, label: 'Activo' },
+    notifications: { configured: notificationsConfigured, label: notificationsConfigured ? 'Conectado' : 'Sin conectar' },
+    payments: { configured: mpLinked, label: mpLinked ? 'Vinculado' : 'Sin vincular' },
+  };
+
+  // Group categories
+  const GROUPS = [
+    {
+      title: 'Negocio',
+      description: 'Identidad, datos fiscales y configuración operativa de tu tienda.',
+      items: SETTINGS_CATEGORIES.filter(c => ['general', 'fiscal'].includes(c.id)),
+    },
+    {
+      title: 'Punto de Venta',
+      description: 'Tickets, periféricos y configuración del mostrador.',
+      items: SETTINGS_CATEGORIES.filter(c => ['pos', 'hardware'].includes(c.id)),
+    },
+    {
+      title: 'Comercial',
+      description: 'Programas de lealtad y reglas de inventario.',
+      items: SETTINGS_CATEGORIES.filter(c => ['loyalty', 'inventory'].includes(c.id)),
+    },
+    {
+      title: 'Integraciones',
+      description: 'Servicios externos y canales de comunicación.',
+      items: SETTINGS_CATEGORIES.filter(c => ['notifications', 'payments'].includes(c.id)),
+    },
+  ];
+
+  return (
+    <>
+      {isDirty && (
+        <ContextualSaveBar
+          message="Cambios sin guardar en la configuración"
+          saveAction={{
+            onAction: handleSave,
+            loading: saving,
+          }}
+          discardAction={{
+            onAction: resetConfig,
+          }}
+        />
+      )}
+      <Page
+        title="Configuración"
+        subtitle={`${config.storeName || 'Mi Tienda'} — Administra las políticas operativas de tu negocio`}
+      >
+        <form
+          data-save-bar
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+          onReset={(e) => {
+            e.preventDefault();
+            resetConfig();
+          }}
+        >
+          <BlockStack gap="800">
+            {saved && (
+              <Banner tone="success" title="Configuración guardada correctamente" onDismiss={() => setSaved(false)} />
+            )}
+
+            {/* Settings groups */}
+            {GROUPS.map((group) => (
+              <BlockStack gap="400" key={group.title}>
+                <BlockStack gap="100">
+                  <Text variant="headingMd" as="h2">{group.title}</Text>
+                  <Text variant="bodySm" as="p" tone="subdued">{group.description}</Text>
+                </BlockStack>
+
+                <Box borderStyle="solid" borderWidth="025" borderColor="border" borderRadius="300" overflowX="hidden">
+                  <BlockStack gap="0">
+                    {group.items.map((cat, idx) => {
+                      const status = STATUS_MAP[cat.id];
+                      return (
+                        <div key={cat.id}>
+                          {idx > 0 && <Divider />}
+                          <div
+                            className="settings-row"
+                            onClick={() => setSelectedCategory(cat.id)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setSelectedCategory(cat.id); }}
+                          >
+                            <Box padding="400">
+                              <InlineStack align="space-between" blockAlign="center" gap="400">
+                                <InlineStack gap="400" blockAlign="center">
+                                  <Box
+                                    padding="300"
+                                    background={status?.configured ? 'bg-fill-success-secondary' : 'bg-surface-secondary'}
+                                    borderRadius="200"
+                                  >
+                                    <Icon source={cat.icon} tone={status?.configured ? 'success' : 'subdued'} />
+                                  </Box>
+                                  <BlockStack gap="050">
+                                    <Text variant="bodyMd" fontWeight="semibold" as="span">{cat.title}</Text>
+                                    <Text variant="bodySm" as="span" tone="subdued">{cat.description}</Text>
+                                  </BlockStack>
+                                </InlineStack>
+
+                                <InlineStack gap="300" blockAlign="center">
+                                  <Badge tone={status?.configured ? 'success' : undefined}>
+                                    {status?.label ?? 'Pendiente'}
+                                  </Badge>
+                                  <Icon source={ChevronRightIcon} tone="subdued" />
+                                </InlineStack>
+                              </InlineStack>
+                            </Box>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </BlockStack>
                 </Box>
-              </Grid.Cell>
+              </BlockStack>
             ))}
-          </Grid>
-        </Layout.Section>
-      </Layout>
-    </Page>
+
+            {/* Tools section */}
+            <BlockStack gap="400">
+              <BlockStack gap="100">
+                <Text variant="headingMd" as="h2">Herramientas</Text>
+                <Text variant="bodySm" as="p" tone="subdued">Mantenimiento y respaldo de la configuración del sistema.</Text>
+              </BlockStack>
+
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="center" wrap={false}>
+                    <BlockStack gap="100">
+                      <Text variant="bodyMd" fontWeight="semibold" as="span">Respaldo de configuración</Text>
+                      <Text variant="bodySm" as="span" tone="subdued">Descarga un archivo JSON con toda la configuración del POS.</Text>
+                    </BlockStack>
+                    <Button>Exportar</Button>
+                  </InlineStack>
+                  <Divider />
+                  <InlineStack align="space-between" blockAlign="center" wrap={false}>
+                    <BlockStack gap="100">
+                      <Text variant="bodyMd" fontWeight="semibold" as="span">Restablecer valores de fábrica</Text>
+                      <Text variant="bodySm" as="span" tone="subdued">Restablece IPs, folios y parámetros a sus valores originales.</Text>
+                    </BlockStack>
+                    <Button tone="critical">Resetear</Button>
+                  </InlineStack>
+                </BlockStack>
+              </Card>
+            </BlockStack>
+
+            {/* Footer */}
+            <Box paddingBlock="400">
+              <BlockStack align="center" gap="200">
+                <div style={{ textAlign: 'center' }}>
+                  <Text variant="bodySm" tone="subdued" as="p">
+                    Versión del sistema: <Text as="span" fontWeight="semibold">v0.12.568</Text> · Última actualización: {new Date().toLocaleDateString('es-MX')}
+                  </Text>
+                </div>
+              </BlockStack>
+            </Box>
+          </BlockStack>
+        </form>
+
+        <style>{`
+          .settings-row {
+            cursor: pointer;
+            transition: background 0.15s ease;
+          }
+          .settings-row:hover {
+            background: var(--p-color-bg-surface-hover);
+          }
+          .settings-row:focus-visible {
+            outline: 2px solid var(--p-color-border-focus);
+            outline-offset: -2px;
+            border-radius: var(--p-border-radius-300);
+          }
+        `}</style>
+      </Page>
+    </>
   );
 }

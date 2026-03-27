@@ -8,6 +8,7 @@
   border-bottom: 1px solid rgba(255,255,255,0.06);
   display: flex;
   align-items: center;
+  justify-content: space-between; /* Empujar logo a la izq y acciones a la der */
   padding: 0 12px 0 8px;
   position: sticky;
   top: 0;
@@ -46,17 +47,21 @@
    BARRA DE BÚSQUEDA — contenedor y caja
    ============================================================ */
 .ctb-search-wrap {
-  flex: 1;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 640px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  padding: 0 24px;
+  pointer-events: none; /* Dejar pasar clics si no es en el input */
+  z-index: 10;
 }
 .ctb-search-box {
   width: 100%;
-  max-width: 640px;
-  position: relative;
+  pointer-events: auto; /* Reactivar clics para la caja */
 }
 
 /* Fila del input: ícono + campo + atajo de teclado */

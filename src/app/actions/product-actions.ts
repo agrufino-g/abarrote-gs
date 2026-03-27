@@ -33,7 +33,7 @@ export async function fetchAllProducts(): Promise<Product[]> {
 
 export async function createProduct(data: Omit<Product, 'id'>): Promise<Product> {
   await requirePermission('inventory.edit');
-  const id = `p${Date.now()}`;
+  const id = `p-${crypto.randomUUID()}`;
 
   cache.invalidatePattern('products:');
 

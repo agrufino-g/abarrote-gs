@@ -9,9 +9,9 @@ import {
   Divider,
   InlineStack,
   Text,
-  Thumbnail,
 } from '@shopify/polaris';
-import { ArrowLeftIcon, ImageIcon, SortIcon } from '@shopify/polaris-icons';
+import { ArrowLeftIcon, SortIcon } from '@shopify/polaris-icons';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { Product } from '@/types';
 import { BulkColumnKey, BulkColumnDefinition, BulkEditRow } from './InventoryTypes';
 import { InventoryColumnsPopover } from './InventoryColumnsPopover';
@@ -148,7 +148,7 @@ export function InventoryBulkEdit({
                               boxShadow: isActive ? 'inset 0 0 0 2px #0a66e2' : 'none',
                             }}
                           >
-                            <Thumbnail size="small" source={product?.imageUrl || ImageIcon} alt={row.title} key={product?.imageUrl || 'no-image'} />
+                            <OptimizedImage source={product?.imageUrl} alt={row.title} size="small" />
                             <input
                               value={row.title}
                               onChange={(event) => onBulkFieldChange(row.id, 'title', event.target.value)}

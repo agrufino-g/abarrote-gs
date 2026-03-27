@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { Product } from '@/types';
 import { ProductDetailModal } from '@/components/modals/ProductDetailModal';
 import { sectionToPath } from '@/lib/navigation';
+import { useSyncEngine } from '@/hooks/useSyncEngine';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useRequireAuth();
@@ -33,6 +34,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sessionExpired, setSessionExpired] = useState(false); // New lock state
 
   const { signOut } = useAuth(); // Access signOut from AuthContext
+
+  // ── SyncEngine: cross-tab sync, visibility refresh, background polling ──
+  const { syncStatus } = useSyncEngine();
 
   useEffect(() => {
     if (user) {
@@ -135,6 +139,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         showMobileNavigation={mobileNavActive}
         onNavigationDismiss={toggleMobileNav}
       >
+        {/* Sync status indicators */}
+        {!syncStatus.isOnline && (
+          <Banner tone="warning">
+            Sin conexión — las operaciones se guardan localmente y se sincronizan al reconectar.
+          </Banner>
+        )}
+        {syncStatus.circuitOpen && syncStatus.isOnline && (
+          <Banner tone="critical">
+            Problemas de sincronización detectados. Reintentando automáticamente…
+          </Banner>
+        )}
         {isLoading && <Loading />}
         {error ? (
           <Page title="Error" fullWidth>

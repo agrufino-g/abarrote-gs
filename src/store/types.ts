@@ -52,7 +52,7 @@ export interface InventorySlice {
   createInventoryAudit: (data: { title: string; auditor: string; notes: string }) => Promise<string>;
   completeInventoryAudit: (id: string) => Promise<void>;
   // Categorias
-  createCategory: (data: { id: string; name: string; description: string | null; icon: string | null }) => Promise<void>;
+  createCategory: (data: { id?: string; name: string; description: string | null; icon: string | null }) => Promise<void>;
   updateCategory: (id: string, data: Partial<ProductCategory>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
 }

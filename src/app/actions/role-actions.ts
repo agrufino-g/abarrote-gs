@@ -3,11 +3,18 @@
 import { requireOwner, requirePermission, requireAuth, validateId } from '@/lib/auth/guard';
 import { adminAuth } from '@/lib/firebase-admin';
 import { db } from '@/db';
-import { userRoles, roleDefinitions } from '@/db/schema';
+import { userRoles, roleDefinitions, auditLogs } from '@/db/schema';
 import { eq, isNotNull } from 'drizzle-orm';
 import type { UserRoleRecord, RoleDefinition, PermissionKey } from '@/types';
 import { DEFAULT_SYSTEM_ROLES } from '@/types';
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
+
+// ==================== PIN RATE LIMITING ====================
+
+/** Strict rate limit for PIN auth: 5 attempts per 5 minutes per IP */
+const PIN_RATE_LIMIT = { maxRequests: 5, windowMs: 5 * 60_000 } as const;
 
 // ==================== PIN HASHING (scrypt) ====================
 
@@ -18,9 +25,9 @@ function hashPin(pin: string): string {
 }
 
 function verifyPin(pin: string, stored: string): boolean {
-  // Support legacy unhashed PINs (no colon = plaintext)
+  // Reject legacy unhashed PINs — they must be migrated
   if (!stored.includes(':')) {
-    return pin === stored;
+    return false;
   }
   const [salt, hash] = stored.split(':');
   const hashBuf = Buffer.from(hash, 'hex');
@@ -104,6 +111,13 @@ export async function updateRoleDefinition(
 ): Promise<void> {
   await requirePermission('roles.manage');
   validateId(id, 'Role ID');
+
+  // System roles can only be modified by the owner
+  const existing = await db.select().from(roleDefinitions).where(eq(roleDefinitions.id, id));
+  if (existing.length > 0 && existing[0].isSystem) {
+    await requireOwner();
+  }
+
   const now = new Date();
   const updates: Record<string, unknown> = { updatedAt: now };
   if (data.name !== undefined) updates.name = data.name;
@@ -302,10 +316,35 @@ export async function updateUserRole(
   assignedByUid: string
 ): Promise<void> {
   await requirePermission('roles.manage');
+
+  // Capture previous state for audit trail
+  const existing = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
+  const previousRoleId = existing.length > 0 ? existing[0].roleId : null;
+
   const now = new Date();
   await db.update(userRoles)
     .set({ roleId: newRoleId, updatedAt: now, assignedBy: assignedByUid })
     .where(eq(userRoles.firebaseUid, firebaseUid));
+
+  // Audit log — critical for compliance
+  await db.insert(auditLogs).values({
+    id: crypto.randomUUID(),
+    userId: assignedByUid,
+    userEmail: 'system',
+    action: 'update',
+    entity: 'userRole',
+    entityId: firebaseUid,
+    changes: { before: { roleId: previousRoleId }, after: { roleId: newRoleId } },
+    timestamp: now,
+  });
+
+  logger.info('User role updated', {
+    action: 'updateUserRole',
+    userId: assignedByUid,
+    targetUser: firebaseUid,
+    previousRoleId: previousRoleId ?? 'none',
+    newRoleId,
+  });
 }
 
 export async function removeUserRole(firebaseUid: string): Promise<void> {
@@ -365,10 +404,25 @@ export async function updateUserProfile(
   firebaseUid: string,
   data: { displayName?: string; avatarUrl?: string }
 ): Promise<UserRoleRecord> {
-  await requireAuth();
-  const now = new Date();
+  const currentUser = await requireAuth();
+
+  // Users can only update their own profile — unless they have roles.manage
+  if (currentUser.uid !== firebaseUid) {
+    await requirePermission('roles.manage');
+  }
+
+  const safeData: Record<string, unknown> = { updatedAt: new Date() };
+  if (data.displayName !== undefined) {
+    const sanitized = data.displayName.trim().slice(0, 100);
+    if (sanitized.length === 0) throw new Error('El nombre no puede estar vacío');
+    safeData.displayName = sanitized;
+  }
+  if (data.avatarUrl !== undefined) {
+    safeData.avatarUrl = data.avatarUrl;
+  }
+
   await db.update(userRoles)
-    .set({ ...data, updatedAt: now })
+    .set(safeData)
     .where(eq(userRoles.firebaseUid, firebaseUid));
   const rows = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
   if (rows.length === 0) throw new Error('User not found');
@@ -379,21 +433,54 @@ export async function authorizePin(
   pinCode: string,
   requiredPermission: PermissionKey
 ): Promise<{ success: boolean; authorizedByUid?: string; userDisplayName?: string; error?: string }> {
+  // 1. Require authenticated session first
+  const currentUser = await requireAuth();
+
+  // 2. Rate limit PIN attempts (prevents brute force on 4-digit PINs)
+  const rl = checkRateLimit(`pin:${currentUser.uid}`, PIN_RATE_LIMIT);
+  if (!rl.allowed) {
+    logger.warn('PIN rate limit exceeded', {
+      action: 'authorizePin',
+      userId: currentUser.uid,
+    });
+    return { success: false, error: 'Demasiados intentos. Espera unos minutos.' };
+  }
+
+  // 3. Validate PIN format (4-6 digits only)
+  if (!/^\d{4,6}$/.test(pinCode)) {
+    return { success: false, error: 'Formato de PIN inválido' };
+  }
+
   try {
-    // Load all users that have a PIN set and compare hashes
+    // 4. Load users with PIN set — POS design: any authorized user can approve
+    //    (e.g., manager authorizes discount on cashier terminal)
     const rows = await db.select().from(userRoles).where(isNotNull(userRoles.pinCode));
-    const matchedUser = rows.find(r => r.pinCode && verifyPin(pinCode, r.pinCode));
+
+    // 5. Constant-time comparison across all PINs
+    let matchedUser: (typeof rows)[number] | null = null;
+    for (const row of rows) {
+      if (row.pinCode && verifyPin(pinCode, row.pinCode)) {
+        matchedUser = row;
+        // Don't break — continue iterating for constant-time behavior
+      }
+    }
+
     if (!matchedUser) {
+      logger.warn('PIN authorization failed', {
+        action: 'authorizePin',
+        userId: currentUser.uid,
+        requiredPermission,
+      });
       return { success: false, error: 'PIN incorrecto' };
     }
 
+    // 6. Check the matched user's permissions
     const roles = await db.select().from(roleDefinitions).where(eq(roleDefinitions.id, matchedUser.roleId));
     if (roles.length === 0) {
-      return { success: false, error: 'Rol Invalido' };
+      return { success: false, error: 'Rol no encontrado' };
     }
 
     const userRoleDef = roles[0];
-
     let perms: PermissionKey[] = [];
     if (typeof userRoleDef.permissions === 'string') {
       try {
@@ -406,10 +493,16 @@ export async function authorizePin(
     }
 
     const hasPermission = perms.includes(requiredPermission) || userRoleDef.name === 'Propietario';
-
     if (!hasPermission) {
       return { success: false, error: 'Usuario no tiene permisos para esta acción' };
     }
+
+    logger.info('PIN authorization granted', {
+      action: 'authorizePin',
+      userId: currentUser.uid,
+      authorizedBy: matchedUser.firebaseUid,
+      requiredPermission,
+    });
 
     return {
       success: true,
@@ -417,7 +510,10 @@ export async function authorizePin(
       userDisplayName: matchedUser.displayName || matchedUser.email,
     };
   } catch (error) {
-    console.error('Error authorizing PIN:', error);
+    logger.error('PIN authorization error', {
+      action: 'authorizePin',
+      error: error instanceof Error ? error.message : String(error),
+    });
     return { success: false, error: 'Error del servidor al validar PIN' };
   }
 }

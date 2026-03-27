@@ -261,6 +261,7 @@ export function AnalyticsView() {
         subtitle={`Período: ${periodoLabel} · Última actualización: ${i18n.formatDate(new Date(), { hour: 'numeric', minute: '2-digit' })}`}
         fullWidth
         secondaryActions={[
+          { id: 'analytics-advanced', content: 'Analítica Avanzada', icon: ChartVerticalIcon, url: '/dashboard/analytics/advanced' },
           { id: 'analytics-refresh', content: 'Actualizar', icon: RefreshIcon, accessibilityLabel: 'Actualizar', onAction: fetchDashboardData },
         ]}
       >

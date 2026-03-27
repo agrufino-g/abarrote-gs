@@ -245,6 +245,8 @@ export interface DashboardState {
   loyaltyTransactions: LoyaltyTransaction[];
   isLoading: boolean;
   error: string | null;
+  /** Timestamp (ms) of the last successful data sync from the database */
+  lastSyncAt: number;
 }
 
 // === Corte de Caja ===
@@ -610,4 +612,191 @@ export interface Servicio {
   estado: ServicioEstado;
   cajero: string;
   fecha: string;
+}
+
+// === ABC Inventory Classification (Pareto) ===
+export type ABCClassification = 'A' | 'B' | 'C';
+
+export interface ABCProduct {
+  productId: string;
+  productName: string;
+  sku: string;
+  category: string;
+  totalRevenue: number;
+  totalQuantity: number;
+  revenuePercentage: number;
+  cumulativePercentage: number;
+  classification: ABCClassification;
+  currentStock: number;
+  costPrice: number;
+  unitPrice: number;
+}
+
+export interface ABCAnalysis {
+  products: ABCProduct[];
+  summary: {
+    A: { count: number; revenueShare: number; skuShare: number };
+    B: { count: number; revenueShare: number; skuShare: number };
+    C: { count: number; revenueShare: number; skuShare: number };
+  };
+  totalRevenue: number;
+  periodDays: number;
+}
+
+// === Smart Reorder (Auto-pedido) ===
+export interface ReorderSuggestion {
+  productId: string;
+  productName: string;
+  sku: string;
+  currentStock: number;
+  minStock: number;
+  avgDailySales: number;
+  daysUntilStockout: number;
+  suggestedQuantity: number;
+  estimatedCost: number;
+  supplier: string | null;
+  urgency: 'critical' | 'warning' | 'normal';
+}
+
+// === RFM Customer Analysis ===
+export type RFMSegment =
+  | 'champions'
+  | 'loyal'
+  | 'potential_loyal'
+  | 'recent'
+  | 'promising'
+  | 'needs_attention'
+  | 'about_to_sleep'
+  | 'at_risk'
+  | 'lost';
+
+export interface RFMCustomer {
+  clienteId: string;
+  clienteName: string;
+  phone: string;
+  recency: number;       // days since last purchase
+  frequency: number;     // purchases in period
+  monetary: number;      // total spent in period
+  rScore: number;        // 1-5
+  fScore: number;        // 1-5
+  mScore: number;        // 1-5
+  segment: RFMSegment;
+  balance: number;
+  points: number;
+}
+
+export interface RFMAnalysis {
+  customers: RFMCustomer[];
+  segments: Record<RFMSegment, number>;
+  averageRecency: number;
+  averageFrequency: number;
+  averageMonetary: number;
+}
+
+export const RFM_SEGMENT_LABELS: Record<RFMSegment, string> = {
+  champions: 'Campeones',
+  loyal: 'Leales',
+  potential_loyal: 'Potenciales leales',
+  recent: 'Nuevos',
+  promising: 'Prometedores',
+  needs_attention: 'Necesitan atención',
+  about_to_sleep: 'Por dormirse',
+  at_risk: 'En riesgo',
+  lost: 'Perdidos',
+};
+
+// === Demand Forecasting ===
+export interface ForecastProduct {
+  productId: string;
+  productName: string;
+  sku: string;
+  category: string;
+  currentStock: number;
+  avgDailySales: number;
+  trend: 'up' | 'down' | 'stable';
+  trendPercentage: number;
+  forecastNextWeek: number;
+  forecastNextMonth: number;
+  daysOfStock: number;
+  confidence: 'high' | 'medium' | 'low';
+  historicalWeekly: number[];  // last 8 weeks of sales
+}
+
+// === CFDI / Facturación Electrónica ===
+export const CFDI_USOS = [
+  { clave: 'G01', descripcion: 'Adquisición de mercancías' },
+  { clave: 'G03', descripcion: 'Gastos en general' },
+  { clave: 'P01', descripcion: 'Por definir' },
+  { clave: 'S01', descripcion: 'Sin efectos fiscales' },
+] as const;
+
+export const CFDI_REGIMENES = [
+  { clave: '601', descripcion: 'General de Ley Personas Morales' },
+  { clave: '603', descripcion: 'Personas Morales con Fines no Lucrativos' },
+  { clave: '605', descripcion: 'Sueldos y Salarios' },
+  { clave: '606', descripcion: 'Arrendamiento' },
+  { clave: '608', descripcion: 'Demás ingresos' },
+  { clave: '612', descripcion: 'Personas Físicas con Actividades Empresariales y Profesionales' },
+  { clave: '616', descripcion: 'Sin obligaciones fiscales' },
+  { clave: '621', descripcion: 'Incorporación Fiscal' },
+  { clave: '625', descripcion: 'Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas' },
+  { clave: '626', descripcion: 'Régimen Simplificado de Confianza' },
+] as const;
+
+export interface CFDIRequest {
+  saleId: string;
+  receptorRfc: string;
+  receptorNombre: string;
+  receptorRegimenFiscal: string;
+  receptorDomicilioFiscal: string;
+  usoCfdi: string;
+}
+
+export interface CFDIRecord {
+  id: string;
+  saleId: string;
+  folio: string;
+  uuid: string;
+  receptorRfc: string;
+  receptorNombre: string;
+  total: number;
+  status: 'timbrada' | 'cancelada' | 'error';
+  xmlUrl: string;
+  pdfUrl: string;
+  fechaTimbrado: string;
+  createdAt: string;
+}
+
+// === Promociones ===
+export const PROMOTION_TYPES = ['percentage', 'fixed', 'bogo', 'bundle'] as const;
+export type PromotionType = (typeof PROMOTION_TYPES)[number];
+
+export const PROMOTION_TYPE_LABELS: Record<PromotionType, string> = {
+  percentage: 'Porcentaje de descuento',
+  fixed: 'Descuento fijo',
+  bogo: 'Compra X lleva Y',
+  bundle: 'Paquete / combo',
+};
+
+export const APPLICABLE_TO_OPTIONS = ['all', 'category', 'product'] as const;
+export type ApplicableTo = (typeof APPLICABLE_TO_OPTIONS)[number];
+
+export interface Promotion {
+  id: string;
+  name: string;
+  description: string;
+  type: PromotionType;
+  value: number;
+  minPurchase: number;
+  maxDiscount: number | null;
+  applicableTo: ApplicableTo;
+  applicableIds: string[];
+  startDate: string;
+  endDate: string;
+  active: boolean;
+  usageLimit: number | null;
+  usageCount: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 }

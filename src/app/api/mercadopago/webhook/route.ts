@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import crypto from 'crypto';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
+
+/** Rate limit: 30 webhook calls per minute per IP */
+const RATE_LIMIT = { maxRequests: 30, windowMs: 60_000 } as const;
 
 // =========================================================================
 // RUTA DE WEBHOOKS PARA MERCADO PAGO 
@@ -14,9 +19,8 @@ import crypto from 'crypto';
 function verifyWebhookSignature(req: Request, body: string): boolean {
   const secret = process.env.MP_WEBHOOK_SECRET;
   if (!secret) {
-    // Si no hay secret configurado, loguear warning pero permitir (migración gradual)
-    console.warn('[Webhook] MP_WEBHOOK_SECRET no configurado — se omite verificación de firma');
-    return true;
+    logger.error('MP_WEBHOOK_SECRET not configured — rejecting all webhooks');
+    return false;
   }
 
   const xSignature = req.headers.get('x-signature');
@@ -55,12 +59,19 @@ function verifyWebhookSignature(req: Request, body: string): boolean {
 
 export async function POST(req: Request) {
     try {
+        // Rate limiting
+        const ip = getClientIp(req);
+        const rl = checkRateLimit(`mp:webhook:${ip}`, RATE_LIMIT);
+        if (!rl.allowed) {
+            return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+        }
+
         // Clonar el body para verificación de firma
         const rawBody = await req.text();
         
         // Verificar firma HMAC
         if (!verifyWebhookSignature(req, rawBody)) {
-            console.error('[Webhook] Firma inválida — posible ataque');
+            logger.warn('Webhook signature verification failed', { ip });
             return NextResponse.json({ error: 'Firma inválida' }, { status: 403 });
         }
 
@@ -69,56 +80,56 @@ export async function POST(req: Request) {
         const queryId = url.searchParams.get('data.id') || url.searchParams.get('id');
         const queryType = url.searchParams.get('type') || url.searchParams.get('topic');
 
-        let body: any = {};
+        let body: Record<string, unknown> = {};
         try {
-            body = JSON.parse(rawBody);
+            body = JSON.parse(rawBody) as Record<string, unknown>;
         } catch {
             // body vacío es válido en algunos webhooks
         }
 
-        const paymentId = queryId || body?.data?.id;
-        const eventType = queryType || body?.type || body?.action;
+        const dataObj = typeof body?.data === 'object' && body.data !== null ? body.data as Record<string, unknown> : {};
+        const paymentId = queryId || (typeof dataObj.id === 'string' || typeof dataObj.id === 'number' ? String(dataObj.id) : null);
+        const eventType = queryType || (typeof body?.type === 'string' ? body.type : null) || (typeof body?.action === 'string' ? body.action : null);
 
         // Solo nos interesan los eventos de pagos ('payment')
         if (eventType === 'payment' && paymentId) {
-            console.log(`[Webhook] Recibida notificación de pago ID: ${paymentId}`);
+            logger.info('Payment webhook received', { paymentId });
 
             const accessToken = process.env.MP_ACCESS_TOKEN;
 
             if (!accessToken) {
-                console.error('[Webhook] ERROR: No se encontró MP_ACCESS_TOKEN');
-                return NextResponse.json({ received: true, error: 'Falta Token' }, { status: 200 });
+                logger.error('MP_ACCESS_TOKEN not configured');
+                return NextResponse.json({ received: true }, { status: 200 });
             }
 
             const client = new MercadoPagoConfig({ accessToken, options: { timeout: 5000 } });
             const paymentClient = new Payment(client);
 
-            const paymentData = await paymentClient.get({ id: paymentId }).catch(err => {
-                console.error(`[Webhook] Error al consultar pago ${paymentId}:`, err);
+            const paymentData = await paymentClient.get({ id: paymentId }).catch((err: unknown) => {
+                logger.error('Failed to fetch payment', { paymentId, error: err instanceof Error ? err.message : 'Unknown' });
                 return null;
             });
 
             if (paymentData) {
-                console.log(`[Webhook] Estado del Pago ${paymentId}:`, paymentData.status);
-                console.log(`[Webhook] Referencia Externa:`, paymentData.external_reference);
+                logger.info('Payment status', { paymentId, status: paymentData.status, ref: paymentData.external_reference });
 
                 if (paymentData.status === 'approved') {
-                    console.log('[Webhook] Pago aprobado. Actualizando DB...');
+                    logger.info('Payment approved — updating DB', { paymentId });
                     // TODO: await db.venta.updateStatus(paymentData.external_reference, 'PAGADO');
                 } else if (paymentData.status === 'rejected') {
-                    console.log('[Webhook] Pago rechazado.');
+                    logger.info('Payment rejected', { paymentId });
                 } else if (paymentData.status === 'in_process') {
-                    console.log('[Webhook] Pago pendiente.');
+                    logger.info('Payment pending', { paymentId });
                 }
             }
         } else {
-            console.log('[Webhook] Evento ignorado:', eventType);
+            logger.info('Webhook event ignored', { eventType: eventType ?? 'unknown' });
         }
 
         return NextResponse.json({ success: true }, { status: 200 });
 
-    } catch (error: any) {
-        console.error('[Webhook] Error crítico procesando webhook:', error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 200 });
+    } catch (error) {
+        logger.error('Critical webhook processing error', { error: error instanceof Error ? error.message : 'Unknown' });
+        return NextResponse.json({ success: false }, { status: 200 });
     }
 }

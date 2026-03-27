@@ -12,17 +12,12 @@ import {
   Button,
   TextField,
   Banner,
-  Checkbox,
-  DropZone,
-  Thumbnail,
   Box,
   FormLayout,
   Grid,
-  Icon,
-  Popover,
 } from '@shopify/polaris';
 import { FormSelect } from '@/components/ui/FormSelect';
-import { DeleteIcon, EditIcon, ImageIcon } from '@shopify/polaris-icons';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { Product } from '@/types';
 import { formatCurrency, formatDate, getDaysUntil, getStockStatus } from '@/lib/utils';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -234,7 +229,7 @@ export function ProductDetailModal({
                 <Box background="bg-surface" padding="400" borderRadius="300" shadow="300">
                   <Text as="h3" variant="headingSm">Multimedia</Text>
                   <div style={{ border: '1px solid var(--p-color-border-secondary)', borderRadius: '0.5rem', background: 'var(--p-color-bg-surface-secondary)', width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {product!.imageUrl ? <img src={product!.imageUrl} alt="Thumbnail" style={{ maxWidth: '100%', maxHeight: '100%' }} /> : <Icon source={ImageIcon} tone="subdued" />}
+                    <OptimizedImage source={product!.imageUrl} alt={product!.name} size={200} borderRadius="0.5rem" />
                   </div>
                 </Box>
               </BlockStack>
@@ -269,7 +264,7 @@ export function ProductDetailModal({
         </Box>
       )}
       <InlineStack gap="400" blockAlign="center">
-        <Thumbnail size="medium" source={product!.imageUrl || ImageIcon} alt={product!.name} />
+        <OptimizedImage source={product!.imageUrl} alt={product!.name} size="medium" />
         <BlockStack gap="100">
           <Text variant="headingXl" as="h2" fontWeight="bold">{product!.name?.toUpperCase()}</Text>
           <Badge tone="info">{product!.category}</Badge>

@@ -2,25 +2,25 @@
 
 import './CustomTopBar.css';
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Badge, BlockStack, Box, Button, Divider, InlineStack, Icon, Popover, Text, Thumbnail, Tooltip } from '@shopify/polaris';
+import { Badge, BlockStack, Box, Button, Divider, InlineStack, Icon, Popover, Text, Tooltip } from '@shopify/polaris';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import {
   CheckCircleIcon,
   FilterIcon,
   MenuIcon,
   SearchIcon,
   GlobeIcon,
-  NotificationIcon,
   ProductIcon,
   OrderIcon,
   FinanceIcon,
   SettingsIcon,
   HomeIcon,
-  ImageIcon,
   InventoryIcon,
   CalendarIcon,
   CartIcon,
   AlertCircleIcon,
   XCircleIcon,
+  QuestionCircleIcon,
 } from '@shopify/polaris-icons';
 import Image from 'next/image';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -56,6 +56,12 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
   const products = useDashboardStore((s) => s.products);
   const inventoryAlerts = useDashboardStore((s) => s.inventoryAlerts);
   const shortcutLabel = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
+
+  const TelegramIcon = (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style={{ display: 'block' }}>
+      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.14-.257.257-.527.257l.215-3.048 5.548-5.013c.24-.213-.054-.334-.373-.121l-6.86 4.316-2.955-.924c-.642-.2-.654-.642.133-.949l11.55-4.45c.535-.194 1.003.125.768.96z"/>
+    </svg>
+  );
 
   const filteredProducts = useMemo(() => {
     if (!query.trim() || query.length < 2) return [];
@@ -108,6 +114,23 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
     if (isFocused) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [isFocused]);
+
+  // === SOPORTE Y ASISTENCIA (App Bridge API) ===
+  const openLiveChat = useCallback(() => {
+    // Aquí implementas tu lógica de chat en vivo o centro de ayuda
+    console.log('Abriendo soporte técnico de Abarrotes-GS...');
+    // Ejemplo: window.open('https://soporte.abarrotes-gs.com', '_blank');
+  }, []);
+
+  useEffect(() => {
+    // @ts-ignore - shopify es global en App Bridge 4
+    if (typeof window !== 'undefined' && window.shopify && window.shopify.support) {
+      // @ts-ignore
+      window.shopify.support.registerHandler(() => {
+        openLiveChat();
+      });
+    }
+  }, [openLiveChat]);
 
   const formatNotificationTime = useCallback((createdAt: string) => {
     const date = new Date(createdAt);
@@ -269,11 +292,7 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
                           onClick={() => handleSelect('product', i)}
                           onMouseEnter={() => setSelectedIndex(idx)}
                         >
-                          <Thumbnail
-                            size="extraSmall"
-                            source={product.imageUrl || ImageIcon}
-                            alt={product.name}
-                          />
+                          <OptimizedImage source={product.imageUrl} alt={product.name} size="extraSmall" />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#e4e4e7' }}>
                               {product.name}
@@ -318,6 +337,12 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
             </button>
           </Tooltip>
 
+          <Tooltip content="Soporte y Ayuda" dismissOnMouseOut>
+            <button className="ctb-icon-btn" onClick={openLiveChat} aria-label="Soporte">
+              <Icon source={QuestionCircleIcon} tone="inherit" />
+            </button>
+          </Tooltip>
+
           <div className="ctb-sep-v" />
 
           <Popover
@@ -326,13 +351,13 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
             preferredAlignment="right"
             preferredPosition="below"
             activator={(
-              <Tooltip content={`Alertas${inventoryAlerts.length > 0 ? ` (${inventoryAlerts.length})` : ''}`} dismissOnMouseOut>
+              <Tooltip content={`Alertas vía Telegram${inventoryAlerts.length > 0 ? ` (${inventoryAlerts.length})` : ''}`} dismissOnMouseOut>
                 <button
                   className={`ctb-icon-btn${isNotificationsOpen ? ' active' : ''}`}
                   onClick={() => setIsNotificationsOpen(p => !p)}
-                  aria-label="Alertas de inventario"
+                  aria-label="Alertas de Telegram"
                 >
-                  <Icon source={NotificationIcon} tone="inherit" />
+                  <div style={{ color: 'inherit' }}>{TelegramIcon}</div>
                   {criticalCount > 0 && (
                     <span className="ctb-badge">{criticalCount > 9 ? '9+' : criticalCount}</span>
                   )}
@@ -368,10 +393,10 @@ export function CustomTopBar({ userMenu, onNavigationToggle, onSectionSelect, on
               <div className="ctb-notif-list">
                 {inventoryAlerts.length === 0 ? (
                   <div className="ctb-notif-empty">
-                    <div style={{ marginBottom: '8px', opacity: 0.4 }}>
-                      <Icon source={NotificationIcon} tone="subdued" />
+                    <div style={{ marginBottom: '8px', color: '#52525b', display: 'flex', justifyContent: 'center' }}>
+                      {TelegramIcon}
                     </div>
-                    Todo en orden. No hay alertas activas.
+                    Todo en orden. No hay alertas activas en Telegram.
                   </div>
                 ) : (
                   inventoryAlerts.map(alert => {

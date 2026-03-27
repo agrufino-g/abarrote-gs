@@ -118,6 +118,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: error.message }, { status: error.status });
         }
         console.error('[MP_BACKEND_ERROR]', error.message, error.cause);
-        return NextResponse.json({ error: error.message || 'Error del servidor procesando MP' }, { status: 500 });
+        return NextResponse.json({ error: 'Error del servidor procesando Mercado Pago' }, { status: 500 });
     }
 }

@@ -159,7 +159,7 @@ export async function fetchMermaRecords(): Promise<MermaRecord[]> {
 export async function createMerma(data: Omit<MermaRecord, 'id'>): Promise<MermaRecord> {
   await requirePermission('inventory.edit');
   validateId(data.productId, 'Product ID');
-  const id = `merma-${Date.now()}`;
+  const id = `merma-${crypto.randomUUID()}`;
   await db.insert(mermaRecords).values({
     id,
     productId: data.productId,
@@ -202,7 +202,7 @@ export async function createInventoryAudit(data: {
   notes: string;
 }): Promise<string> {
   await requirePermission('inventory.edit');
-  const id = `audit-${Date.now()}`;
+  const id = `audit-${crypto.randomUUID()}`;
   await db.insert(inventoryAudits).values({
     id,
     title: data.title,
@@ -246,7 +246,7 @@ export async function saveAuditItem(data: Omit<InventoryAuditItem, 'id'>): Promi
   await requirePermission('inventory.edit');
   validateId(data.auditId, 'Audit ID');
   validateId(data.productId, 'Product ID');
-  const id = `ai-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const id = `ai-${crypto.randomUUID()}`;
   await db.insert(inventoryAuditItems).values({
     id,
     auditId: data.auditId,

@@ -12,19 +12,17 @@ import {
   Tabs,
   Text,
   TextField,
-  Thumbnail,
   useIndexResourceState,
 } from '@shopify/polaris';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import {
   FilterIcon,
-  ImageIcon,
   LayoutColumns3Icon,
   PlusIcon,
   SearchIcon,
   SortIcon,
 } from '@shopify/polaris-icons';
 import { Product } from '@/types';
-import { saveStoreConfig } from '@/app/actions/db-actions';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { ProductExportModal, ProductImportModal } from './ShopifyModals';
@@ -337,7 +335,7 @@ export function InventoryGeneralView({
               return (
                 <IndexTable.Cell key={col.key}>
                   <InlineStack gap="300" blockAlign="center">
-                    <Thumbnail size="small" source={product.imageUrl || ImageIcon} alt={product.name} key={product.imageUrl || 'no-image'} />
+                    <OptimizedImage source={product.imageUrl} alt={product.name} size="small" />
                     <Text as="span" variant="bodyMd" fontWeight="semibold">
                       {product.name}
                     </Text>

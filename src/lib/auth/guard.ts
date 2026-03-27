@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { cookies, headers } from 'next/headers';
 import { adminAuth } from '@/lib/firebase-admin';
 import { db } from '@/db';
@@ -52,6 +53,56 @@ async function extractToken(): Promise<string | null> {
 // ==================== CORE AUTH FUNCTION ====================
 
 /**
+ * Internal cached resolver — deduplicates DB calls within the same request.
+ * If requireAuth() is called multiple times in one request, only one DB query runs.
+ */
+const verifyToken = cache(async (token: string): Promise<AuthenticatedUser> => {
+    const decodedToken = await adminAuth.verifyIdToken(token, true);
+    const uid = decodedToken.uid;
+    const email = decodedToken.email || '';
+
+    // Single JOIN query: user role + permissions in one round-trip
+    const rows = await db
+        .select({
+            status: userRoles.status,
+            roleId: userRoles.roleId,
+            displayName: userRoles.displayName,
+            permissions: roleDefinitions.permissions,
+        })
+        .from(userRoles)
+        .leftJoin(roleDefinitions, eq(roleDefinitions.id, userRoles.roleId))
+        .where(eq(userRoles.firebaseUid, uid))
+        .limit(1);
+
+    if (rows.length === 0) {
+        throw new AuthError('Usuario no registrado en el sistema', 403);
+    }
+
+    const row = rows[0];
+
+    if (row.status !== 'activo') {
+        throw new AuthError('Tu cuenta ha sido desactivada. Contacta al administrador.', 403);
+    }
+
+    let permissions: PermissionKey[] = [];
+    if (row.permissions) {
+        try {
+            permissions = JSON.parse(row.permissions) as PermissionKey[];
+        } catch {
+            permissions = [];
+        }
+    }
+
+    return {
+        uid,
+        email,
+        roleId: row.roleId,
+        permissions,
+        displayName: row.displayName || undefined,
+    };
+});
+
+/**
  * Verifies the current request is from an authenticated user.
  * Returns user info including role and permissions.
  * Throws AuthError if not authenticated.
@@ -60,69 +111,26 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     const token = await extractToken();
 
     if (!token) {
-        throw new AuthError('No se proporcionó token de autenticación', 401);
+        throw new AuthError('Autenticación requerida', 401);
     }
 
     try {
-        // Verify the Firebase ID token server-side
-        const decodedToken = await adminAuth.verifyIdToken(token, true);
-        const uid = decodedToken.uid;
-        const email = decodedToken.email || '';
-
-        // Get user role from database
-        const rows = await db
-            .select()
-            .from(userRoles)
-            .where(eq(userRoles.firebaseUid, uid))
-            .limit(1);
-
-        if (rows.length === 0) {
-            throw new AuthError('Usuario no registrado en el sistema', 403);
-        }
-
-        const userRole = rows[0];
-
-        if (userRole.status !== 'activo') {
-            throw new AuthError('Tu cuenta ha sido desactivada. Contacta al administrador.', 403);
-        }
-
-        // Get permissions from role definition
-        let permissions: PermissionKey[] = [];
-        const roleDefs = await db
-            .select()
-            .from(roleDefinitions)
-            .where(eq(roleDefinitions.id, userRole.roleId))
-            .limit(1);
-
-        if (roleDefs.length > 0) {
-            try {
-                permissions = JSON.parse(roleDefs[0].permissions) as PermissionKey[];
-            } catch {
-                permissions = [];
-            }
-        }
-
-        return {
-            uid,
-            email,
-            roleId: userRole.roleId,
-            permissions,
-            displayName: userRole.displayName || undefined,
-        };
+        return await verifyToken(token);
     } catch (error) {
         if (error instanceof AuthError) throw error;
 
-        // Firebase token verification errors
-        const message = error instanceof Error ? error.message : 'Token inválido';
+        // Log full detail internally — expose uniform message to client
+        const message = error instanceof Error ? error.message : 'Unknown';
         logger.warn('Auth verification failed', { action: 'requireAuth', error: message });
-        if (message.includes('auth/id-token-expired')) {
-            throw new AuthError('Tu sesión ha expirado. Inicia sesión de nuevo.', 401);
-        }
-        if (message.includes('auth/id-token-revoked')) {
-            throw new AuthError('Tu sesión fue revocada. Inicia sesión de nuevo.', 401);
-        }
 
-        throw new AuthError('Error de autenticación: ' + message, 401);
+        // Uniform error: don't leak whether token was expired, revoked, or invalid
+        const isExpiredOrRevoked = message.includes('auth/id-token-expired') || message.includes('auth/id-token-revoked');
+        throw new AuthError(
+            isExpiredOrRevoked
+                ? 'Tu sesión ha expirado. Inicia sesión de nuevo.'
+                : 'Error de autenticación. Inicia sesión de nuevo.',
+            401,
+        );
     }
 }
 
@@ -142,8 +150,14 @@ export async function requirePermission(...requiredPerms: PermissionKey[]): Prom
     );
 
     if (!hasPermission) {
+        logger.warn('Permission denied', {
+            action: 'requirePermission',
+            userId: user.uid,
+            required: requiredPerms.join(','),
+            userRole: user.roleId,
+        });
         throw new AuthError(
-            `No tienes permisos para esta acción. Se requiere: ${requiredPerms.join(' o ')}`,
+            'No tienes permisos para esta acción',
             403
         );
     }
@@ -158,7 +172,7 @@ export async function requireOwner(): Promise<AuthenticatedUser> {
     const user = await requireAuth();
 
     if (user.roleId !== 'owner') {
-        throw new AuthError('Esta acción requiere permisos de administrador', 403);
+        throw new AuthError('Esta acción requiere permisos de administrador TI', 403);
     }
 
     return user;
@@ -168,13 +182,17 @@ export async function requireOwner(): Promise<AuthenticatedUser> {
 
 /**
  * Sanitizes a string input to prevent injection attacks.
+ * Strips HTML entities, null bytes, SQL comment sequences, and control characters.
  */
 export function sanitize(input: string | undefined | null): string {
     if (!input) return '';
     return input
         .trim()
-        .replace(/[<>]/g, '') // Remove HTML tags
-        .slice(0, 1000); // Limit length
+        .replace(/\0/g, '')         // Remove null bytes
+        .replace(/[<>"'`;]/g, '')   // Remove HTML/injection characters
+        .replace(/--/g, '')          // Remove SQL comment sequences
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+        .slice(0, 1000);             // Limit length
 }
 
 /**

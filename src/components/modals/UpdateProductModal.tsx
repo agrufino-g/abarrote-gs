@@ -17,6 +17,7 @@ import {
   Divider,
 } from '@shopify/polaris';
 import { FormSelect } from '@/components/ui/FormSelect';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { uploadFile, getProductImagePath } from '@/lib/storage';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
@@ -184,12 +185,15 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
   const fileUploadMarkup = !file && !product?.imageUrl && <DropZone.FileUpload actionHint="Archivos permitidos: .jpg, .png, .gif" />;
   const uploadedFileMarkup = (file || product?.imageUrl) && (
     <InlineStack gap="300" blockAlign="center">
-      <Thumbnail
-        size="small"
-        key={product?.imageUrl}
-        alt={file ? file.name : product?.name || ''}
-        source={file ? window.URL.createObjectURL(file) : product?.imageUrl || ''}
-      />
+      {file ? (
+        <Thumbnail
+          size="small"
+          alt={file.name}
+          source={window.URL.createObjectURL(file)}
+        />
+      ) : (
+        <OptimizedImage source={product?.imageUrl} alt={product?.name || ''} size="small" />
+      )}
       <div>
         {file ? file.name : 'Imagen actual'}{' '}
         <Text variant="bodySm" as="span" tone="subdued">

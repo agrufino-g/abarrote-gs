@@ -38,7 +38,7 @@ export async function createCashMovement(data: {
 }): Promise<CashMovement> {
   await requirePermission('corte.create');
 
-  const id = `cm-${Date.now()}`;
+  const id = `cm-${crypto.randomUUID()}`;
   const now = new Date();
 
   await db.insert(cashMovements).values({

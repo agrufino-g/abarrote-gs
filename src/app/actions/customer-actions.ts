@@ -29,7 +29,7 @@ export async function createCliente(
   data: Omit<Cliente, 'id' | 'balance' | 'createdAt' | 'lastTransaction'>
 ): Promise<Cliente> {
   await requirePermission('customers.edit');
-  const id = `cli-${Date.now()}`;
+  const id = `cli-${crypto.randomUUID()}`;
   const now = new Date();
 
   await db.insert(clientes).values({
@@ -127,7 +127,7 @@ export async function createFiado(
   if (!clienteRows.length) return;
 
   const cliente = clienteRows[0];
-  const fiadoId = `fiado-${Date.now()}`;
+  const fiadoId = `fiado-${crypto.randomUUID()}`;
 
   await db.insert(fiadoTransactions).values({
     id: fiadoId,
@@ -143,7 +143,7 @@ export async function createFiado(
   if (items && items.length > 0) {
     for (const item of items) {
       await db.insert(fiadoItems).values({
-        id: `fi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: `fi-${crypto.randomUUID()}`,
         fiadoId,
         productId: item.productId,
         productName: item.productName,
@@ -178,7 +178,7 @@ export async function createAbono(
   const cliente = clienteRows[0];
 
   await db.insert(fiadoTransactions).values({
-    id: `abono-${Date.now()}`,
+    id: `abono-${crypto.randomUUID()}`,
     clienteId,
     clienteName: cliente.name,
     type: 'abono',

@@ -9,7 +9,6 @@ import {
   BlockStack,
   InlineStack,
   Button,
-  Thumbnail,
   Scrollable,
   IndexFilters,
   useSetIndexFiltersMode,
@@ -17,8 +16,8 @@ import {
   TabProps,
   useIndexResourceState,
 } from '@shopify/polaris';
-import { ImageIcon } from '@shopify/polaris-icons';
 import { Product } from '@/types';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ProductExportModal, ProductImportModal } from './ShopifyModals';
 import { generateCSV, downloadFile } from '@/components/export/ExportModal';
@@ -227,12 +226,7 @@ export function AllProductsTable({
         {/* Producto */}
         <IndexTable.Cell>
           <InlineStack gap="300" blockAlign="center">
-            <Thumbnail
-              size="small"
-              source={product.imageUrl || ImageIcon}
-              alt={product.name}
-              key={product.imageUrl || 'no-image'}
-            />
+            <OptimizedImage source={product.imageUrl} alt={product.name} size="small" />
             <Text as="p" variant="bodyMd" fontWeight="semibold">
               {product.name}
             </Text>
