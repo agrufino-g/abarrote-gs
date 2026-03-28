@@ -3,7 +3,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   Page,
-  Layout,
   Card,
   Text,
   Button,
@@ -11,55 +10,25 @@ import {
   InlineStack,
   BlockStack,
   Box,
-  Divider,
   Icon,
   Badge,
+  Banner,
   Modal,
-  Tooltip,
   ProgressBar,
-  InlineGrid,
-  Popover,
-  ActionList,
+  IndexTable,
+  EmptyState,
+  Tabs,
+  Thumbnail,
 } from '@shopify/polaris';
 import {
-  DeleteIcon,
-  CollectionIcon,
   PlusIcon,
-  EditIcon,
   SearchIcon,
-  SortIcon,
-  MenuHorizontalIcon,
-  AlertTriangleIcon,
-  CheckCircleIcon,
+  EditIcon,
+  DeleteIcon,
+  ImageIcon,
 } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
-
-// ────────────────────────────────────────────────────
-// Color palette for category avatars
-// ────────────────────────────────────────────────────
-const CATEGORY_COLORS = [
-  { bg: '#E3F5FF', text: '#0969DA', border: '#B6E3FF' },
-  { bg: '#E8F5E9', text: '#1B7F37', border: '#A7E8A7' },
-  { bg: '#FFF3E0', text: '#BF5600', border: '#FFD699' },
-  { bg: '#F3E8FF', text: '#6F42C1', border: '#D8B9FF' },
-  { bg: '#FCE4EC', text: '#C2185B', border: '#F48FB1' },
-  { bg: '#E0F7FA', text: '#006064', border: '#80DEEA' },
-  { bg: '#FFF9C4', text: '#9E6E06', border: '#FFE082' },
-  { bg: '#EFEBE9', text: '#5D4037', border: '#BCAAA4' },
-];
-
-function getCategoryColor(index: number) {
-  return CATEGORY_COLORS[index % CATEGORY_COLORS.length];
-}
-
-function getCategoryInitials(name: string): string {
-  const words = name.trim().split(/\s+/);
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
 
 export default function CategoriesPage() {
   const categories = useDashboardStore((s) => s.categories);
@@ -69,31 +38,26 @@ export default function CategoriesPage() {
   const deleteCategory = useDashboardStore((s) => s.deleteCategory);
   const { showSuccess, showError } = useToast();
 
-  // ── Form state ──
+  // ── State ──
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ── Edit modal state ──
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // ── Delete confirmation modal ──
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // ── Search & filter ──
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'products' | 'recent'>('recent');
+  const [selectedTab, setSelectedTab] = useState(0);
 
-  // ── Popover for actions ──
-  const [activePopover, setActivePopover] = useState<string | null>(null);
-
-  // ── Computed data ──
+  // ── Computed ──
   const productCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const p of products) {
@@ -113,10 +77,31 @@ export default function CategoriesPage() {
     ? Math.round((totalCategorized / products.length) * 100)
     : 0;
 
+  const tabs = useMemo(() => [
+    { id: 'all', content: `Todas (${categories.length})`, panelID: 'all-panel' },
+    {
+      id: 'active',
+      content: `Con productos (${categories.filter((c) => (productCounts.get(c.id) ?? productCounts.get(c.name) ?? 0) > 0).length})`,
+      panelID: 'active-panel',
+    },
+    {
+      id: 'empty',
+      content: `Vacías (${categories.filter((c) => (productCounts.get(c.id) ?? productCounts.get(c.name) ?? 0) === 0).length})`,
+      panelID: 'empty-panel',
+    },
+  ], [categories, productCounts]);
+
   const filteredCategories = useMemo(() => {
     let list = [...categories];
 
-    // Search
+    // Tab filter
+    if (selectedTab === 1) {
+      list = list.filter((c) => (productCounts.get(c.id) ?? productCounts.get(c.name) ?? 0) > 0);
+    } else if (selectedTab === 2) {
+      list = list.filter((c) => (productCounts.get(c.id) ?? productCounts.get(c.name) ?? 0) === 0);
+    }
+
+    // Search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(
@@ -126,25 +111,8 @@ export default function CategoriesPage() {
       );
     }
 
-    // Sort
-    switch (sortBy) {
-      case 'name':
-        list.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case 'products':
-        list.sort((a, b) => {
-          const countA = productCounts.get(a.id) ?? productCounts.get(a.name) ?? 0;
-          const countB = productCounts.get(b.id) ?? productCounts.get(b.name) ?? 0;
-          return countB - countA;
-        });
-        break;
-      case 'recent':
-        // Already sorted by createdAt DESC from server
-        break;
-    }
-
     return list;
-  }, [categories, searchQuery, sortBy, productCounts]);
+  }, [categories, searchQuery, selectedTab, productCounts]);
 
   // ── Handlers ──
   const handleCreate = useCallback(async () => {
@@ -172,7 +140,6 @@ export default function CategoriesPage() {
       setEditName(cat.name);
       setEditDescription(cat.description || '');
       setEditModalOpen(true);
-      setActivePopover(null);
     },
     [],
   );
@@ -198,7 +165,6 @@ export default function CategoriesPage() {
     (id: string, name: string) => {
       setDeleteTarget({ id, name });
       setDeleteModalOpen(true);
-      setActivePopover(null);
     },
     [],
   );
@@ -228,407 +194,232 @@ export default function CategoriesPage() {
     }
   }, [deleteTarget, deleteCategory, showSuccess, showError, productCounts]);
 
-  // ── KPI Cards ──
-  const kpiCards = (
-    <InlineGrid columns={{ xs: 2, md: 4 }} gap="400">
-      {/* Total Categories */}
-      <Card>
-        <BlockStack gap="200">
-          <InlineStack align="space-between" blockAlign="center">
-            <Text as="span" variant="bodySm" tone="subdued">Categorías</Text>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: '#E3F5FF', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Icon source={CollectionIcon} tone="info" />
-            </div>
-          </InlineStack>
-          <Text as="p" variant="headingLg" fontWeight="bold">
-            {String(categories.length)}
-          </Text>
-        </BlockStack>
-      </Card>
-
-      {/* Cataloged Products */}
-      <Card>
-        <BlockStack gap="200">
-          <InlineStack align="space-between" blockAlign="center">
-            <Text as="span" variant="bodySm" tone="subdued">Catalogados</Text>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Icon source={CheckCircleIcon} tone="success" />
-            </div>
-          </InlineStack>
-          <Text as="p" variant="headingLg" fontWeight="bold">
-            {String(totalCategorized)}
-          </Text>
-        </BlockStack>
-      </Card>
-
-      {/* Uncategorized */}
-      <Card>
-        <BlockStack gap="200">
-          <InlineStack align="space-between" blockAlign="center">
-            <Text as="span" variant="bodySm" tone="subdued">Sin categoría</Text>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: uncategorizedCount > 0 ? '#FFF3E0' : '#E8F5E9',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Icon
-                source={uncategorizedCount > 0 ? AlertTriangleIcon : CheckCircleIcon}
-                tone={uncategorizedCount > 0 ? 'caution' : 'success'}
-              />
-            </div>
-          </InlineStack>
-          <Text as="p" variant="headingLg" fontWeight="bold">
-            {String(uncategorizedCount)}
-          </Text>
-        </BlockStack>
-      </Card>
-
-      {/* Coverage */}
-      <Card>
-        <BlockStack gap="200">
-          <InlineStack align="space-between" blockAlign="center">
-            <Text as="span" variant="bodySm" tone="subdued">Cobertura</Text>
-            <Badge tone={coveragePercent >= 80 ? 'success' : coveragePercent >= 50 ? 'warning' : 'critical'}>
-              {`${coveragePercent}%`}
-            </Badge>
-          </InlineStack>
-          <ProgressBar
-            progress={coveragePercent}
-            tone={coveragePercent >= 80 ? 'success' : coveragePercent >= 50 ? 'highlight' : 'critical'}
-            size="small"
-          />
-          <Text as="span" variant="bodySm" tone="subdued">
-            {`${totalCategorized} de ${products.length} productos`}
-          </Text>
-        </BlockStack>
-      </Card>
-    </InlineGrid>
-  );
-
-  // ── Category Card Component ──
-  const renderCategoryCard = (cat: typeof categories[number], index: number) => {
-    const count = productCounts.get(cat.id) ?? productCounts.get(cat.name) ?? 0;
-    const color = getCategoryColor(index);
-    const initials = getCategoryInitials(cat.name);
-    const isPopoverActive = activePopover === cat.id;
-
-    return (
-      <div key={cat.id} style={{ breakInside: 'avoid' }}>
-        <Card>
-          <InlineStack align="space-between" blockAlign="start">
-            <InlineStack gap="400" blockAlign="center">
-              {/* Avatar */}
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: color.bg,
-                  border: `1.5px solid ${color.border}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Text as="span" variant="headingSm" fontWeight="bold">
-                  <span style={{ color: color.text }}>{initials}</span>
-                </Text>
-              </div>
-
-              {/* Info */}
-              <BlockStack gap="100">
-                <Text variant="headingSm" as="h3" fontWeight="semibold">
-                  {cat.name}
-                </Text>
-                {cat.description && (
-                  <Text variant="bodySm" as="p" tone="subdued">
-                    {cat.description}
-                  </Text>
-                )}
-                <InlineStack gap="200" blockAlign="center">
-                  <Badge tone={count > 0 ? 'info' : undefined}>
-                    {count === 1 ? '1 producto' : `${count} productos`}
-                  </Badge>
-                  {count === 0 && (
-                    <Text variant="bodySm" as="span" tone="caution">
-                      Vacía
-                    </Text>
-                  )}
-                </InlineStack>
-              </BlockStack>
-            </InlineStack>
-
-            {/* Actions */}
-            <Popover
-              active={isPopoverActive}
-              activator={
-                <Button
-                  icon={MenuHorizontalIcon}
-                  variant="tertiary"
-                  accessibilityLabel="Acciones de categoría"
-                  onClick={() =>
-                    setActivePopover(isPopoverActive ? null : cat.id)
-                  }
-                />
-              }
-              onClose={() => setActivePopover(null)}
-              preferredAlignment="right"
-            >
-              <ActionList
-                items={[
-                  {
-                    content: 'Editar',
-                    icon: EditIcon,
-                    onAction: () => openEditModal(cat),
-                  },
-                  {
-                    content: 'Eliminar',
-                    icon: DeleteIcon,
-                    destructive: true,
-                    disabled: count > 0,
-                    helpText: count > 0 ? `Tiene ${count} productos` : undefined,
-                    onAction: () => openDeleteModal(cat.id, cat.name),
-                  },
-                ]}
-              />
-            </Popover>
-          </InlineStack>
-        </Card>
-      </div>
-    );
-  };
-
   return (
     <Page
       title="Categorías"
-      subtitle="Organiza tu inventario en grupos para facilitar búsquedas y reportes"
-      backAction={{ content: 'Dashboard', url: '/dashboard' }}
+      subtitle={`${totalCategorized} de ${products.length} productos organizados`}
       primaryAction={{
-        content: 'Nueva categoría',
+        content: 'Agregar categoría',
         icon: PlusIcon,
-        onAction: () => {
-          const el = document.getElementById('new-category-name');
-          el?.focus();
-        },
+        onAction: () => setCreateModalOpen(true),
       }}
     >
-      <BlockStack gap="600">
-        {/* KPI Cards */}
-        {kpiCards}
+      <BlockStack gap="400">
 
-        <Layout>
-          {/* Create form */}
-          <Layout.Section variant="oneThird">
-            <Card>
-              <BlockStack gap="400">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text as="h2" variant="headingMd">Nueva categoría</Text>
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 6,
-                      background: '#F3E8FF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Icon source={PlusIcon} tone="magic" />
-                  </div>
-                </InlineStack>
-                <Divider />
-                <TextField
-                  id="new-category-name"
-                  label="Nombre"
-                  value={newName}
-                  onChange={setNewName}
-                  placeholder="Ej: Abarrotes, Limpieza, Lácteos..."
-                  autoComplete="off"
-                  disabled={isSubmitting}
-                  maxLength={100}
-                  showCharacterCount
-                />
-                <TextField
-                  label="Descripción (opcional)"
-                  value={newDescription}
-                  onChange={setNewDescription}
-                  placeholder="Breve descripción de esta categoría"
-                  autoComplete="off"
-                  multiline={2}
-                  disabled={isSubmitting}
-                  maxLength={255}
-                  showCharacterCount
-                />
-                <Button
-                  variant="primary"
-                  icon={PlusIcon}
-                  onClick={handleCreate}
-                  loading={isSubmitting}
-                  disabled={!newName.trim()}
-                  fullWidth
-                  size="large"
-                >
-                  Crear categoría
-                </Button>
-              </BlockStack>
-            </Card>
-
-            {/* Quick tips */}
-            {categories.length === 0 && (
-              <Box paddingBlockStart="400">
-                <Card>
-                  <BlockStack gap="300">
-                    <Text as="h3" variant="headingSm">Consejos</Text>
-                    <Divider />
-                    <BlockStack gap="200">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text as="span" variant="bodySm">•</Text>
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          Nombres claros y cortos: "Abarrotes", "Lácteos", "Snacks"
-                        </Text>
-                      </InlineStack>
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text as="span" variant="bodySm">•</Text>
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          Usa 5-15 categorías. Ni pocas ni demasiadas.
-                        </Text>
-                      </InlineStack>
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text as="span" variant="bodySm">•</Text>
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          Asigna categorías desde la página de productos.
-                        </Text>
-                      </InlineStack>
-                    </BlockStack>
-                  </BlockStack>
-                </Card>
-              </Box>
-            )}
-          </Layout.Section>
-
-          {/* Categories list */}
-          <Layout.Section>
-            <BlockStack gap="400">
-              {/* Search + Sort */}
-              <InlineStack gap="300" align="space-between" blockAlign="end">
-                <div style={{ flex: 1, maxWidth: 400 }}>
-                  <TextField
-                    label=""
-                    labelHidden
-                    placeholder="Buscar categoría..."
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    prefix={<Icon source={SearchIcon} />}
-                    autoComplete="off"
-                    clearButton
-                    onClearButtonClick={() => setSearchQuery('')}
-                  />
-                </div>
-                <InlineStack gap="200">
-                  <Tooltip content="Ordenar">
-                    <Button
-                      icon={SortIcon}
-                      variant={sortBy !== 'recent' ? 'primary' : 'tertiary'}
-                      onClick={() => {
-                        const order: Array<'recent' | 'name' | 'products'> = [
-                          'recent',
-                          'name',
-                          'products',
-                        ];
-                        const idx = order.indexOf(sortBy);
-                        setSortBy(order[(idx + 1) % order.length]);
-                      }}
-                      accessibilityLabel="Cambiar orden"
-                    >
-                      {sortBy === 'name'
-                        ? 'A-Z'
-                        : sortBy === 'products'
-                          ? 'Más productos'
-                          : 'Recientes'}
-                    </Button>
-                  </Tooltip>
-                </InlineStack>
+        {/* ── Coverage indicator ── */}
+        {products.length > 0 && (
+          <Card padding="400">
+            <BlockStack gap="200">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  {`${coveragePercent}% del inventario catalogado`}
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {`${totalCategorized} / ${products.length}`}
+                </Text>
               </InlineStack>
-
-              {/* Empty state */}
-              {filteredCategories.length === 0 && categories.length === 0 && (
-                <Card>
-                  <Box padding="800">
-                    <BlockStack gap="400" inlineAlign="center">
-                      <div
-                        style={{
-                          width: 80,
-                          height: 80,
-                          borderRadius: 20,
-                          background: '#F3E8FF',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          margin: '0 auto',
-                        }}
-                      >
-                        <Icon source={CollectionIcon} tone="magic" />
-                      </div>
-                      <Text variant="headingMd" as="h2" alignment="center">
-                        Organiza tu inventario
-                      </Text>
-                      <Text as="p" tone="subdued" alignment="center">
-                        Crea categorías para agrupar productos y generar reportes más claros.
-                      </Text>
-                    </BlockStack>
-                  </Box>
-                </Card>
-              )}
-
-              {/* No search results */}
-              {filteredCategories.length === 0 && categories.length > 0 && (
-                <Card>
-                  <Box padding="600">
-                    <BlockStack gap="200" inlineAlign="center">
-                      <Text variant="headingSm" as="h3" alignment="center">
-                        Sin resultados
-                      </Text>
-                      <Text as="p" tone="subdued" alignment="center">
-                        {`No hay categorías que coincidan con "${searchQuery}"`}
-                      </Text>
-                      <Button onClick={() => setSearchQuery('')} variant="plain">
-                        Limpiar búsqueda
-                      </Button>
-                    </BlockStack>
-                  </Box>
-                </Card>
-              )}
-
-              {/* Category cards grid */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                  gap: '12px',
-                }}
-              >
-                {filteredCategories.map((cat, i) => renderCategoryCard(cat, i))}
-              </div>
+              <ProgressBar
+                progress={coveragePercent}
+                tone={coveragePercent >= 80 ? 'success' : coveragePercent >= 50 ? 'highlight' : 'critical'}
+                size="small"
+              />
             </BlockStack>
-          </Layout.Section>
-        </Layout>
+          </Card>
+        )}
+
+        {/* ── Warning ── */}
+        {uncategorizedCount > 0 && categories.length > 0 && (
+          <Banner
+            title={`${uncategorizedCount} producto${uncategorizedCount === 1 ? '' : 's'} sin categoría`}
+            tone="warning"
+          >
+            <Text as="p" variant="bodySm">
+              Asigna categorías desde la página de productos para mejorar tus reportes.
+            </Text>
+          </Banner>
+        )}
+
+        {/* ── Main table ── */}
+        <Card padding="0">
+          <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
+            <Box padding="300" paddingBlockEnd="0">
+              <TextField
+                label=""
+                labelHidden
+                placeholder="Buscar categorías..."
+                value={searchQuery}
+                onChange={setSearchQuery}
+                prefix={<Icon source={SearchIcon} />}
+                autoComplete="off"
+                clearButton
+                onClearButtonClick={() => setSearchQuery('')}
+              />
+            </Box>
+
+            <Box paddingBlockStart="200">
+              {categories.length === 0 ? (
+                <EmptyState
+                  heading="Organiza tu inventario"
+                  image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                  action={{
+                    content: 'Crear primera categoría',
+                    onAction: () => setCreateModalOpen(true)
+                  }}
+                >
+                  <Text as="p" tone="subdued">
+                    Las categorías agrupan tus productos para facilitar búsquedas y generar reportes más claros.
+                  </Text>
+                </EmptyState>
+              ) : filteredCategories.length === 0 ? (
+                <EmptyState
+                  heading="Sin resultados"
+                  image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                  action={{
+                    content: 'Limpiar filtros',
+                    onAction: () => { setSearchQuery(''); setSelectedTab(0); }
+                  }}
+                >
+                  <Text as="p" tone="subdued">
+                    {`No hay categorías que coincidan con "${searchQuery}"`}
+                  </Text>
+                </EmptyState>
+              ) : (
+                <IndexTable
+                  resourceName={{ singular: 'categoría', plural: 'categorías' }}
+                  itemCount={filteredCategories.length}
+                  selectable={false}
+                  headings={[
+                    { title: 'Categoría' },
+                    { title: 'Productos', alignment: 'end' },
+                    { title: 'Estado' },
+                    { title: '' },
+                  ]}
+                >
+                  {filteredCategories.map((cat, index) => {
+                    const count = productCounts.get(cat.id) ?? productCounts.get(cat.name) ?? 0;
+                    const initials = cat.name.trim().split(/\s+/).length >= 2
+                      ? (cat.name.trim().split(/\s+/)[0][0] + cat.name.trim().split(/\s+/)[1][0]).toUpperCase()
+                      : cat.name.slice(0, 2).toUpperCase();
+
+                    return (
+                      <IndexTable.Row id={cat.id} key={cat.id} position={index}>
+                        <IndexTable.Cell>
+                          <InlineStack gap="300" blockAlign="center">
+                            <Thumbnail
+                              source={ImageIcon}
+                              alt={cat.name}
+                              size="small"
+                            />
+                            <BlockStack gap="050">
+                              <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                {cat.name}
+                              </Text>
+                              {cat.description ? (
+                                <Text variant="bodySm" as="span" tone="subdued">
+                                  {cat.description}
+                                </Text>
+                              ) : (
+                                <Text variant="bodySm" as="span" tone="subdued">
+                                  {`${initials} · Sin descripción`}
+                                </Text>
+                              )}
+                            </BlockStack>
+                          </InlineStack>
+                        </IndexTable.Cell>
+                        <IndexTable.Cell>
+                          <Text as="span" variant="bodyMd" alignment="end" fontWeight={count > 0 ? 'semibold' : 'regular'}>
+                            {String(count)}
+                          </Text>
+                        </IndexTable.Cell>
+                        <IndexTable.Cell>
+                          {count > 0 ? (
+                            <Badge tone="success">Activa</Badge>
+                          ) : (
+                            <Badge>Vacía</Badge>
+                          )}
+                        </IndexTable.Cell>
+                        <IndexTable.Cell>
+                          <InlineStack gap="100" align="end">
+                            <Button
+                              size="micro"
+                              icon={EditIcon}
+                              variant="tertiary"
+                              onClick={() => openEditModal(cat)}
+                              accessibilityLabel={`Editar ${cat.name}`}
+                            />
+                            <Button
+                              size="micro"
+                              icon={DeleteIcon}
+                              variant="tertiary"
+                              tone="critical"
+                              disabled={count > 0}
+                              onClick={() => openDeleteModal(cat.id, cat.name)}
+                              accessibilityLabel={`Eliminar ${cat.name}`}
+                            />
+                          </InlineStack>
+                        </IndexTable.Cell>
+                      </IndexTable.Row>
+                    );
+                  })}
+                </IndexTable>
+              )}
+            </Box>
+          </Tabs>
+        </Card>
       </BlockStack>
 
-      {/* ── Edit Modal ── */}
+      {/* Create Modal */}
+      <Modal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        title="Agregar categoría"
+        primaryAction={{
+          content: 'Agregar',
+          onAction: async () => {
+            await handleCreate();
+            setCreateModalOpen(false);
+          },
+          loading: isSubmitting,
+          disabled: !newName.trim(),
+        }}
+        secondaryActions={[
+          { content: 'Cancelar', onAction: () => setCreateModalOpen(false) },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <TextField
+              label="Nombre"
+              value={newName}
+              onChange={setNewName}
+              placeholder="Ej: Abarrotes, Limpieza, Lácteos..."
+              autoComplete="off"
+              disabled={isSubmitting}
+              maxLength={100}
+              showCharacterCount
+            />
+            <TextField
+              label="Descripción (opcional)"
+              value={newDescription}
+              onChange={setNewDescription}
+              placeholder="Breve descripción de esta categoría"
+              autoComplete="off"
+              multiline={2}
+              disabled={isSubmitting}
+              maxLength={255}
+              showCharacterCount
+            />
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      {/* Edit Modal */}
       <Modal
         open={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         title="Editar categoría"
         primaryAction={{
-          content: 'Guardar cambios',
+          content: 'Guardar',
           onAction: handleUpdate,
           loading: isUpdating,
           disabled: !editName.trim(),
@@ -660,7 +451,7 @@ export default function CategoriesPage() {
         </Modal.Section>
       </Modal>
 
-      {/* ── Delete Confirmation Modal ── */}
+      {/* Delete Modal */}
       <Modal
         open={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}

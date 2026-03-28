@@ -23,9 +23,14 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
     );
   }
 
+  const isDev = process.env.NODE_ENV === 'development';
+  const scriptSrc = isDev
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://sdk.mercadopago.com"
+    : "script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://sdk.mercadopago.com";
+
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://sdk.mercadopago.com",
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://*.amazonaws.com https://lh3.googleusercontent.com https://*.mlstatic.com",
     "font-src 'self' data:",

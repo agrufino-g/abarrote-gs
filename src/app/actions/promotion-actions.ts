@@ -44,6 +44,7 @@ export async function createPromotion(
   const id = `promo-${crypto.randomUUID()}`;
 
   validate(data);
+  validateApplicability(data);
 
   await db.insert(promotions).values({
     id,
@@ -153,5 +154,15 @@ function validate(data: Pick<Promotion, 'name' | 'type' | 'value' | 'startDate' 
   }
   if (new Date(data.endDate) <= new Date(data.startDate)) {
     throw new Error('La fecha de fin debe ser posterior a la fecha de inicio');
+  }
+}
+
+function validateApplicability(data: Pick<Promotion, 'applicableTo' | 'applicableIds'>) {
+  if (data.applicableTo !== 'all' && (!data.applicableIds || data.applicableIds.length === 0)) {
+    throw new Error(
+      data.applicableTo === 'product'
+        ? 'Debes seleccionar al menos un producto para la promoción'
+        : 'Debes seleccionar al menos una categoría para la promoción',
+    );
   }
 }
