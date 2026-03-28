@@ -16,6 +16,7 @@ import { MobileIcon, CashDollarIcon } from '@shopify/polaris-icons';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { formatCurrency } from '@/lib/utils';
+import { createRecarga, createPagoServicio } from '@/app/actions/servicios-actions';
 
 interface ServiciosModalProps {
   open: boolean;
@@ -74,24 +75,22 @@ export function ServiciosModal({ open, onClose }: ServiciosModalProps) {
       // Aquí iría la integración con el proveedor de servicios
       // Por ahora solo registramos localmente
 
-      const servicio = {
-        id: crypto.randomUUID(),
-        tipo,
+      const payload = {
         categoria,
         nombre: categoriaActual?.label || categoria,
         monto: montoFinal,
-        comision,
         numeroReferencia,
-        folio,
-        estado: 'completado' as const,
         cajero: currentUserRole?.globalId || currentUserRole?.employeeNumber || 'Cajero',
-        fecha: new Date().toISOString(),
       };
 
-      // TODO: Guardar en base de datos
-      console.log('Servicio registrado:', servicio);
+      let registeredService;
+      if (tipo === 'recarga') {
+        registeredService = await createRecarga(payload);
+      } else {
+        registeredService = await createPagoServicio(payload);
+      }
 
-      showSuccess(`${tipo === 'recarga' ? 'Recarga' : 'Pago'} procesado: ${folio}`);
+      showSuccess(`${tipo === 'recarga' ? 'Recarga' : 'Pago'} procesado: ${registeredService.folio}`);
 
       // Reset form
       setCategoria('');

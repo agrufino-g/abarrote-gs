@@ -200,7 +200,7 @@ export default function DashboardOverviewPage() {
   };
 
   const handleProductClick = useCallback((product: Product) => {
-    // TODO: integrate with layout's product detail modal via context or URL
+    useDashboardStore.getState().openProductDetail(product);
   }, []);
 
   const handleExport = useCallback((options: Parameters<typeof exportDashboardData>[0]) => {

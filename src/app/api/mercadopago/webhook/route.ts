@@ -3,6 +3,9 @@ import { MercadoPagoConfig, Payment } from 'mercadopago';
 import crypto from 'crypto';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
+import { logAudit } from '@/lib/audit';
+import { db } from '@/db';
+import { mercadopagoPayments } from '@/db/schema';
 
 /** Rate limit: 30 webhook calls per minute per IP */
 const RATE_LIMIT = { maxRequests: 30, windowMs: 60_000 } as const;
@@ -115,7 +118,37 @@ export async function POST(req: Request) {
 
                 if (paymentData.status === 'approved') {
                     logger.info('Payment approved — updating DB', { paymentId });
-                    // TODO: await db.venta.updateStatus(paymentData.external_reference, 'PAGADO');
+                    
+                    await db.insert(mercadopagoPayments).values({
+                        id: `mp-${crypto.randomUUID()}`,
+                        paymentId: paymentId || 'unknown',
+                        status: paymentData.status || 'unknown',
+                        externalReference: paymentData.external_reference || null,
+                        amount: String(paymentData.transaction_amount || 0)
+                    }).onConflictDoUpdate({
+                        target: mercadopagoPayments.paymentId,
+                        set: {
+                            status: paymentData.status || 'unknown',
+                            amount: String(paymentData.transaction_amount || 0)
+                        }
+                    });
+
+                    // Aseguramos trazabilidad en la base de datos de auditoría
+                    await logAudit({
+                        userId: 'system',
+                        userEmail: 'system@webhook',
+                        action: 'update',
+                        entity: 'mercadopago_payment',
+                        entityId: paymentId || 'unknown',
+                        changes: {
+                            after: {
+                                status: paymentData.status,
+                                ref: paymentData.external_reference
+                            }
+                        },
+                        ipAddress: ip
+                    });
+
                 } else if (paymentData.status === 'rejected') {
                     logger.info('Payment rejected', { paymentId });
                 } else if (paymentData.status === 'in_process') {

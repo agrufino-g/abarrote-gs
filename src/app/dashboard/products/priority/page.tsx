@@ -12,7 +12,7 @@ export default function InventoryPriorityPage() {
   const inventoryAlerts = useDashboardStore((s) => s.inventoryAlerts);
 
   const handleProductClick = useCallback((product: Product) => {
-    // TODO: integrate with layout product detail modal
+    useDashboardStore.getState().openProductDetail(product);
   }, []);
 
   const fancyTitle = (

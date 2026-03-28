@@ -13,7 +13,7 @@ export default function NotificationsPage() {
   const router = useRouter();
 
   const handleProductClick = useCallback((product: Product) => {
-    // TODO: integrate with layout product detail modal
+    useDashboardStore.getState().openProductDetail(product);
   }, []);
 
   return (

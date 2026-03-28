@@ -29,8 +29,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const inventoryAlerts = useDashboardStore((s) => s.inventoryAlerts);
 
   const [mobileNavActive, setMobileNavActive] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isProductDetailActive, setIsProductDetailActive] = useState(false);
+  const layoutSelectedProduct = useDashboardStore((s) => s.layoutSelectedProduct);
+  const isProductDetailActive = useDashboardStore((s) => s.isProductDetailActive);
+  const openProductDetail = useDashboardStore((s) => s.openProductDetail);
+  const closeProductDetail = useDashboardStore((s) => s.closeProductDetail);
   const [sessionExpired, setSessionExpired] = useState(false); // New lock state
 
   const { signOut } = useAuth(); // Access signOut from AuthContext
@@ -86,8 +88,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [router]);
 
   const handleProductClick = useCallback((product: Product) => {
-    setSelectedProduct(product);
-    setIsProductDetailActive(true);
+    openProductDetail(product);
   }, []);
 
   const criticalAlerts = inventoryAlerts.filter(
@@ -115,8 +116,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       onNavigationToggle={toggleMobileNav}
       onSectionSelect={handleSectionSelect}
       onProductClick={(product) => {
-        setSelectedProduct(product);
-        setIsProductDetailActive(true);
+        openProductDetail(product);
       }}
     />
   );
@@ -170,17 +170,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           children
         )}
 
-        {isProductDetailActive && selectedProduct && (
+        {isProductDetailActive && layoutSelectedProduct && (
           <ProductDetailModal
-            product={selectedProduct}
+            product={layoutSelectedProduct}
             open={true}
             isInline={false}
             onClose={() => {
-              setIsProductDetailActive(false);
-              setSelectedProduct(null);
+              closeProductDetail();
             }}
-            onSave={async () => {
-              setIsProductDetailActive(false);
+              closeProductDetail();
               setSelectedProduct(null);
             }}
           />

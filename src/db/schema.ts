@@ -430,3 +430,12 @@ export const promotions = pgTable('promotions', {
   index('promotions_active_idx').on(t.active),
   index('promotions_dates_idx').on(t.startDate, t.endDate),
 ]);
+
+export const mercadopagoPayments = pgTable('mercadopago_payments', {
+  id: text('id').primaryKey(),
+  paymentId: text('payment_id').notNull().unique(),
+  status: text('status').notNull(),
+  externalReference: text('external_reference'),
+  amount: numeric('amount', { precision: 10, scale: 2 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});

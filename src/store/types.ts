@@ -101,6 +101,10 @@ export interface RoleSlice {
 }
 
 export interface CoreSlice extends DashboardState {
+  layoutSelectedProduct: Product | null;
+  isProductDetailActive: boolean;
+  openProductDetail: (product: Product) => void;
+  closeProductDetail: () => void;
   storeConfig: StoreConfig;
   setKPIData: (data: KPIData) => void;
   setInventoryAlerts: (alerts: InventoryAlert[]) => void;

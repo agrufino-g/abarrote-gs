@@ -20,6 +20,10 @@ export type { DashboardStore } from './types';
 export const useDashboardStore = create<DashboardStore>((set, get) => {
   return {
     // ── Initial state ──
+    layoutSelectedProduct: null,
+    isProductDetailActive: false,
+    openProductDetail: (product) => set({ layoutSelectedProduct: product, isProductDetailActive: true }),
+    closeProductDetail: () => set({ layoutSelectedProduct: null, isProductDetailActive: false }),
     kpiData: null,
     inventoryAlerts: [],
     products: [],
