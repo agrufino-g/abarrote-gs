@@ -6,6 +6,7 @@ import {
   saveStoreConfig as dbSaveStoreConfig,
 } from '@/app/actions/db-actions';
 import { logger } from '@/lib/logger';
+import { parseError } from '@/lib/errors';
 
 // Slices
 import { createSalesSlice } from './slices/salesSlice';
@@ -88,18 +89,41 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
           isLoading: false,
           lastSyncAt: Date.now(),
         });
+
+        // ── ERROR HANDLING NIVEL 200% ──
+        // Mostrar en la UI usando Sileo cada módulo que falló
+        if (data.partialErrors && Array.isArray(data.partialErrors)) {
+          // Import sileo dynamically or just use global if available. We can import sileo.
+          import('sileo').then(({ sileo }) => {
+            data.partialErrors!.forEach((err) => {
+              sileo.error({
+                title: err.title,
+                description: err.description,
+                duration: 6000,
+              });
+            });
+          });
+        }
       } catch (error) {
-        logger.error('Dashboard fetch failed', {
+        // En caso de que falle toda la llamada fetchDashboardFromDB
+        const { title, description } = parseError(error);
+        
+        logger.error('Dashboard fatal fetch failed', {
           error: error instanceof Error ? error.message : String(error),
           action: 'fetchDashboardData',
         });
-        // Only show error to user on initial load — background failures are silent
+        
         if (isInitialLoad) {
           set({
-            error: 'Error al cargar los datos del dashboard. Verifica tu conexión a la base de datos.',
+            error: `${title}: ${description}`,
             isLoading: false,
           });
         }
+        
+        // Notify user via Sileo instead of just setting internal state
+        import('sileo').then(({ sileo }) => {
+           sileo.error({ title, description, duration: 10000 });
+        });
       }
     },
 

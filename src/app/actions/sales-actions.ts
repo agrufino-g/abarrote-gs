@@ -46,14 +46,14 @@ export async function fetchSalesData(): Promise<SalesData[]> {
       total: sql<string>`coalesce(sum(total::numeric), 0)`,
     })
       .from(saleRecords)
-      .where(sql`date >= ${weekStart.toISOString()} and date < ${weekEnd.toISOString()}`)
+      .where(sql`date >= ${weekStart.toISOString()} and date < ${weekEnd.toISOString()} and status != 'cancelada'`)
       .groupBy(sql`extract(dow from date)`),
     db.select({
       day: sql<number>`extract(dow from date)::int`,
       total: sql<string>`coalesce(sum(total::numeric), 0)`,
     })
       .from(saleRecords)
-      .where(sql`date >= ${prevWeekStart.toISOString()} and date < ${prevWeekEnd.toISOString()}`)
+      .where(sql`date >= ${prevWeekStart.toISOString()} and date < ${prevWeekEnd.toISOString()} and status != 'cancelada'`)
       .groupBy(sql`extract(dow from date)`),
   ]);
 
@@ -79,7 +79,7 @@ export async function fetchHourlySalesData(): Promise<HourlySalesData[]> {
     count: sql<number>`count(*)::int`,
   })
     .from(saleRecords)
-    .where(sql`date >= ${startOfDay.toISOString()} and date < ${endOfDay.toISOString()}`)
+    .where(sql`date >= ${startOfDay.toISOString()} and date < ${endOfDay.toISOString()} and status != 'cancelada'`)
     .groupBy(sql`extract(hour from date)`)
     .orderBy(sql`extract(hour from date)`);
 
@@ -149,6 +149,7 @@ export async function fetchSaleRecords(): Promise<SaleRecord[]> {
     discountType: ((row as any).discountType ?? 'amount') as 'amount' | 'percent',
     installments: (row as any).installments ?? 1,
     mpPaymentId: (row as any).mpPaymentId ?? null,
+    status: (row as any).status ?? 'completada',
   }));
 }
 
@@ -461,9 +462,16 @@ export async function createSale(
   }, { items: saleData.items.length });
 }
 
+import { fiadoTransactions, fiadoItems } from '@/db/schema'; // We need this import added if it's missing, let's just make sure.
+
 export async function cancelSale(saleId: string): Promise<void> {
   await requirePermission('sales.cancel');
   validateId(saleId, 'Sale ID');
+
+  const [sale] = await db.select().from(saleRecords).where(eq(saleRecords.id, saleId)).limit(1);
+  if (!sale) return;
+  if (sale.status === 'cancelada') return;
+
   const items = await db.select().from(saleItems).where(eq(saleItems.saleId, saleId));
   for (const item of items) {
     await db
@@ -474,10 +482,25 @@ export async function cancelSale(saleId: string): Promise<void> {
       })
       .where(eq(products.id, item.productId));
   }
+
+  // Si fue fiado, revertir deuda global del cliente y limpiar tickets de deudores
+  if (sale.paymentMethod === 'fiado') {
+    const fTransactions = await db.select().from(fiadoTransactions).where(eq(fiadoTransactions.saleFolio, sale.folio));
+    for (const trx of fTransactions) {
+      await db.update(clientes)
+        .set({ balance: sql`balance - ${trx.amount}` })
+        .where(eq(clientes.id, trx.clienteId));
+      
+      await db.delete(fiadoItems).where(eq(fiadoItems.fiadoId, trx.id));
+      await db.delete(fiadoTransactions).where(eq(fiadoTransactions.id, trx.id));
+    }
+  }
+
   await db.delete(devoluciones).where(eq(devoluciones.saleId, saleId));
   await db.delete(loyaltyTransactions).where(eq(loyaltyTransactions.saleId, saleId));
-  await db.delete(saleItems).where(eq(saleItems.saleId, saleId));
-  await db.delete(saleRecords).where(eq(saleRecords.id, saleId));
+  
+  // Guardado histórico en base de datos.
+  await db.update(saleRecords).set({ status: 'cancelada' }).where(eq(saleRecords.id, saleId));
 }
 
 export async function deleteSales(saleIds: string[]): Promise<void> {
@@ -485,8 +508,17 @@ export async function deleteSales(saleIds: string[]): Promise<void> {
   if (saleIds.length === 0) return;
   saleIds.forEach(id => validateId(id, 'Sale ID'));
 
+  const activeSales = await db.select().from(saleRecords).where(
+     inArray(saleRecords.id, saleIds)
+  );
+
+  const pendingSalesToCancel = activeSales.filter(s => s.status !== 'cancelada');
+  if (pendingSalesToCancel.length === 0) return;
+  
+  const activeIds = pendingSalesToCancel.map(s => s.id);
+
   // Restaurar stock de todos los items involucrados
-  const allItems = await db.select().from(saleItems).where(inArray(saleItems.saleId, saleIds));
+  const allItems = await db.select().from(saleItems).where(inArray(saleItems.saleId, activeIds));
   await Promise.all(
     allItems.map(item =>
       db.update(products)
@@ -495,10 +527,25 @@ export async function deleteSales(saleIds: string[]): Promise<void> {
     )
   );
 
-  await db.delete(devoluciones).where(inArray(devoluciones.saleId, saleIds));
-  await db.delete(loyaltyTransactions).where(inArray(loyaltyTransactions.saleId, saleIds));
-  await db.delete(saleItems).where(inArray(saleItems.saleId, saleIds));
-  await db.delete(saleRecords).where(inArray(saleRecords.id, saleIds));
+  // Revertir deudas por fiado
+  for (const sale of pendingSalesToCancel) {
+    if (sale.paymentMethod === 'fiado') {
+      const fTransactions = await db.select().from(fiadoTransactions).where(eq(fiadoTransactions.saleFolio, sale.folio));
+      for (const trx of fTransactions) {
+        await db.update(clientes)
+          .set({ balance: sql`balance - ${trx.amount}` })
+          .where(eq(clientes.id, trx.clienteId));
+        await db.delete(fiadoItems).where(eq(fiadoItems.fiadoId, trx.id));
+        await db.delete(fiadoTransactions).where(eq(fiadoTransactions.id, trx.id));
+      }
+    }
+  }
+
+  await db.delete(devoluciones).where(inArray(devoluciones.saleId, activeIds));
+  await db.delete(loyaltyTransactions).where(inArray(loyaltyTransactions.saleId, activeIds));
+  
+  // Guardado histórico
+  await db.update(saleRecords).set({ status: 'cancelada' }).where(inArray(saleRecords.id, activeIds));
 }
 
 // ==================== CORTES DE CAJA ====================
@@ -538,7 +585,7 @@ export async function createCorteCaja(data: {
   const salesRows = await db
     .select()
     .from(saleRecords)
-    .where(sql`(${saleRecords.date} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City')::date = ${todayStr}::date`);
+    .where(sql`(${saleRecords.date} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City')::date = ${todayStr}::date AND ${saleRecords.status} != 'cancelada'`);
 
   const EFECTIVO_METHODS = new Set(['efectivo']);
   const TARJETA_METHODS = new Set(['tarjeta', 'tarjeta_web', 'tarjeta_manual', 'oxxo_conekta', 'oxxo_stripe', 'tarjeta_clip', 'clip_terminal']);
@@ -617,7 +664,7 @@ export async function createAutoCorteCaja(): Promise<void> {
   if (todayCorte) return;
 
   const allSales = await db.select().from(saleRecords);
-  const todaySales = allSales.filter(s => s.date.toISOString().startsWith(today));
+  const todaySales = allSales.filter(s => s.date.toISOString().startsWith(today) && s.status !== 'cancelada');
   if (todaySales.length === 0) return;
 
   const ventasEfectivo = todaySales.filter(s => s.paymentMethod === 'efectivo').reduce((sum, s) => sum + parseFloat(String(s.total)), 0);

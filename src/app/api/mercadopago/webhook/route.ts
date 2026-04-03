@@ -59,7 +59,12 @@ function verifyWebhookSignature(req: Request, body: string): boolean {
   const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
   const hmac = crypto.createHmac('sha256', secret).update(manifest).digest('hex');
 
-  return hmac === v1;
+  // Use timingSafeEqual to prevent timing attacks
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(v1, 'hex'));
+  } catch {
+    return false; // Buffers of different lengths throw — treat as invalid
+  }
 }
 
 export async function POST(req: Request) {

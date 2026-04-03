@@ -1,0 +1,31 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily-report",
+      "schedule": "0 8 * * *"
+    }
+  ],
+  "functions": {
+    "src/app/api/mercadopago/webhook/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/webhooks/stripe/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/webhooks/conekta/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/webhooks/clip/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/cron/daily-report/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/actions/analytics-advanced-actions.ts": {
+      "maxDuration": 30
+    },
+    "src/app/actions/import-actions.ts": {
+      "maxDuration": 60
+    }
+  }
+}

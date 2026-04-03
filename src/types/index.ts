@@ -246,6 +246,7 @@ export interface SaleRecord {
   pointsUsed: number;
   discount: number;
   discountType: 'amount' | 'percent';
+  status: 'completada' | 'cancelada' | 'devuelta';
 }
 
 export const REFUND_STATUSES = ['pending', 'approved', 'rejected'] as const;

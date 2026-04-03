@@ -4,16 +4,59 @@ import { auth } from '@/lib/auth/server';
 
 const authHandler = auth.middleware({ loginUrl: '/auth/login' });
 
-/**
- * CSRF Protection via Origin header verification.
- *
- * Next.js Server Actions use POST requests. We verify the Origin header
- * against the Host header to prevent cross-site request forgery.
- * Follows OWASP "Verifying the Origin with Standard Headers" approach.
- *
- * GET/HEAD/OPTIONS are safe methods — no CSRF check needed.
- * Webhook routes use HMAC/signature auth. Cron routes use secret-based auth.
- */
+// ══════════════════════════════════════════════════════════════
+// Bot / Scanner Blocklist — blocked at Edge before any routing
+// ══════════════════════════════════════════════════════════════
+
+const BOT_UA_PATTERNS = [
+  /sqlmap/i, /nikto/i, /masscan/i, /nmap/i, /zgrab/i,
+  /dirbuster/i, /gobuster/i, /nuclei/i, /hydra/i,
+  /metasploit/i, /havij/i, /acunetix/i, /nessus/i,
+  /openvas/i, /burpsuite/i, /\bscanner\b/i, /\bfuzzer\b/i,
+];
+
+function isBlockedBot(request: NextRequest): boolean {
+  const ua = request.headers.get('user-agent') ?? '';
+  return BOT_UA_PATTERNS.some((p) => p.test(ua));
+}
+
+// ══════════════════════════════════════════════════════════════
+// Suspicious Path Patterns — block scanner probes immediately
+// ══════════════════════════════════════════════════════════════
+
+const BLOCKED_PATH_PATTERNS = [
+  /\/\.env/i,
+  /\/\.git/i,
+  /\/wp-admin/i,
+  /\/wp-login/i,
+  /\/phpMyAdmin/i,
+  /\/phpmyadmin/i,
+  /\/admin\/config/i,
+  /\/etc\/passwd/i,
+  /\/proc\/self/i,
+  /\.\.(\/|\\)/,
+  /%2e%2e/i,
+  /\x00/,
+  /\.(php|asp|aspx|jsp|cgi|sh|bash)$/i,
+];
+
+function isSuspiciousPath(request: NextRequest): boolean {
+  const path = request.nextUrl.pathname + request.nextUrl.search;
+  return BLOCKED_PATH_PATTERNS.some((p) => p.test(path));
+}
+
+// ══════════════════════════════════════════════════════════════
+// CSRF Protection via Origin header verification
+// ══════════════════════════════════════════════════════════════
+//
+// Next.js Server Actions use POST requests. We verify the Origin
+// header against the Host header to prevent cross-site request
+// forgery. Follows OWASP "Verifying the Origin with Standard Headers".
+//
+// GET/HEAD/OPTIONS are safe methods — no CSRF check needed.
+// Webhook routes use HMAC/signature auth. Cron/job routes use
+// secret-based or QStash-signature auth.
+
 function csrfCheck(request: NextRequest): NextResponse | null {
   const method = request.method.toUpperCase();
 
@@ -23,7 +66,16 @@ function csrfCheck(request: NextRequest): NextResponse | null {
 
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith('/api/webhooks') || pathname.startsWith('/api/cron') || pathname.startsWith('/api/jobs')) {
+  // Exempt routes: webhooks, cron, jobs, oauth, telegram, auth
+  if (
+    pathname.startsWith('/api/webhooks') ||
+    pathname.startsWith('/api/cron') ||
+    pathname.startsWith('/api/jobs') ||
+    pathname.startsWith('/api/oauth') ||
+    pathname.startsWith('/api/mercadopago/webhook') ||
+    pathname.startsWith('/api/telegram/webhook') ||
+    pathname.startsWith('/auth')
+  ) {
     return null;
   }
 
@@ -48,62 +100,88 @@ function csrfCheck(request: NextRequest): NextResponse | null {
   return null;
 }
 
-/**
- * Applies security headers to the response.
- */
+// ══════════════════════════════════════════════════════════════
+// Security Headers — applied to every response
+// ══════════════════════════════════════════════════════════════
+
+const isDev = process.env.NODE_ENV === 'development';
+
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://sdk.mercadopago.com"
+  : "script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://sdk.mercadopago.com";
+
+const CSP = [
+  "default-src 'self'",
+  scriptSrc,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https://*.amazonaws.com https://lh3.googleusercontent.com https://*.mlstatic.com https://*.firebasestorage.app",
+  "connect-src 'self' https://*.neon.tech wss://*.neon.tech https://firestore.googleapis.com https://firebase.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.upstash.io https://api.mercadopago.com https://api.stripe.com https://api.conekta.io https://api.telegram.org https://*.firebaseio.com wss://*.firebaseio.com https://*.amazonaws.com",
+  "frame-src 'none'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "upgrade-insecure-requests",
+].join('; ');
+
 function applySecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set(
     'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+    'camera=(), microphone=(), geolocation=(self), payment=(), interest-cohort=()',
   );
-  response.headers.set('X-XSS-Protection', '1; mode=block');
+  // Disable legacy XSS auditor (can be exploited in old browsers)
+  response.headers.set('X-XSS-Protection', '0');
 
-  if (process.env.NODE_ENV === 'production') {
+  // Hide server technology fingerprint
+  response.headers.delete('X-Powered-By');
+  response.headers.set('Server', 'abarrote');
+
+  if (!isDev) {
     response.headers.set(
       'Strict-Transport-Security',
-      'max-age=31536000; includeSubDomains; preload',
+      'max-age=63072000; includeSubDomains; preload',
     );
   }
 
-  const isDev = process.env.NODE_ENV === 'development';
-  const scriptSrc = isDev
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://sdk.mercadopago.com"
-    : "script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://sdk.mercadopago.com";
+  response.headers.set('Content-Security-Policy', CSP);
 
-  const csp = [
-    "default-src 'self'",
-    scriptSrc,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://*.amazonaws.com https://lh3.googleusercontent.com https://*.mlstatic.com",
-    "font-src 'self' data:",
-    "connect-src 'self' https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.telegram.org https://api.mercadopago.com https://*.amazonaws.com wss://*.firebaseio.com",
-    "frame-src 'self' https://accounts.google.com",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
-  ].join('; ');
-
-  response.headers.set('Content-Security-Policy', csp);
+  // Prevent search engines from indexing this internal POS system
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow');
 
   return response;
 }
 
+// ══════════════════════════════════════════════════════════════
+// Main Proxy Export
+// ══════════════════════════════════════════════════════════════
+
 export async function proxy(request: Parameters<typeof authHandler>[0]) {
-  // 1. CSRF check first — block cross-origin mutations early
-  const csrfResponse = csrfCheck(request as NextRequest);
-  if (csrfResponse) {
-    return csrfResponse;
+  const req = request as NextRequest;
+
+  // 1. Block bots and scanners at the edge
+  if (isBlockedBot(req)) {
+    return new NextResponse('Forbidden', { status: 403 });
   }
 
-  // 2. Auth + security headers
+  // 2. Block suspicious scanner probe paths
+  if (isSuspiciousPath(req)) {
+    return new NextResponse('Not Found', { status: 404 });
+  }
+
+  // 3. CSRF check for all state-mutating requests
+  const csrfResponse = csrfCheck(req);
+  if (csrfResponse) {
+    return applySecurityHeaders(csrfResponse);
+  }
+
+  // 4. Auth check + session handling (via auth.middleware)
   const response = await authHandler(request);
 
-  // authHandler returns either a redirect or NextResponse.next()
+  // Apply security headers to all responses
   if (response) {
     applySecurityHeaders(response);
   }

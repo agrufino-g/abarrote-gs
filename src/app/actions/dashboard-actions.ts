@@ -10,28 +10,37 @@ import { fetchDevoluciones } from './devolucion-actions';
 import { fetchCashMovements } from './cash-movement-actions';
 import { fetchLoyaltyTransactions } from './loyalty-actions';
 import { fetchCategories } from './category-actions';
+import { requireAuth } from '@/lib/auth/guard';
+import { logger } from '@/lib/logger';
 import type { KPIData } from '@/types';
 import { DEFAULT_STORE_CONFIG } from '@/types';
 
+import { parseError } from '@/lib/errors';
+
 // ==================== FULL DASHBOARD FETCH ====================
 
-/** Safely resolve a promise, returning a fallback on failure */
-async function safe<T>(promise: Promise<T>, fallback: T, label: string): Promise<T> {
+/** Safely resolve a promise, returning data and any error that occurred without crashing Promise.all */
+async function safe<T>(promise: Promise<T>, fallback: T, label: string): Promise<{ data: T; error: { title: string; description: string } | null }> {
   try {
-    return await promise;
+    const data = await promise;
+    return { data, error: null };
   } catch (error) {
-    const isConnError = error instanceof Error && (
-      error.message.includes('ECONNREFUSED') || 
-      error.message.includes('ETIMEDOUT') || 
-      error.message.includes('Connection failed')
-    );
+    const parsed = parseError(error);
     
-    if (isConnError) {
-      console.warn(`[Dashboard] OFFLINE: No se pudo conectar a la base de datos en la nube para "${label}".`);
-    } else {
-      console.error(`[Dashboard] Error inesperado en "${label}":`, error instanceof Error ? error.message : error);
-    }
-    return fallback;
+    // Log the error locally for server observability
+    logger.error(`Dashboard unexpected error for "${label}"`, {
+      label,
+      title: parsed.title,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return { 
+      data: fallback, 
+      error: {
+        title: `Error cargando ${label}`,
+        description: parsed.description
+      } 
+    };
   }
 }
 
@@ -45,68 +54,63 @@ const DEFAULT_KPI: KPIData = {
 };
 
 export async function fetchDashboardFromDB() {
-  const [
-    kpiData,
-    allProducts,
-    inventoryAlerts,
-    salesData,
-    saleRecordsList,
-    mermaRecordsList,
-    pedidosList,
-    clientesList,
-    fiadoList,
-    gastosList,
-    proveedoresList,
-    cortesHistoryList,
-    inventoryAuditsList,
-    storeConfigData,
-    devolucionesList,
-    cashMovementsList,
-    loyaltyTransactionsList,
-    hourlySalesList,
-    categoriesList,
-  ] = await Promise.all([
+  // Guard: this action loads ALL business data — must be authenticated
+  await requireAuth();
+
+  const results = await Promise.all([
     safe(fetchKPIData(), DEFAULT_KPI, 'KPI'),
-    safe(fetchAllProducts(), [], 'products'),
-    safe(fetchInventoryAlerts(), [], 'inventory alerts'),
-    safe(fetchSalesData(), [], 'sales data'),
-    safe(fetchSaleRecords(), [], 'sale records'),
-    safe(fetchMermaRecords(), [], 'merma records'),
-    safe(fetchPedidos(), [], 'pedidos'),
-    safe(fetchClientes(), [], 'clientes'),
-    safe(fetchFiadoTransactions(), [], 'fiado transactions'),
-    safe(fetchGastos(), [], 'gastos'),
-    safe(fetchProveedores(), [], 'proveedores'),
-    safe(fetchCortesHistory(), [], 'cortes history'),
-    safe(fetchInventoryAudits(), [], 'inventory audits'),
-    safe(fetchStoreConfig(), DEFAULT_STORE_CONFIG, 'store config'),
-    safe(fetchDevoluciones(), [], 'devoluciones'),
-    safe(fetchCashMovements(), [], 'cash movements'),
-    safe(fetchLoyaltyTransactions(), [], 'loyalty transactions'),
-    safe(fetchHourlySalesData(), [], 'hourly sales'),
-    safe(fetchCategories(), [], 'categories'),
+    safe(fetchAllProducts(), [], 'Productos'),
+    safe(fetchInventoryAlerts(), [], 'Alertas de inventario'),
+    safe(fetchSalesData(), [], 'Gráficos de ventas'),
+    safe(fetchSaleRecords(), [], 'Registro de ventas'),
+    safe(fetchMermaRecords(), [], 'Mermas'),
+    safe(fetchPedidos(), [], 'Pedidos'),
+    safe(fetchClientes(), [], 'Clientes'),
+    safe(fetchFiadoTransactions(), [], 'Fiado'),
+    safe(fetchGastos(), [], 'Gastos'),
+    safe(fetchProveedores(), [], 'Proveedores'),
+    safe(fetchCortesHistory(), [], 'Cortes de caja'),
+    safe(fetchInventoryAudits(), [], 'Auditorías'),
+    safe(fetchStoreConfig(), DEFAULT_STORE_CONFIG, 'Configuración de tienda'),
+    safe(fetchDevoluciones(), [], 'Devoluciones'),
+    safe(fetchCashMovements(), [], 'Movimientos de caja'),
+    safe(fetchLoyaltyTransactions(), [], 'Lealtad y recompensas'),
+    safe(fetchHourlySalesData(), [], 'Ventas por hora'),
+    safe(fetchCategories(), [], 'Categorías'),
   ]);
 
+  const [
+    kpiDataReq, allProductsReq, inventoryAlertsReq, salesDataReq, 
+    saleRecordsListReq, mermaRecordsListReq, pedidosListReq, clientesListReq, 
+    fiadoListReq, gastosListReq, proveedoresListReq, cortesHistoryListReq, 
+    inventoryAuditsListReq, storeConfigDataReq, devolucionesListReq, 
+    cashMovementsListReq, loyaltyTransactionsListReq, hourlySalesListReq, categoriesListReq
+  ] = results;
+
+  // Extract all non-null errors to report them to Sileo UI
+  const partialErrors = results.map(r => r.error).filter(e => e !== null) as { title: string; description: string }[];
+
   return {
-    kpiData,
-    products: allProducts,
-    inventoryAlerts,
-    salesData,
-    saleRecords: saleRecordsList,
-    mermaRecords: mermaRecordsList,
-    pedidos: pedidosList,
-    clientes: clientesList,
-    fiadoTransactions: fiadoList,
-    gastos: gastosList,
-    proveedores: proveedoresList,
-    cortesHistory: cortesHistoryList,
-    inventoryAudits: inventoryAuditsList,
-    storeConfig: storeConfigData,
-    devoluciones: devolucionesList,
-    cashMovements: cashMovementsList,
-    loyaltyTransactions: loyaltyTransactionsList,
-    hourlySalesData: hourlySalesList,
-    categories: categoriesList,
-    isOffline: allProducts.length === 0 && kpiData.dailySales === 0, // Inferencia básica de offline
+    kpiData: kpiDataReq.data,
+    products: allProductsReq.data,
+    inventoryAlerts: inventoryAlertsReq.data,
+    salesData: salesDataReq.data,
+    saleRecords: saleRecordsListReq.data,
+    mermaRecords: mermaRecordsListReq.data,
+    pedidos: pedidosListReq.data,
+    clientes: clientesListReq.data,
+    fiadoTransactions: fiadoListReq.data,
+    gastos: gastosListReq.data,
+    proveedores: proveedoresListReq.data,
+    cortesHistory: cortesHistoryListReq.data,
+    inventoryAudits: inventoryAuditsListReq.data,
+    storeConfig: storeConfigDataReq.data,
+    devoluciones: devolucionesListReq.data,
+    cashMovements: cashMovementsListReq.data,
+    loyaltyTransactions: loyaltyTransactionsListReq.data,
+    hourlySalesData: hourlySalesListReq.data,
+    categories: categoriesListReq.data,
+    isOffline: allProductsReq.data.length === 0 && partialErrors.length > 5, 
+    partialErrors, // Nuevo: el frontend ahora sabrá exactamente QUÉ falló y POR QUÉ
   };
 }

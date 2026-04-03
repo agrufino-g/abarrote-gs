@@ -19,6 +19,7 @@ import { deleteProduct } from '@/app/actions/db-actions';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { CategoryManagerModal } from '@/components/modals/CategoryManagerModal';
 import { Product } from '@/types';
+import { parseError } from '@/lib/errors';
 
 export default function ProductsPage() {
   const products = useDashboardStore((s) => s.products);
@@ -45,8 +46,10 @@ export default function ProductsPage() {
         await Promise.all(productsToDelete.map((p) => deleteProduct(p.id)));
         toast.showSuccess(`${count === 1 ? `Producto ${label}` : label} eliminado${count > 1 ? 's' : ''}`);
         fetchDashboardData();
-      } catch {
-        toast.showError('Error al eliminar productos');
+      } catch (error) {
+        const parsed = parseError(error);
+        parsed.title = 'Error al eliminar';
+        toast.showError(parsed);
       }
     }
   }, [toast, fetchDashboardData]);

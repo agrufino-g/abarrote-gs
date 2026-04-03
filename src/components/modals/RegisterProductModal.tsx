@@ -25,6 +25,7 @@ import { uploadFile, getProductImagePath } from '@/lib/storage';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { CameraScanner } from '@/components/scanner/CameraScanner';
+import { parseError } from '@/lib/errors';
 
 interface RegisterProductModalProps {
   open: boolean;
@@ -156,8 +157,9 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
         reset();
         setFile(null);
       } catch (err: any) {
-        showError(err.message || 'Error al registrar el producto');
-        return { status: 'fail', errors: [{ message: err.message }] };
+        const parsed = parseError(err);
+        showError(parsed);
+        return { status: 'fail', errors: [{ message: parsed.description }] };
       }
       return { status: 'success' };
     },

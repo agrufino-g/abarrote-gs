@@ -52,6 +52,13 @@ export async function POST(req: NextRequest) {
 
     await requireAuth();
 
+    // Body size guard: reject payloads over 512 KB to prevent DoS
+    const contentLength = req.headers.get('content-length');
+    const MAX_BODY_BYTES = 512 * 1024; // 512 KB
+    if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: 'Payload demasiado grande' }, { status: 413 });
+    }
+
     const body = await req.json();
     const { action, payload } = body as { action: unknown; payload: unknown };
 

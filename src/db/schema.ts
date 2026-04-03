@@ -187,10 +187,12 @@ export const saleRecords = pgTable('sale_records', {
   discount: numeric('discount', { precision: 10, scale: 2 }).notNull().default('0'),
   discountType: text('discount_type').notNull().default('amount'), // 'amount' | 'percent'
   date: timestamp('date').notNull().defaultNow(),
+  status: text('status').notNull().default('completada'),
 }, (t) => [
   index('sale_records_date_idx').on(t.date),
   index('sale_records_payment_method_idx').on(t.paymentMethod),
   index('sale_records_mp_payment_id_idx').on(t.mpPaymentId),
+  index('sale_records_status_idx').on(t.status),
 ]);
 
 export const saleItems = pgTable('sale_items', {
