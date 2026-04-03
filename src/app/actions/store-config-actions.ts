@@ -3,7 +3,7 @@
 import { requireOwner } from '@/lib/auth/guard';
 import { db } from '@/db';
 import { storeConfig } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, getTableColumns } from 'drizzle-orm';
 import type { StoreConfig } from '@/types';
 import { DEFAULT_STORE_CONFIG } from '@/types';
 import { numVal } from './_helpers';
@@ -11,30 +11,19 @@ import { validateSchema, saveStoreConfigSchema } from '@/lib/validation/schemas'
 
 // ==================== STORE CONFIG ====================
 
-function isMissingColumnError(error: unknown): boolean {
-  const msg = String(error).toLowerCase();
-  return (
-    msg.includes('column') ||
-    msg.includes('does not exist') ||
-    msg.includes('inventory_general_columns') ||
-    msg.includes('ticket_template') ||
-    msg.includes('default_margin') ||
-    msg.includes('default_starting_fund') ||
-    msg.includes('clabe_number') ||
-    msg.includes('paypal_username') ||
-    msg.includes('cobrar_qr_url') ||
-    msg.includes('mp_device_id') ||
-    msg.includes('mp_public_key') ||
-    msg.includes('mp_enabled') ||
-    msg.includes('conekta_enabled') ||
-    msg.includes('conekta_public_key') ||
-    msg.includes('stripe_enabled') ||
-    msg.includes('stripe_public_key') ||
-    msg.includes('clip_enabled') ||
-    msg.includes('clip_api_key') ||
-    msg.includes('clip_serial_number')
-  );
-}
+/** All valid column keys derived from the Drizzle schema — single source of truth. */
+const ALL_DB_COLUMNS = new Set(Object.keys(getTableColumns(storeConfig)));
+
+/** Core columns present since the initial migration (safe fallback for un-migrated DBs). */
+const CORE_DB_COLUMNS = new Set([
+  'storeName', 'legalName', 'address', 'city', 'postalCode', 'phone',
+  'rfc', 'regimenFiscal', 'regimenDescription', 'ivaRate', 'pricesIncludeIva',
+  'currency', 'lowStockThreshold', 'expirationWarningDays', 'printReceipts',
+  'autoBackup', 'ticketFooter', 'ticketServicePhone', 'ticketVigencia',
+  'storeNumber', 'ticketBarcodeFormat', 'enableNotifications',
+  'telegramToken', 'telegramChatId', 'printerIp', 'cashDrawerPort', 'scalePort',
+  'loyaltyEnabled', 'pointsPerPeso', 'pointsValue', 'logoUrl',
+]);
 
 function mapStoreConfigRow(
   row: Omit<StoreConfig, 'telegramToken' | 'telegramChatId' | 'printerIp' | 'cashDrawerPort' | 'scalePort' | 'logoUrl' | 'inventoryGeneralColumns' | 'defaultMargin' | 'ticketTemplateVenta' | 'ticketTemplateProveedor' | 'clabeNumber' | 'paypalUsername' | 'cobrarQrUrl' | 'mpDeviceId' | 'mpPublicKey' | 'mpEnabled' | 'closeSystemTime' | 'autoCorteTime' | 'defaultStartingFund'> & {
@@ -142,10 +131,11 @@ export async function fetchStoreConfig(): Promise<StoreConfig> {
     }
     return mapStoreConfigRow(rows[0]);
   } catch (error) {
-    if (!isMissingColumnError(error)) {
-      throw error;
-    }
+    const msg = String(error).toLowerCase();
+    const isColumnMissing = msg.includes('does not exist') || msg.includes('undefined column');
+    if (!isColumnMissing) throw error;
 
+    // Fallback: select only core columns that are guaranteed to exist
     const rows = await db.select({
       id: storeConfig.id,
       storeName: storeConfig.storeName,
@@ -179,9 +169,6 @@ export async function fetchStoreConfig(): Promise<StoreConfig> {
       pointsPerPeso: storeConfig.pointsPerPeso,
       pointsValue: storeConfig.pointsValue,
       logoUrl: storeConfig.logoUrl,
-      defaultMargin: storeConfig.defaultMargin,
-      ticketTemplateVenta: storeConfig.ticketTemplateVenta,
-      ticketTemplateProveedor: storeConfig.ticketTemplateProveedor,
     }).from(storeConfig).limit(1);
 
     if (rows.length === 0) {
@@ -195,14 +182,22 @@ export async function fetchStoreConfig(): Promise<StoreConfig> {
 export async function saveStoreConfig(data: Partial<StoreConfig>): Promise<StoreConfig> {
   await requireOwner();
   validateSchema(saveStoreConfigSchema, data, 'saveStoreConfig');
-  const { id, ...rest } = data;
-  const persist = async (values: Partial<StoreConfig>) => {
-    // Strip fields that don't exist as DB columns
-    const { defaultStartingFund, closeSystemTime: _cst, autoCorteTime: _act, ...rest } = values;
-    const dbValues: Record<string, unknown> = { ...rest, updatedAt: new Date() };
-    if (defaultStartingFund !== undefined) {
-      dbValues.defaultStartingFund = String(defaultStartingFund);
+
+  const { id: _id, ...fields } = data;
+
+  /** Build a dbValues object containing only keys present in the given column set. */
+  const buildDbValues = (allowedKeys: Set<string>): Record<string, unknown> => {
+    const dbValues: Record<string, unknown> = { updatedAt: new Date() };
+    for (const [key, value] of Object.entries(fields)) {
+      if (key === 'id' || !allowedKeys.has(key)) continue;
+      dbValues[key] = key === 'defaultStartingFund' && value !== undefined
+        ? String(value)
+        : value;
     }
+    return dbValues;
+  };
+
+  const persist = async (dbValues: Record<string, unknown>) => {
     const result = await db.update(storeConfig).set(dbValues).where(eq(storeConfig.id, 'main'));
     if (!result.rowCount || result.rowCount === 0) {
       await db.insert(storeConfig).values({ id: 'main', ...dbValues });
@@ -210,34 +205,13 @@ export async function saveStoreConfig(data: Partial<StoreConfig>): Promise<Store
   };
 
   try {
-    await persist(rest);
+    await persist(buildDbValues(ALL_DB_COLUMNS));
   } catch (error) {
-    if (!isMissingColumnError(error)) {
-      throw error;
-    }
-    // Fallback: Filter out all modern columns that might be missing in older DB tables
-    const { 
-      inventoryGeneralColumns: _ignored1, 
-      ticketTemplateVenta: _ignored2, 
-      ticketTemplateProveedor: _ignored3, 
-      defaultMargin: _ignored4,
-      defaultStartingFund: _ignored5,
-      clabeNumber: _ignored6,
-      paypalUsername: _ignored7,
-      cobrarQrUrl: _ignored8,
-      mpDeviceId: _ignored9,
-      mpPublicKey: _ignored10,
-      mpEnabled: _ignored11,
-      conektaEnabled: _ignored12,
-      conektaPublicKey: _ignored13,
-      stripeEnabled: _ignored14,
-      stripePublicKey: _ignored15,
-      clipEnabled: _ignored16,
-      clipApiKey: _ignored17,
-      clipSerialNumber: _ignored18,
-      ...legacyRest 
-    } = rest;
-    await persist(legacyRest);
+    const msg = String(error).toLowerCase();
+    const isColumnMissing = msg.includes('does not exist') || msg.includes('undefined column');
+    if (!isColumnMissing) throw error;
+    // Fallback: only use core columns guaranteed to exist since initial migration
+    await persist(buildDbValues(CORE_DB_COLUMNS));
   }
 
   return fetchStoreConfig();
