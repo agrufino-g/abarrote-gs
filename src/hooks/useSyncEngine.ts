@@ -27,10 +27,11 @@ const INITIAL_STATUS: SyncStatus = {
   circuitOpen: false,
 };
 
-export function useSyncEngine() {
+export function useSyncEngine(enabled: boolean = true) {
   const engineRef = useRef<SyncEngine | null>(null);
   const queueRef = useRef<OfflineQueue | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(INITIAL_STATUS);
+  const initialLoadDone = useRef(false);
 
   const fetchDashboardData = useDashboardStore((s) => s.fetchDashboardData);
 
@@ -51,6 +52,9 @@ export function useSyncEngine() {
 
   // ── Initialize engine + queue on mount ──
   useEffect(() => {
+    // Don't initialize until enabled (user is authenticated)
+    if (!enabled) return;
+    
     const engine = new SyncEngine({
       pollingIntervalMs: 30_000,
       staleThresholdMs: 45_000,
@@ -68,6 +72,12 @@ export function useSyncEngine() {
     // Initialize IDB queue, then start engine
     queue.init().then(() => {
       engine.start(handleRefresh, handleStatusChange);
+
+      // Initial data load — only once per mount, after engine starts
+      if (!initialLoadDone.current) {
+        initialLoadDone.current = true;
+        engine.forceRefresh('all');
+      }
 
       // Sync any pending offline operations immediately
       if (navigator.onLine) {
@@ -87,8 +97,9 @@ export function useSyncEngine() {
       queue.destroy();
       engineRef.current = null;
       queueRef.current = null;
+      initialLoadDone.current = false;
     };
-  }, [handleRefresh, handleStatusChange]);
+  }, [enabled, handleRefresh, handleStatusChange]);
 
   // ── Exposed APIs ──
 

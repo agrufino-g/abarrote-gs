@@ -3,9 +3,10 @@
 import { requirePermission } from '@/lib/auth/guard';
 import { db } from '@/db';
 import { devoluciones, devolucionItems, products, clientes, saleRecords, saleItems } from '@/db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql, inArray } from 'drizzle-orm';
 import type { Devolucion, DevolucionItem } from '@/types';
 import { numVal } from './_helpers';
+import { adjustStock } from './_stock';
 import { validateSchema, createDevolucionSchema } from '@/lib/validation/schemas';
 
 function mapDevolucion(row: typeof devoluciones.$inferSelect, items: DevolucionItem[]): Devolucion {
@@ -28,10 +29,17 @@ function mapDevolucion(row: typeof devoluciones.$inferSelect, items: DevolucionI
 export async function fetchDevoluciones(): Promise<Devolucion[]> {
   await requirePermission('sales.view');
   const rows = await db.select().from(devoluciones).orderBy(desc(devoluciones.fecha));
-  const result: Devolucion[] = [];
-  for (const row of rows) {
-    const itemRows = await db.select().from(devolucionItems).where(eq(devolucionItems.devolucionId, row.id));
-    const items: DevolucionItem[] = itemRows.map(i => ({
+  if (rows.length === 0) return [];
+
+  // Batch-fetch all items in one query instead of N+1
+  const devIds = rows.map(r => r.id);
+  const allItemRows = await db.select().from(devolucionItems).where(inArray(devolucionItems.devolucionId, devIds));
+
+  // Group items by devolucionId
+  const itemsByDevId = new Map<string, DevolucionItem[]>();
+  for (const i of allItemRows) {
+    const list = itemsByDevId.get(i.devolucionId) || [];
+    list.push({
       id: i.id,
       productId: i.productId,
       productName: i.productName,
@@ -40,10 +48,11 @@ export async function fetchDevoluciones(): Promise<Devolucion[]> {
       unitPrice: numVal(i.unitPrice),
       subtotal: numVal(i.subtotal),
       regresoInventario: i.regresoInventario,
-    }));
-    result.push(mapDevolucion(row, items));
+    });
+    itemsByDevId.set(i.devolucionId, list);
   }
-  return result;
+
+  return rows.map(row => mapDevolucion(row, itemsByDevId.get(row.id) || []));
 }
 
 export async function createDevolucion(data: {
@@ -95,9 +104,7 @@ export async function createDevolucion(data: {
 
     // Regresar al inventario si aplica
     if (item.regresoInventario) {
-      await db.update(products)
-        .set({ currentStock: sql`current_stock + ${item.quantity}`, updatedAt: now })
-        .where(eq(products.id, item.productId));
+      await adjustStock(item.productId, item.quantity, { now });
     }
 
     savedItems.push({ ...item, id: itemId });

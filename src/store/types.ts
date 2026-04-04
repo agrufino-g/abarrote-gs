@@ -113,7 +113,7 @@ export interface CoreSlice extends DashboardState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   fetchDashboardData: () => Promise<void>;
-  saveStoreConfig: (data: Partial<StoreConfig>) => Promise<void>;
+  saveStoreConfig: (data: Partial<StoreConfig>) => Promise<StoreConfig>;
 }
 
 /** Full combined store type — used by all slices and consumers */

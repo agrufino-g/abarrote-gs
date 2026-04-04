@@ -2,8 +2,6 @@ import type { Metadata } from 'next';
 import '@shopify/polaris/build/esm/styles.css';
 import './globals.css';
 import { PolarisProvider } from './PolarisProvider';
-import { AuthProvider } from '@/lib/auth/AuthContext';
-import { OfflineProvider } from '@/components/providers/OfflineProvider';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Analytics } from '@vercel/analytics/next';
 
@@ -12,6 +10,13 @@ export const metadata: Metadata = {
   description: 'Gestión inteligente para tiendas de abarrotes',
 };
 
+/**
+ * Root Layout - Minimal shared wrapper
+ * 
+ * Route-specific providers:
+ * - (main) group: AuthProvider + OfflineProvider
+ * - (public) group: No auth (customer display)
+ */
 export default function RootLayout({
   children,
 }: {
@@ -27,11 +32,9 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
-        <AuthProvider>
-          <PolarisProvider>
-            <OfflineProvider>{children}</OfflineProvider>
-          </PolarisProvider>
-        </AuthProvider>
+        <PolarisProvider>
+          {children}
+        </PolarisProvider>
         <SpeedInsights />
         <Analytics />
       </body>

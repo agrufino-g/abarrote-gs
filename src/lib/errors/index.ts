@@ -70,16 +70,31 @@ export function parseError(error: unknown): { title: string; description: string
   }
 
   if (error instanceof Error) {
-    if (error.message.includes('ECONNREFUSED')) {
+    const msg = error.message.toLowerCase();
+    
+    // Network-level errors (browser/fetch API)
+    if (msg === 'failed to fetch' || msg.includes('fetch failed') || msg.includes('network')) {
       return {
-        title: 'Error de Red (Offline)',
+        title: 'Error de Conexión',
+        description: 'No se pudo conectar con el servidor. Esto puede ocurrir si el servidor se está reiniciando, hay problemas de red, o estás sin conexión.',
+      };
+    }
+    if (msg.includes('econnrefused')) {
+      return {
+        title: 'Conexión Rechazada',
         description: 'La base de datos o servicio externo rechazó la conexión. Verifica tu internet o el estado del proveedor.',
       };
     }
-    if (error.message.includes('fetch failed')) {
+    if (msg.includes('timeout') || msg.includes('timed out')) {
       return {
-        title: 'Fallo de Red',
-        description: 'No se pudo conectar con el servidor. Revisa tu conexión a internet.',
+        title: 'Tiempo de Espera Agotado',
+        description: 'La operación tardó demasiado en responder. Intenta de nuevo en unos momentos.',
+      };
+    }
+    if (msg.includes('abort') || msg.includes('cancelled')) {
+      return {
+        title: 'Operación Cancelada',
+        description: 'La solicitud fue cancelada. Esto puede ocurrir al navegar rápidamente entre páginas.',
       };
     }
     // Zod Error string pattern matching or common DB errors can be checked here

@@ -149,7 +149,6 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
 
   response.headers.set('Content-Security-Policy', CSP);
 
-  // Prevent search engines from indexing this internal POS system
   response.headers.set('X-Robots-Tag', 'noindex, nofollow');
 
   return response;
@@ -178,12 +177,16 @@ export async function proxy(request: Parameters<typeof authHandler>[0]) {
     return applySecurityHeaders(csrfResponse);
   }
 
-  // 4. Auth check + session handling (via auth.middleware)
+  // 4. Request-ID for tracing / observability
+  const requestId = req.headers.get('x-request-id') ?? crypto.randomUUID();
+
+  // 5. Auth check + session handling (via auth.middleware)
   const response = await authHandler(request);
 
-  // Apply security headers to all responses
+  // Apply security headers + request-ID to all responses
   if (response) {
     applySecurityHeaders(response);
+    response.headers.set('x-request-id', requestId);
   }
 
   return response;
@@ -191,6 +194,7 @@ export async function proxy(request: Parameters<typeof authHandler>[0]) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|auth|login-brand\\.svg|backgrounds).*)',
+    // Exclude: api, static, auth, display (public customer screen), etc.
+    '/((?!api|_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|auth|display|login-brand\\.svg|backgrounds).*)',
   ],
 };

@@ -21,7 +21,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
       const state = get();
       set({ gastos: [newGasto, ...state.gastos] });
     } catch (error) {
-      console.error('Error registering gasto:', error);
+      console.error('[store:finance] registerGasto failed', error);
     }
   },
 
@@ -31,7 +31,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
       const state = get();
       set({ gastos: state.gastos.map(g => g.id === id ? { ...g, ...data } : g) });
     } catch (error) {
-      console.error('Error updating gasto:', error);
+      console.error('[store:finance] updateGasto failed', error);
       throw error;
     }
   },
@@ -42,7 +42,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
       const state = get();
       set({ gastos: state.gastos.filter(g => g.id !== id) });
     } catch (error) {
-      console.error('Error deleting gasto:', error);
+      console.error('[store:finance] deleteGasto failed', error);
       throw error;
     }
   },
@@ -54,7 +54,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
       set({ proveedores: [...state.proveedores, newProveedor] });
       return newProveedor;
     } catch (error) {
-      console.error('Error adding proveedor:', error);
+      console.error('[store:finance] addProveedor failed', error);
       throw error;
     }
   },
@@ -65,7 +65,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
       const state = get();
       set({ proveedores: state.proveedores.map(p => p.id === id ? { ...p, ...data } : p) });
     } catch (error) {
-      console.error('Error updating proveedor:', error);
+      console.error('[store:finance] updateProveedor failed', error);
     }
   },
 
@@ -75,7 +75,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
       const state = get();
       set({ proveedores: state.proveedores.filter(p => p.id !== id) });
     } catch (error) {
-      console.error('Error deleting proveedor:', error);
+      console.error('[store:finance] deleteProveedor failed', error);
       throw error;
     }
   },
@@ -87,7 +87,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
       set({ pedidos: [newPedido, ...state.pedidos] });
       return newPedido;
     } catch (error) {
-      console.error('Error creating pedido:', error);
+      console.error('[store:finance] createPedido failed', error);
       throw error;
     }
   },
@@ -98,7 +98,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
       const state = get();
       set({ pedidos: state.pedidos.map(p => p.id === id ? { ...p, estado } : p) });
     } catch (error) {
-      console.error('Error updating pedido status:', error);
+      console.error('[store:finance] updatePedidoStatus failed', error);
       throw error;
     }
   },
@@ -116,7 +116,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
       ]);
       set({ products: newProducts, inventoryAlerts: newAlerts, kpiData: newKPI });
     } catch (error) {
-      console.error('Error receiving pedido:', error);
+      console.error('[store:finance] receivePedido failed', error);
       throw error;
     }
   },

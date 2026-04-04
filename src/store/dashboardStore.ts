@@ -59,25 +59,38 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
     // ── Fetch all dashboard data ──
     // Shows loading spinner only on initial load (when kpiData is null).
     // Background refreshes (SyncEngine polling, visibility, cross-tab) are silent.
-    fetchDashboardData: async () => {
-      const isInitialLoad = get().kpiData === null;
-      if (isInitialLoad) {
-        set({ isLoading: true, error: null });
-      }
-      try {
-        const data = await fetchDashboardFromDB();
-        set({
-          kpiData: data.kpiData,
-          products: data.products,
-          inventoryAlerts: data.inventoryAlerts,
-          salesData: data.salesData,
-          saleRecords: data.saleRecords,
-          mermaRecords: data.mermaRecords,
-          pedidos: data.pedidos,
-          clientes: data.clientes,
-          fiadoTransactions: data.fiadoTransactions,
-          gastos: data.gastos,
-          proveedores: data.proveedores,
+    // IMPORTANT: This function has built-in concurrency protection via the
+    // isFetching flag to prevent duplicate calls during HMR or rapid navigation.
+    fetchDashboardData: (() => {
+      let isFetching = false; // Closure-based mutex to prevent concurrent calls
+      
+      return async () => {
+        // Prevent concurrent fetches — if a fetch is in progress, skip this one
+        if (isFetching) {
+          return;
+        }
+        
+        isFetching = true;
+        const isInitialLoad = get().kpiData === null;
+        
+        if (isInitialLoad) {
+          set({ isLoading: true, error: null });
+        }
+        
+        try {
+          const data = await fetchDashboardFromDB();
+          set({
+            kpiData: data.kpiData,
+            products: data.products,
+            inventoryAlerts: data.inventoryAlerts,
+            salesData: data.salesData,
+            saleRecords: data.saleRecords,
+            mermaRecords: data.mermaRecords,
+            pedidos: data.pedidos,
+            clientes: data.clientes,
+            fiadoTransactions: data.fiadoTransactions,
+            gastos: data.gastos,
+            proveedores: data.proveedores,
           cortesHistory: data.cortesHistory,
           inventoryAudits: data.inventoryAudits,
           storeConfig: data.storeConfig,
@@ -90,28 +103,35 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
           lastSyncAt: Date.now(),
         });
 
-        // ── ERROR HANDLING NIVEL 200% ──
-        // Mostrar en la UI usando Sileo cada módulo que falló
-        if (data.partialErrors && Array.isArray(data.partialErrors)) {
-          // Import sileo dynamically or just use global if available. We can import sileo.
+        // ── Partial error handling ──
+        // Only show errors if there are significant failures (>2 modules)
+        // Single module failures are often transient and self-heal
+        if (data.partialErrors && data.partialErrors.length > 2) {
           import('sileo').then(({ sileo }) => {
-            data.partialErrors!.forEach((err) => {
-              sileo.error({
-                title: err.title,
-                description: err.description,
-                duration: 6000,
-              });
+            sileo.warning({
+              title: 'Algunos datos no cargaron',
+              description: `${data.partialErrors!.length} módulos tuvieron problemas. La app sigue funcionando.`,
+              duration: 5000,
             });
           });
         }
       } catch (error) {
         // En caso de que falle toda la llamada fetchDashboardFromDB
         const { title, description } = parseError(error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const isNetworkError = errorMsg.toLowerCase() === 'failed to fetch' || 
+                               errorMsg.toLowerCase().includes('network') ||
+                               errorMsg.toLowerCase().includes('timeout') ||
+                               errorMsg.toLowerCase().includes('abort');
         
-        logger.error('Dashboard fatal fetch failed', {
-          error: error instanceof Error ? error.message : String(error),
-          action: 'fetchDashboardData',
-        });
+        // Only log non-network errors or first occurrence to reduce noise
+        if (!isNetworkError || isInitialLoad) {
+          logger.error('Dashboard fetch failed', {
+            error: errorMsg,
+            action: 'fetchDashboardData',
+            isInitialLoad,
+          });
+        }
         
         if (isInitialLoad) {
           set({
@@ -120,19 +140,41 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
           });
         }
         
-        // Notify user via Sileo instead of just setting internal state
-        import('sileo').then(({ sileo }) => {
-           sileo.error({ title, description, duration: 10000 });
-        });
+        // Only show toast for initial load failures or non-network errors
+        // Background polling errors are handled silently by circuit breaker
+        if (isInitialLoad) {
+          import('sileo').then(({ sileo }) => {
+            sileo.error({ title, description, duration: isNetworkError ? 5000 : 10000 });
+          });
+        }
+      } finally {
+        isFetching = false;
       }
-    },
+    };
+  })(),
 
     saveStoreConfig: async (data) => {
       try {
         const updatedConfig = await dbSaveStoreConfig(data);
         set({ storeConfig: updatedConfig });
+        
+        // Broadcast config change to /display window
+        try {
+          const channel = new BroadcastChannel('customer_display');
+          channel.postMessage({ type: 'UPDATE_CONFIG', payload: updatedConfig });
+          channel.close();
+        } catch {
+          // BroadcastChannel not available (SSR or unsupported browser)
+        }
+        
+        return updatedConfig;
       } catch (error) {
-        console.error('Error saving store config:', error);
+        const { title, description } = parseError(error);
+        logger.error('Store config save failed', {
+          action: 'saveStoreConfig',
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw new Error(`${title}: ${description}`);
       }
     },
 

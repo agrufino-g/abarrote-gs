@@ -1,8 +1,8 @@
 import type { NextConfig } from 'next';
 
 /** ─── Security Headers ──────────────────────────────────────────────────────
- * NOTE: Content-Security-Policy is managed by middleware.ts (supports dev/prod variants).
- * These headers are set here as a fallback layer for routes the middleware may not cover
+ * NOTE: Content-Security-Policy is managed by proxy.ts (supports dev/prod variants).
+ * These headers are set here as a fallback layer for routes the proxy may not cover
  * (e.g. Next.js internal routes, static asset error pages).
  */
 const SECURITY_HEADERS = [
@@ -38,6 +38,7 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   transpilePackages: ['@shopify/polaris', '@shopify/polaris-icons'],
   serverExternalPackages: ['firebase-admin', 'firebase-admin/app', 'firebase-admin/auth', 'mercadopago', 'jspdf', 'jspdf-autotable', 'fflate'],
   compress: true,
@@ -70,24 +71,12 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['@shopify/polaris', '@shopify/polaris-icons', 'lucide-react', 'date-fns', 'recharts'],
   },
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
   async headers() {
     return [
       {
         // Apply security headers to ALL routes
         source: '/(.*)',
         headers: SECURITY_HEADERS,
-      },
-      {
-        // Cache static assets aggressively (they are content-hashed by Next.js)
-        source: '/_next/static/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
       },
     ];
   },

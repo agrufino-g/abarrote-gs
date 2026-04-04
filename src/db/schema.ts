@@ -163,7 +163,7 @@ export const products = pgTable('products', {
   currentStock: integer('current_stock').notNull().default(0),
   minStock: integer('min_stock').notNull().default(0),
   expirationDate: date('expiration_date'),
-  category: text('category').notNull(),
+  category: text('category').notNull().references(() => productCategories.id),
   costPrice: numeric('cost_price', { precision: 10, scale: 2 }).notNull(),
   unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
   unit: text('unit').notNull().default('pieza'),
@@ -172,7 +172,10 @@ export const products = pgTable('products', {
   imageUrl: text('image_url'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+}, (t) => [
+  index('products_category_idx').on(t.category),
+  index('products_current_stock_idx').on(t.currentStock),
+]);
 
 // ==================== VENTAS ====================
 export const saleRecords = pgTable('sale_records', {
@@ -275,6 +278,7 @@ export const fiadoTransactions = pgTable('fiado_transactions', {
 }, (t) => [
   index('fiado_transactions_cliente_id_idx').on(t.clienteId),
   index('fiado_transactions_date_idx').on(t.date),
+  index('fiado_transactions_cliente_date_idx').on(t.clienteId, t.date),
 ]);
 
 // ==================== FIADO ITEMS (productos fiados) ====================
@@ -466,7 +470,10 @@ export const cashMovements = pgTable('cash_movements', {
   notas: text('notas').notNull().default(''),
   cajero: text('cajero').notNull(),
   fecha: timestamp('fecha').notNull().defaultNow(),
-});
+}, (t) => [
+  index('cash_movements_corte_id_idx').on(t.corteId),
+  index('cash_movements_tipo_idx').on(t.tipo),
+]);
 
 // ==================== LOYALTY TRANSACTIONS ====================
 export const loyaltyTransactions = pgTable('loyalty_transactions', {

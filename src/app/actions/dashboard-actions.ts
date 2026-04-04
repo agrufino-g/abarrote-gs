@@ -26,12 +26,15 @@ async function safe<T>(promise: Promise<T>, fallback: T, label: string): Promise
     return { data, error: null };
   } catch (error) {
     const parsed = parseError(error);
+    const nested = error as { cause?: { message?: string; code?: string } };
     
     // Log the error locally for server observability
     logger.error(`Dashboard unexpected error for "${label}"`, {
       label,
       title: parsed.title,
       error: error instanceof Error ? error.message : String(error),
+      cause: nested?.cause?.message,
+      code: nested?.cause?.code,
     });
 
     return { 

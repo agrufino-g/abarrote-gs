@@ -22,7 +22,7 @@ import { ImageIcon } from '@shopify/polaris-icons';
 import { uploadFile } from '@/lib/storage';
 import type { SettingsSectionProps } from './types';
 
-export function CustomerDisplaySection({ config, updateField }: SettingsSectionProps) {
+export function CustomerDisplaySection({ config, updateField, savePatch, saving = false }: SettingsSectionProps) {
   const [promoUploading, setPromoUploading] = useState(false);
   const [promoUploadError, setPromoUploadError] = useState<string | null>(null);
   const [urlCopied, setUrlCopied] = useState(false);
@@ -31,9 +31,18 @@ export function CustomerDisplaySection({ config, updateField }: SettingsSectionP
     ? `${window.location.origin}/display`
     : '/display';
 
-  const handleToggle = useCallback(() => {
-    updateField('customerDisplayEnabled', !config.customerDisplayEnabled);
-  }, [config.customerDisplayEnabled, updateField]);
+  const handleToggle = useCallback(async () => {
+    const nextEnabled = !config.customerDisplayEnabled;
+
+    // Auto-save the main on/off switch immediately so enabling the feature
+    // does not force the user through the generic save bar flow.
+    if (savePatch) {
+      await savePatch({ customerDisplayEnabled: nextEnabled });
+      return;
+    }
+
+    updateField('customerDisplayEnabled', nextEnabled);
+  }, [config.customerDisplayEnabled, savePatch, updateField]);
 
   const handleOpenDisplay = useCallback(() => {
     window.open(
@@ -110,6 +119,8 @@ export function CustomerDisplaySection({ config, updateField }: SettingsSectionP
                 role="switch"
                 ariaChecked={isEnabled}
                 onClick={handleToggle}
+                loading={saving}
+                disabled={saving}
                 variant={isEnabled ? 'primary' : undefined}
                 size="slim"
                 accessibilityLabel={isEnabled ? 'Desactivar pantalla del cliente' : 'Activar pantalla del cliente'}
@@ -136,6 +147,9 @@ export function CustomerDisplaySection({ config, updateField }: SettingsSectionP
                   </InlineStack>
                   <Text as="p" variant="bodySm" tone="subdued">
                     {displayUrl}
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    El interruptor principal se guarda al instante. Los mensajes e imagen promocional usan el guardado manual.
                   </Text>
                 </BlockStack>
               </>

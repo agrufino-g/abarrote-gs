@@ -16,7 +16,7 @@ export const createCustomerSlice = (set: StoreSet, get: StoreGet): CustomerSlice
       const state = get();
       set({ clientes: [...state.clientes, newCliente] });
     } catch (error) {
-      console.error('Error adding cliente:', error);
+      console.error('[store:customer] addCliente failed', error);
     }
   },
 
@@ -26,7 +26,7 @@ export const createCustomerSlice = (set: StoreSet, get: StoreGet): CustomerSlice
       const state = get();
       set({ clientes: state.clientes.map(c => c.id === id ? { ...c, ...data } : c) });
     } catch (error) {
-      console.error('Error updating cliente:', error);
+      console.error('[store:customer] updateCliente failed', error);
       throw error;
     }
   },
@@ -40,7 +40,7 @@ export const createCustomerSlice = (set: StoreSet, get: StoreGet): CustomerSlice
         fiadoTransactions: state.fiadoTransactions.filter(t => t.clienteId !== id),
       });
     } catch (error) {
-      console.error('Error deleting cliente:', error);
+      console.error('[store:customer] deleteCliente failed', error);
       throw error;
     }
   },
@@ -54,7 +54,7 @@ export const createCustomerSlice = (set: StoreSet, get: StoreGet): CustomerSlice
       ]);
       set({ clientes, fiadoTransactions: fiadoTxns });
     } catch (error) {
-      console.error('Error registering fiado:', error);
+      console.error('[store:customer] registerFiado failed', error);
     }
   },
 
@@ -67,7 +67,7 @@ export const createCustomerSlice = (set: StoreSet, get: StoreGet): CustomerSlice
       ]);
       set({ clientes, fiadoTransactions: fiadoTxns });
     } catch (error) {
-      console.error('Error registering abono:', error);
+      console.error('[store:customer] registerAbono failed', error);
     }
   },
 });

@@ -29,7 +29,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       const defs = await dbFetchRoleDefinitions();
       set({ roleDefinitions: defs });
     } catch (error) {
-      console.error('Error fetching role definitions:', error);
+      console.error('[store:role] fetchRoleDefinitions failed', error);
     }
   },
 
@@ -40,7 +40,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       set({ roleDefinitions: [...state.roleDefinitions, newDef] });
       return newDef;
     } catch (error) {
-      console.error('Error creating role definition:', error);
+      console.error('[store:role] createRoleDefinition failed', error);
       throw error;
     }
   },
@@ -51,7 +51,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       const state = get();
       set({ roleDefinitions: state.roleDefinitions.map(d => d.id === id ? { ...d, ...data, updatedAt: new Date().toISOString() } : d) });
     } catch (error) {
-      console.error('Error updating role definition:', error);
+      console.error('[store:role] updateRoleDefinition failed', error);
       throw error;
     }
   },
@@ -62,7 +62,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       const state = get();
       set({ roleDefinitions: state.roleDefinitions.filter(d => d.id !== id) });
     } catch (error) {
-      console.error('Error deleting role definition:', error);
+      console.error('[store:role] deleteRoleDefinition failed', error);
       throw error;
     }
   },
@@ -72,7 +72,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       const roles = await dbFetchUserRoles();
       set({ userRoles: roles });
     } catch (error) {
-      console.error('Error fetching roles:', error);
+      console.error('[store:role] fetchRoles failed', error);
     }
   },
 
@@ -82,7 +82,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       set({ currentUserRole: role });
       return role;
     } catch (error) {
-      console.error('Error ensuring owner role:', error);
+      console.error('[store:role] ensureOwnerRole failed', error);
       throw error;
     }
   },
@@ -98,7 +98,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
         set({ userRoles: [...state.userRoles, newRole] });
       }
     } catch (error) {
-      console.error('Error assigning role:', error);
+      console.error('[store:role] assignRole failed', error);
       throw error;
     }
   },
@@ -109,7 +109,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       const state = get();
       set({ userRoles: [...state.userRoles, newRole] });
     } catch (error) {
-      console.error('Error creating user with role:', error);
+      console.error('[store:role] createUserWithRole failed', error);
       throw error;
     }
   },
@@ -120,7 +120,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       const state = get();
       set({ userRoles: state.userRoles.map(r => r.firebaseUid === firebaseUid ? { ...r, roleId: newRoleId, updatedAt: new Date().toISOString() } : r) });
     } catch (error) {
-      console.error('Error updating role:', error);
+      console.error('[store:role] updateRole failed', error);
       throw error;
     }
   },
@@ -134,7 +134,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
         set({ currentUserRole: { ...state.currentUserRole, pinCode } });
       }
     } catch (error) {
-      console.error('Error updating user PIN:', error);
+      console.error('[store:role] updateUserPin failed', error);
       throw error;
     }
   },
@@ -145,7 +145,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       const state = get();
       set({ userRoles: state.userRoles.filter(r => r.firebaseUid !== firebaseUid) });
     } catch (error) {
-      console.error('Error removing role:', error);
+      console.error('[store:role] removeRole failed', error);
       throw error;
     }
   },
@@ -156,7 +156,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       if (role) set({ currentUserRole: role });
       return role;
     } catch (error) {
-      console.error('Error getting user role:', error);
+      console.error('[store:role] getUserRole failed', error);
       return null;
     }
   },
@@ -172,7 +172,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       });
       return globalId;
     } catch (error) {
-      console.error('Error generating Global ID:', error);
+      console.error('[store:role] generateGlobalId failed', error);
       throw error;
     }
   },
@@ -188,7 +188,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
         ),
       });
     } catch (error) {
-      console.error('Error deactivating user:', error);
+      console.error('[store:role] deactivateUser failed', error);
       throw error;
     }
   },
@@ -204,7 +204,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
         ),
       });
     } catch (error) {
-      console.error('Error reactivating user:', error);
+      console.error('[store:role] reactivateUser failed', error);
       throw error;
     }
   },
@@ -219,7 +219,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
       });
       return updated;
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('[store:role] updateUserProfile failed', error);
       throw error;
     }
   },
@@ -228,7 +228,7 @@ export const createRoleSlice = (set: StoreSet, get: StoreGet): RoleSlice => ({
     try {
       return await dbAuthorizePin(pinCode, requiredPermission);
     } catch (error) {
-      console.error('Error authorizing PIN in store:', error);
+      console.error('[store:role] authorizePin failed', error);
       return { success: false, error: 'Network error validating PIN' };
     }
   },

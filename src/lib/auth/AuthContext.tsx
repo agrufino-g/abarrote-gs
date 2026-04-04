@@ -27,6 +27,11 @@ export function useAuth() {
  * Sets the __session cookie with the Firebase ID token.
  * This cookie is read by server-side code (Server Actions, API routes)
  * to authenticate requests.
+ * 
+ * IMPORTANT: We only SET the cookie when a user is present.
+ * We DO NOT clear the cookie here - that's only done on explicit logout.
+ * This prevents race conditions where a new tab briefly reports user=null
+ * before Firebase auth state is restored, which would clear the shared cookie.
  */
 async function syncSessionCookie(user: User | null) {
   if (user) {
@@ -38,10 +43,9 @@ async function syncSessionCookie(user: User | null) {
     } catch (error) {
       console.error('Error setting session cookie:', error);
     }
-  } else {
-    // Clear cookie on logout
-    document.cookie = '__session=; path=/; max-age=0';
   }
+  // NOTE: Cookie clearing is ONLY done in handleSignOut(), not here.
+  // This prevents new tabs/windows from accidentally clearing the shared cookie.
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -55,12 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       await syncSessionCookie(user);
 
-      if (user) {
-        if (!localStorage.getItem('kiosko_login_time')) {
-          localStorage.setItem('kiosko_login_time', Date.now().toString());
-        }
-      } else {
-        localStorage.removeItem('kiosko_login_time');
+      // Only manage login time when we POSITIVELY have a user.
+      // We do NOT clear localStorage on user=null here because new tabs
+      // may briefly report null before Firebase restores auth state.
+      // Cleanup of localStorage is done only in handleSignOut().
+      if (user && !localStorage.getItem('kiosko_login_time')) {
+        localStorage.setItem('kiosko_login_time', Date.now().toString());
       }
     });
     return unsubscribe;

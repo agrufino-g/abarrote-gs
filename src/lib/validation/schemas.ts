@@ -373,6 +373,12 @@ export const saveStoreConfigSchema = z.object({
   defaultMargin: z.string().max(10).optional(),
   autoCorteEnabled: z.boolean().optional(),
   autoCorteTime: z.string().max(10).optional(),
+  // Customer Display
+  customerDisplayEnabled: z.boolean().optional(),
+  customerDisplayWelcome: z.string().max(120).optional(),
+  customerDisplayFarewell: z.string().max(120).optional(),
+  customerDisplayPromoText: z.string().max(200).optional(),
+  customerDisplayPromoImage: z.string().max(2000).optional(),
 }).passthrough(); // Allow unknown fields to not break on new config additions
 
 // ══════════════════════════════════════════════════════

@@ -38,14 +38,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { signOut } = useAuth(); // Access signOut from AuthContext
 
   // ── SyncEngine: cross-tab sync, visibility refresh, background polling ──
-  const { syncStatus } = useSyncEngine();
+  // The SyncEngine handles ALL data fetching including initial load.
+  // IMPORTANT: Only enable AFTER user is authenticated to prevent race conditions.
+  const { syncStatus } = useSyncEngine(!!user && !authLoading);
 
+  // Load user role on mount (this is NOT data fetching, just role lookup)
   useEffect(() => {
     if (user) {
       getUserRole(user.uid);
-      fetchDashboardData();
     }
-  }, [user, fetchDashboardData, getUserRole]);
+  }, [user, getUserRole]);
 
   // Handle auto-corte based on config time
   useEffect(() => {
@@ -68,11 +70,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user, storeConfig.autoCorteTime, checkMidnightCorte]);
 
   // Handle Auth Expiration: FORCE REDIRECT - NO VISUALIZATION ALLOWED
+  // IMPORTANT: Only trigger logout for SPECIFIC auth error patterns from auth guard,
+  // NOT generic network errors or transient failures.
   useEffect(() => {
-    if (error && (error.includes('sesión ha expirado') || error.includes('autenticación'))) {
-      console.error('CRITICAL: AUTH EXPIRED. KICKING OUT USER.');
+    if (!error) return;
+    
+    // Exact phrases from src/lib/auth/guard.ts AuthError messages
+    const AUTH_ERROR_PATTERNS = [
+      'Tu sesión ha expirado',
+      'Error de autenticación',
+      'Autenticación requerida',
+      'Usuario no registrado',
+      'Tu cuenta ha sido desactivada',
+    ];
+    
+    const isAuthExpired = AUTH_ERROR_PATTERNS.some(pattern => error.includes(pattern));
+    
+    if (isAuthExpired) {
+      console.error('AUTH EXPIRED: Redirecting to login');
       signOut().then(() => {
-        // Full page reload redirect to ensure absolutely NO dashboard state remains
         window.location.href = '/auth/login';
       });
     }

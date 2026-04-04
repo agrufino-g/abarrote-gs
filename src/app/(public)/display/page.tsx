@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { useDashboardStore } from '@/store/dashboardStore';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { fetchStoreConfig } from '@/app/actions/store-config-actions';
+import { DEFAULT_STORE_CONFIG } from '@/types';
+import type { StoreConfig } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import {
   Box,
@@ -81,9 +83,27 @@ const EMPTY_SALE: SaleState = {
 // ── Component ──
 
 export default function CustomerDisplayPage() {
-  const storeConfig = useDashboardStore((s) => s.storeConfig);
+  // Local config state - loaded directly from DB, not from shared Zustand store
+  const [storeConfig, setStoreConfig] = useState<StoreConfig>(DEFAULT_STORE_CONFIG);
+  const [configLoaded, setConfigLoaded] = useState(false);
   const [sale, setSale] = useState<SaleState>(EMPTY_SALE);
   const [currentTime, setCurrentTime] = useState('');
+
+  // Load store config on mount
+  useEffect(() => {
+    let mounted = true;
+    fetchStoreConfig()
+      .then((config) => {
+        if (mounted) {
+          setStoreConfig(config);
+          setConfigLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (mounted) setConfigLoaded(true); // Still show fallback UI
+      });
+    return () => { mounted = false; };
+  }, []);
   const [currentDate, setCurrentDate] = useState('');
 
   // Clock
@@ -107,12 +127,15 @@ export default function CustomerDisplayPage() {
     return () => clearInterval(id);
   }, []);
 
-  // BroadcastChannel listener
+  // BroadcastChannel listener for sales AND config updates
   useEffect(() => {
     const channel = new BroadcastChannel('customer_display');
     channel.onmessage = (event) => {
       if (event.data.type === 'UPDATE_SALE') {
         setSale(event.data.payload as SaleState);
+      } else if (event.data.type === 'UPDATE_CONFIG') {
+        // Real-time config sync when settings change in dashboard
+        setStoreConfig(event.data.payload as StoreConfig);
       }
     };
     return () => channel.close();

@@ -6,6 +6,7 @@ import { saleRecords, saleItems, products, clientes, gastos, cortesCaja, loyalty
 import { eq, desc, sql, inArray } from 'drizzle-orm';
 import type { SaleRecord, SaleItem, SalesData, CorteCaja, HourlySalesData } from '@/types';
 import { numVal } from './_helpers';
+import { adjustStock } from './_stock';
 import { sendNotification, escapeHTML } from './_notifications';
 import { logger } from '@/lib/logger';
 import { createConektaSPEICharge, createConektaOXXOCharge } from '@/lib/conekta-provider';
@@ -170,41 +171,33 @@ export async function createSale(
   const now = new Date();
   const cajero = saleData.cajero?.trim() || 'Cajero';
   const id = `sale-${crypto.randomUUID()}`;
+  const clienteId = (saleData as any).clienteId;
 
-  // ── PostgreSQL SEQUENCE: industry-standard for high-volume POS ──
-  // 1. Create sequence if not exists (idempotent, runs once ever)
-  // 2. Sync sequence to current MAX(folio) so it never collides
-  // 3. nextval() is 100% atomic — impossible to duplicate even with 100 concurrent cashiers
-    let folio: string;
-    try {
-      // 1. Asegurar secuencia
-      await db.execute(sql`CREATE SEQUENCE IF NOT EXISTS folio_seq START WITH 309001`);
+  // ── Transactional core: sale + items + stock + loyalty ──
+  // All DB mutations run inside a single transaction so a failure at any
+  // step rolls back everything — no more partial sales with wrong stock.
+  const { folio, stockAlerts } = await db.transaction(async (tx) => {
+    // 1. Folio generation (sequence-based, atomic)
+    await tx.execute(sql`CREATE SEQUENCE IF NOT EXISTS folio_seq START WITH 309001`);
+    const seqResult = await tx.execute(sql`SELECT nextval('folio_seq')::text AS folio`);
+    const seqRows = (seqResult as any).rows || seqResult;
+    let txFolio = String(seqRows?.[0]?.folio ?? seqRows?.[0]?.val ?? '');
 
-      // 2. Obtener siguiente valor de forma atómica (estándar PG)
-      const seqResult = await db.execute(sql`SELECT nextval('folio_seq')::text AS folio`);
-      const rows = (seqResult as any).rows || seqResult;
-      const nextSeq = String(rows?.[0]?.folio ?? rows?.[0]?.val ?? '');
-      
-      // 3. Verificación de seguridad: si por alguna razón el folio ya existe, saltamos al Max + 1
-      const [existing] = await db.select().from(saleRecords).where(eq(saleRecords.folio, nextSeq)).limit(1);
-      
-      if (existing || !nextSeq) {
-        await db.execute(sql`
-          SELECT setval('folio_seq', (SELECT COALESCE(MAX(CASE WHEN folio ~ '^[0-9]+$' THEN folio::bigint END), 309000) FROM sale_records) + 1)
-        `);
-        const retryRes = await db.execute(sql`SELECT nextval('folio_seq')::text AS folio`);
-        const retryRows = (retryRes as any).rows || retryRes;
-        folio = String(retryRows?.[0]?.folio ?? retryRows?.[0]?.val ?? '');
-      } else {
-        folio = nextSeq;
-      }
+    const [existing] = await tx.select().from(saleRecords).where(eq(saleRecords.folio, txFolio)).limit(1);
+    if (existing || !txFolio) {
+      await tx.execute(sql`
+        SELECT setval('folio_seq', (SELECT COALESCE(MAX(CASE WHEN folio ~ '^[0-9]+$' THEN folio::bigint END), 309000) FROM sale_records) + 1)
+      `);
+      const retryRes = await tx.execute(sql`SELECT nextval('folio_seq')::text AS folio`);
+      const retryRows = (retryRes as any).rows || retryRes;
+      txFolio = String(retryRows?.[0]?.folio ?? retryRows?.[0]?.val ?? '');
+    }
+    if (!txFolio) throw new Error('No se pudo generar el folio único');
 
-      if (!folio) throw new Error('No se pudo generar el folio único');
-
-    // Normal insert with the guaranteed-unique folio
-    await db.insert(saleRecords).values({
+    // 2. Insert sale record
+    await tx.insert(saleRecords).values({
       id,
-      folio,
+      folio: txFolio,
       subtotal: String(saleData.subtotal),
       iva: String(saleData.iva),
       cardSurcharge: String(saleData.cardSurcharge),
@@ -221,90 +214,75 @@ export async function createSale(
       mpPaymentId: saleData.mpPaymentId ?? null,
       date: now,
     });
-  } catch (err: any) {
-    const pgCode    = err?.code ?? err?.cause?.code;
-    const pgMessage = err?.message ?? err?.cause?.message;
-    const detail    = err?.detail ?? err?.cause?.detail ?? err?.hint ?? err?.constraint;
-    // Log full error internally — never expose PG internals to the client
-    logger.error('Sale insert failed', {
-      action: 'create_sale_error',
-      pgCode,
-      pgMessage,
-      detail,
-    });
-    throw new Error('No se pudo registrar la venta. Intenta de nuevo o contacta soporte.');
-  }
 
-  const clienteId = (saleData as any).clienteId;
-  if (clienteId) {
-    // Get current points balance before update
-    const [clienteRow] = await db.select().from(clientes).where(eq(clientes.id, clienteId)).limit(1);
-    const saldoAnterior = clienteRow ? numVal(clienteRow.points) : 0;
-    const puntosNetos = saleData.pointsEarned - saleData.pointsUsed;
-    const saldoNuevo = saldoAnterior + puntosNetos;
-
-    await db.update(clientes)
-      .set({
-        points: sql`points::numeric + ${saleData.pointsEarned} - ${saleData.pointsUsed}`,
-        lastTransaction: now,
-      })
-      .where(eq(clientes.id, clienteId));
-
-    // Write loyalty history only when points change
-    if (puntosNetos !== 0) {
-      const ltId = `lt-${crypto.randomUUID()}`;
-      await db.insert(loyaltyTransactions).values({
-        id: ltId,
-        clienteId,
-        clienteName: clienteRow?.name ?? '',
-        tipo: saleData.pointsEarned > 0 ? 'acumulacion' : 'canje',
-        puntos: String(puntosNetos),
-        saldoAnterior: String(saldoAnterior),
-        saldoNuevo: String(saldoNuevo),
+    // 3. Insert sale items
+    for (const item of saleData.items) {
+      await tx.insert(saleItems).values({
+        id: `si-${crypto.randomUUID()}`,
         saleId: id,
-        saleFolio: folio,
-        notas: `Venta folio ${folio}`,
-        cajero,        fecha: now,
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPrice: String(item.unitPrice),
+        subtotal: String(item.subtotal),
       });
     }
-  }
 
-  for (const item of saleData.items) {
-    await db.insert(saleItems).values({
-      id: `si-${crypto.randomUUID()}`,
-      saleId: id,
-      productId: item.productId,
-      productName: item.productName,
-      sku: item.sku,
-      quantity: item.quantity,
-      unitPrice: String(item.unitPrice),
-      subtotal: String(item.subtotal),
-    });
-  }
-
-  // Batch stock update: use RETURNING to avoid N+1 queries
-  for (const item of saleData.items) {
-    const [updated] = await db
-      .update(products)
-      .set({
-        currentStock: sql`greatest(0, current_stock - ${item.quantity})`,
-        updatedAt: now,
-      })
-      .where(eq(products.id, item.productId))
-      .returning({
-        name: products.name,
-        currentStock: products.currentStock,
-        minStock: products.minStock,
-      });
-
-    if (updated && updated.currentStock <= updated.minStock * 0.2) {
-      await sendNotification(
-        `<b>REPORTE DE STOCK CRÍTICO</b>\n\n` +
-        `Producto: ${escapeHTML(updated.name)}\n` +
-        `Stock actual: ${updated.currentStock}\n` +
-        `Mínimo sugerido: ${updated.minStock}`
-      );
+    // 4. Deduct stock using shared helper (inside tx)
+    const alerts: { name: string; currentStock: number; minStock: number }[] = [];
+    for (const item of saleData.items) {
+      const updated = await adjustStock(item.productId, -item.quantity, { tx: tx as any, now });
+      if (updated && updated.currentStock <= updated.minStock * 0.2) {
+        alerts.push(updated);
+      }
     }
+
+    // 5. Loyalty points (inside tx for consistency)
+    if (clienteId) {
+      const [clienteRow] = await tx.select().from(clientes).where(eq(clientes.id, clienteId)).limit(1);
+      const saldoAnterior = clienteRow ? numVal(clienteRow.points) : 0;
+      const puntosNetos = saleData.pointsEarned - saleData.pointsUsed;
+      const saldoNuevo = saldoAnterior + puntosNetos;
+
+      await tx.update(clientes)
+        .set({
+          points: sql`points::numeric + ${saleData.pointsEarned} - ${saleData.pointsUsed}`,
+          lastTransaction: now,
+        })
+        .where(eq(clientes.id, clienteId));
+
+      if (puntosNetos !== 0) {
+        await tx.insert(loyaltyTransactions).values({
+          id: `lt-${crypto.randomUUID()}`,
+          clienteId,
+          clienteName: clienteRow?.name ?? '',
+          tipo: saleData.pointsEarned > 0 ? 'acumulacion' : 'canje',
+          puntos: String(puntosNetos),
+          saldoAnterior: String(saldoAnterior),
+          saldoNuevo: String(saldoNuevo),
+          saleId: id,
+          saleFolio: txFolio,
+          notas: `Venta folio ${txFolio}`,
+          cajero,
+          fecha: now,
+        });
+      }
+    }
+
+    return { folio: txFolio, stockAlerts: alerts };
+  });
+
+  // ── Side effects (outside transaction — non-critical) ──
+
+  // Stock critical alerts
+  for (const alert of stockAlerts) {
+    sendNotification(
+      `<b>REPORTE DE STOCK CRÍTICO</b>\n\n` +
+      `Producto: ${escapeHTML(alert.name)}\n` +
+      `Stock actual: ${alert.currentStock}\n` +
+      `Mínimo sugerido: ${alert.minStock}`
+    );
   }
 
   // Notificación de venta detallada y estética

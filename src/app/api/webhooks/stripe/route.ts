@@ -23,7 +23,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Verify signature
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecretKey) {
+      logger.error('Stripe secret key not configured', { action: 'stripe_webhook_no_key' });
+      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
+    }
+    const stripe = new Stripe(stripeSecretKey, {
       apiVersion: '2026-03-25.dahlia',
     });
 

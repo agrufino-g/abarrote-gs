@@ -14,6 +14,26 @@ import { validateSchema, saveStoreConfigSchema } from '@/lib/validation/schemas'
 /** All valid column keys derived from the Drizzle schema — single source of truth. */
 const ALL_DB_COLUMNS = new Set(Object.keys(getTableColumns(storeConfig)));
 
+function getErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+  const candidate = error as { code?: string; cause?: { code?: string } };
+  return candidate.code ?? candidate.cause?.code;
+}
+
+function getErrorText(error: unknown): string {
+  if (!error || typeof error !== 'object') return String(error ?? '');
+  const candidate = error as { message?: string; cause?: { message?: string } };
+  return `${candidate.message ?? ''} ${candidate.cause?.message ?? ''}`.trim().toLowerCase();
+}
+
+function isUndefinedColumnError(error: unknown): boolean {
+  const code = getErrorCode(error);
+  if (code === '42703') return true;
+
+  const text = getErrorText(error);
+  return text.includes('does not exist') || text.includes('undefined column');
+}
+
 /** Core columns present since the initial migration (safe fallback for un-migrated DBs). */
 const CORE_DB_COLUMNS = new Set([
   'storeName', 'legalName', 'address', 'city', 'postalCode', 'phone',
@@ -131,9 +151,7 @@ export async function fetchStoreConfig(): Promise<StoreConfig> {
     }
     return mapStoreConfigRow(rows[0]);
   } catch (error) {
-    const msg = String(error).toLowerCase();
-    const isColumnMissing = msg.includes('does not exist') || msg.includes('undefined column');
-    if (!isColumnMissing) throw error;
+    if (!isUndefinedColumnError(error)) throw error;
 
     // Fallback: select only core columns that are guaranteed to exist
     const rows = await db.select({
@@ -207,9 +225,7 @@ export async function saveStoreConfig(data: Partial<StoreConfig>): Promise<Store
   try {
     await persist(buildDbValues(ALL_DB_COLUMNS));
   } catch (error) {
-    const msg = String(error).toLowerCase();
-    const isColumnMissing = msg.includes('does not exist') || msg.includes('undefined column');
-    if (!isColumnMissing) throw error;
+    if (!isUndefinedColumnError(error)) throw error;
     // Fallback: only use core columns guaranteed to exist since initial migration
     await persist(buildDbValues(CORE_DB_COLUMNS));
   }

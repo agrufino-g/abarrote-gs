@@ -289,6 +289,9 @@ export async function completeInventoryAudit(id: string): Promise<void> {
     .set({ status: 'completed' })
     .where(eq(inventoryAudits.id, id));
 
+  // Import escapeHTML for the notification message
+  const { escapeHTML } = await import('./_notifications');
+  
   await sendNotification(
     `<b>REPORTE DE AUDITORÍA FINALIZADA</b>\n\n` +
     `Título: ${escapeHTML(audit.title)}\n` +

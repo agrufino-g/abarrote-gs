@@ -116,6 +116,11 @@ export class SyncEngine {
     this.startPolling();
 
     this.emitStatus();
+    
+    // NOTE: Initial data load is NOT done here anymore.
+    // The consumer (useSyncEngine) is responsible for calling forceRefresh()
+    // AFTER confirming the user is authenticated. This prevents race conditions
+    // where the engine starts fetching before auth is ready.
   }
 
   stop(): void {

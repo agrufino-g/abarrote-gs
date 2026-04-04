@@ -44,7 +44,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       set({ saleRecords, salesData, products, inventoryAlerts: alerts, kpiData: kpi });
       return newSale;
     } catch (error) {
-      console.error('Error registering sale:', error);
+      console.error('[store:sales] registerSale failed', error);
       throw error;
     }
   },
@@ -63,7 +63,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       ]);
       set({ salesData, products, inventoryAlerts: alerts, kpiData: kpi });
     } catch (error) {
-      console.error('Error canceling sale:', error);
+      console.error('[store:sales] cancelSale failed', error);
       throw error;
     }
   },
@@ -82,7 +82,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       ]);
       set({ salesData, products, inventoryAlerts: alerts, kpiData: kpi });
     } catch (error) {
-      console.error('Error deleting sales:', error);
+      console.error('[store:sales] deleteSales failed', error);
       throw error;
     }
   },
@@ -94,7 +94,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       const idSet = new Set(ids);
       set({ cortesHistory: state.cortesHistory.filter(c => !idSet.has(c.id)) });
     } catch (error) {
-      console.error('Error deleting cortes:', error);
+      console.error('[store:sales] deleteCortes failed', error);
       throw error;
     }
   },
@@ -106,7 +106,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       set({ cortesHistory: [corte, ...state.cortesHistory] });
       return corte;
     } catch (error) {
-      console.error('Error creating corte de caja:', error);
+      console.error('[store:sales] createCorteCaja failed', error);
       throw error;
     }
   },
@@ -115,7 +115,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
     try {
       await dbCreateAutoCorteCaja();
     } catch (error) {
-      console.error('Error checking midnight corte:', error);
+      console.error('[store:sales] checkMidnightCorte failed', error);
     }
   },
 
@@ -133,7 +133,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       ]);
       return devolucion;
     } catch (error) {
-      console.error('Error registering devolucion:', error);
+      console.error('[store:sales] registerDevolucion failed', error);
       throw error;
     }
   },
@@ -145,7 +145,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       set({ cashMovements: [movement, ...state.cashMovements] });
       return movement;
     } catch (error) {
-      console.error('Error adding cash movement:', error);
+      console.error('[store:sales] addCashMovement failed', error);
       throw error;
     }
   },
@@ -155,7 +155,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       const transactions = await dbFetchLoyaltyTransactions(clienteId);
       set({ loyaltyTransactions: transactions });
     } catch (error) {
-      console.error('Error fetching loyalty transactions:', error);
+      console.error('[store:sales] fetchLoyaltyTransactions failed', error);
     }
   },
 });

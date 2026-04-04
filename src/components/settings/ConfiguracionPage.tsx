@@ -45,7 +45,8 @@ import { LoyaltySection } from './sections/LoyaltySection';
 import { InventorySection } from './sections/InventorySection';
 import { NotificationsSection } from './sections/NotificationsSection';
 import { PaymentsSection } from './sections/PaymentsSection';
-import { CustomerDisplaySection } from './sections/CustomerDisplaySection';
+import { CustomerDisplaySectionV4 } from './sections/CustomerDisplaySectionV4';
+import { parseError } from '@/lib/errors';
 
 const SETTINGS_CATEGORIES = [
   { id: 'general', title: 'Detalles de la tienda', description: 'Gestiona la identidad de tu negocio, dirección y preferencias básicas.', icon: StoreIcon },
@@ -72,7 +73,9 @@ export function ConfiguracionPage() {
     reset: resetConfig,
     submitting: saving,
     submit: handleSave,
+    submitErrors,
   } = useForm({
+    makeCleanAfterSubmit: true,
     fields: {
       storeName: useField(storeConfig.storeName || ''),
       legalName: useField(storeConfig.legalName || ''),
@@ -125,22 +128,54 @@ export function ConfiguracionPage() {
       clipEnabled: useField(storeConfig.clipEnabled ?? false),
       clipApiKey: useField(storeConfig.clipApiKey || ''),
       clipSerialNumber: useField(storeConfig.clipSerialNumber || ''),
-      customerDisplayEnabled: useField(storeConfig.customerDisplayEnabled ?? false),
-      customerDisplayWelcome: useField(storeConfig.customerDisplayWelcome || ''),
-      customerDisplayFarewell: useField(storeConfig.customerDisplayFarewell || ''),
-      customerDisplayPromoText: useField(storeConfig.customerDisplayPromoText || ''),
-      customerDisplayPromoImage: useField(storeConfig.customerDisplayPromoImage || ''),
+      // NOTE: customerDisplay* fields are NOT in this form.
+      // CustomerDisplaySectionV2 is self-sufficient and manages its own state
+      // directly via Zustand store to avoid state sync conflicts.
     },
     onSubmit: async (f) => {
-      await saveStoreConfig(f as any);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-      return { status: 'success' };
+      try {
+        await saveStoreConfig(f as any);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+        return { status: 'success' };
+      } catch (error) {
+        const { description } = parseError(error);
+        setSaved(false);
+        return { status: 'fail', errors: [{ message: description }] };
+      }
     },
   });
 
   const [saved, setSaved] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [quickSavingDisplay, setQuickSavingDisplay] = useState(false);
+  const [quickSaveError, setQuickSaveError] = useState<string | null>(null);
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // STATUS_MAP — Computed EARLY to be available for both list and detail views
+  // Must use storeConfig directly (from Zustand) for fields managed outside form
+  // ══════════════════════════════════════════════════════════════════════════
+  const STATUS_MAP = useMemo(() => {
+    const storeConfigured = !!(storeConfig.storeName && storeConfig.address);
+    const fiscalConfigured = !!(storeConfig.rfc && storeConfig.regimenFiscal);
+    const notificationsConfigured = !!(storeConfig.enableNotifications && storeConfig.telegramToken && storeConfig.telegramChatId);
+    const mpLinked = storeConfig.mpEnabled;
+    const hardwareConfigured = !!(storeConfig.printerIp);
+    const loyaltyConfigured = storeConfig.loyaltyEnabled;
+    const displayEnabled = storeConfig.customerDisplayEnabled;
+
+    return {
+      general: { configured: storeConfigured, label: storeConfigured ? 'Configurado' : 'Pendiente' },
+      fiscal: { configured: fiscalConfigured, label: fiscalConfigured ? 'Configurado' : 'Pendiente' },
+      pos: { configured: true, label: 'Activo' },
+      hardware: { configured: hardwareConfigured, label: hardwareConfigured ? 'Conectado' : 'Sin conectar' },
+      loyalty: { configured: loyaltyConfigured, label: loyaltyConfigured ? 'Activo' : 'Inactivo' },
+      inventory: { configured: true, label: 'Activo' },
+      notifications: { configured: notificationsConfigured, label: notificationsConfigured ? 'Conectado' : 'Sin conectar' },
+      payments: { configured: mpLinked, label: mpLinked ? 'Vinculado' : 'Sin vincular' },
+      'customer-display': { configured: displayEnabled, label: displayEnabled ? 'Activo' : 'Inactivo' },
+    } as Record<string, { configured: boolean; label: string }>;
+  }, [storeConfig]);
 
   // Sync with store when it changes externally
   useEffect(() => {
@@ -171,6 +206,22 @@ export function ConfiguracionPage() {
   const updateField = useCallback(<K extends keyof StoreConfig>(field: K, value: StoreConfig[K]) => {
     (fields as any)[field].onChange(value);
   }, [fields]);
+
+  const savePatch = useCallback(async (patch: Partial<StoreConfig>) => {
+    setQuickSavingDisplay(true);
+    setQuickSaveError(null);
+    try {
+      await saveStoreConfig(patch);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      const { description } = parseError(error);
+      setSaved(false);
+      setQuickSaveError(description);
+    } finally {
+      setQuickSavingDisplay(false);
+    }
+  }, [saveStoreConfig]);
 
 
   // Mercado Pago — derived from form fields (persisted to DB)
@@ -319,7 +370,9 @@ export function ConfiguracionPage() {
           />
         );
       case 'customer-display':
-        return <CustomerDisplaySection config={config} updateField={updateField} />;
+        // CustomerDisplaySectionV4 is self-sufficient: uses store directly,
+        // each field auto-saves independently. No props needed.
+        return <CustomerDisplaySectionV4 />;
       default:
         return null;
     }
@@ -367,24 +420,6 @@ export function ConfiguracionPage() {
       </>
     );
   }
-
-  // ── Computed status badges ──
-  const storeConfigured = !!(config.storeName && config.address);
-  const fiscalConfigured = !!(config.rfc && config.regimenFiscal);
-  const notificationsConfigured = !!(config.enableNotifications && config.telegramToken && config.telegramChatId);
-  const mpLinked = config.mpEnabled;
-  const hardwareConfigured = !!(config.printerIp);
-  const loyaltyConfigured = config.loyaltyEnabled;
-
-  const STATUS_MAP: Record<string, { configured: boolean; label: string }> = {
-    general: { configured: storeConfigured, label: storeConfigured ? 'Configurado' : 'Pendiente' },
-    fiscal: { configured: fiscalConfigured, label: fiscalConfigured ? 'Configurado' : 'Pendiente' },
-    pos: { configured: true, label: 'Activo' },
-    hardware: { configured: hardwareConfigured, label: hardwareConfigured ? 'Conectado' : 'Sin conectar' },
-    loyalty: { configured: loyaltyConfigured, label: loyaltyConfigured ? 'Activo' : 'Inactivo' },
-    inventory: { configured: true, label: 'Activo' },
-    notifications: { configured: notificationsConfigured, label: notificationsConfigured ? 'Conectado' : 'Sin conectar' },
-    payments: { configured: mpLinked, label: mpLinked ? 'Vinculado' : 'Sin vincular' },    'customer-display': { configured: config.customerDisplayEnabled, label: config.customerDisplayEnabled ? 'Activo' : 'Inactivo' },  };
 
   // Group categories
   const GROUPS = [
@@ -442,6 +477,22 @@ export function ConfiguracionPage() {
           <BlockStack gap="800">
             {saved && (
               <Banner tone="success" title="Configuración guardada correctamente" onDismiss={() => setSaved(false)} />
+            )}
+            {quickSaveError && (
+              <Banner tone="critical" title="No se pudo guardar el cambio" onDismiss={() => setQuickSaveError(null)}>
+                <p>{quickSaveError}</p>
+              </Banner>
+            )}
+            {submitErrors.length > 0 && (
+              <Banner tone="critical" title="No se pudo guardar la configuración">
+                <BlockStack gap="100">
+                  {submitErrors.map((error, index) => (
+                    <Text as="p" key={`${error.message}-${index}`} variant="bodySm">
+                      {error.message}
+                    </Text>
+                  ))}
+                </BlockStack>
+              </Banner>
             )}
 
             {/* Settings groups */}

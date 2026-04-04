@@ -34,24 +34,26 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
       const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
       set({ inventoryAlerts: alerts, kpiData: kpi });
     } catch (error) {
-      console.error('Error registering merma:', error);
+      console.error('[store:inventory] registerMerma failed', error);
     }
   },
 
   adjustStock: async (productId, newStock, _reason) => {
+    const prev = get().products;
     try {
       await dbUpdateProductStock(productId, newStock);
-      // Update the product in-place optimistically, then refresh alerts/KPIs
-      const state = get();
+      // Optimistic update with rollback on failure
       set({
-        products: state.products.map(p =>
+        products: prev.map(p =>
           p.id === productId ? { ...p, currentStock: newStock } : p
         ),
       });
       const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
       set({ inventoryAlerts: alerts, kpiData: kpi });
     } catch (error) {
-      console.error('Error adjusting stock:', error);
+      // Rollback to previous state
+      set({ products: prev });
+      console.error('[store:inventory] adjustStock failed', error);
     }
   },
 
@@ -60,7 +62,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
       await dbCreateProduct(productData);
       await refreshProductData(set);
     } catch (error) {
-      console.error('Error registering product:', error);
+      console.error('[store:inventory] registerProduct failed', error);
     }
   },
 
@@ -74,22 +76,23 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
       const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
       set({ inventoryAlerts: alerts, kpiData: kpi });
     } catch (error) {
-      console.error('Error deleting product:', error);
+      console.error('[store:inventory] deleteProduct failed', error);
       throw error;
     }
   },
 
   updateProduct: async (id, data) => {
+    const prev = get().products;
     try {
       await dbUpdateProduct(id, data);
-      // Optimistic update
-      const state = get();
-      set({ products: state.products.map(p => p.id === id ? { ...p, ...data } : p) });
+      // Optimistic update with rollback on failure
+      set({ products: prev.map(p => p.id === id ? { ...p, ...data } : p) });
       // Refresh alerts/KPIs (price or stock changes affect them)
       const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
       set({ inventoryAlerts: alerts, kpiData: kpi });
     } catch (error) {
-      console.error('Error updating product:', error);
+      set({ products: prev });
+      console.error('[store:inventory] updateProduct failed', error);
       throw error;
     }
   },
@@ -124,7 +127,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
       const state = get();
       set({ categories: [newCat, ...state.categories] });
     } catch (error) {
-      console.error('Error creating category:', error);
+      console.error('[store:inventory] createCategory failed', error);
     }
   },
 
@@ -134,7 +137,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
       const state = get();
       set({ categories: state.categories.map(c => c.id === id ? updated : c) });
     } catch (error) {
-      console.error('Error updating category:', error);
+      console.error('[store:inventory] updateCategory failed', error);
     }
   },
 
@@ -144,7 +147,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
       const state = get();
       set({ categories: state.categories.filter(c => c.id !== id) });
     } catch (error) {
-      console.error('Error deleting category:', error);
+      console.error('[store:inventory] deleteCategory failed', error);
     }
   },
 });
