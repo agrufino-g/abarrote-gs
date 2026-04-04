@@ -19,37 +19,37 @@ export type { ActionResult, ActionOptions } from './action-factory';
 
 export class DomainError extends AppError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(message, 'DOMAIN_ERROR', 400, details);
+    super('DOMAIN_ERROR', message, 400, details);
   }
 }
 
 export class ValidationError extends AppError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(message, 'VALIDATION_ERROR', 422, details);
+    super('VALIDATION_ERROR', message, 422, details);
   }
 }
 
 export class UnauthorizedError extends AppError {
   constructor(message = 'No autorizado') {
-    super(message, 'UNAUTHORIZED', 401);
+    super('UNAUTHORIZED', message, 401);
   }
 }
 
 export class ForbiddenError extends AppError {
   constructor(message = 'Acceso denegado') {
-    super(message, 'FORBIDDEN', 403);
+    super('FORBIDDEN', message, 403);
   }
 }
 
 export class NotFoundError extends AppError {
   constructor(resource: string) {
-    super(`Recurso no encontrado: ${resource}`, 'NOT_FOUND', 404);
+    super('NOT_FOUND', `Recurso no encontrado: ${resource}`, 404);
   }
 }
 
 export class InfrastructureError extends AppError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(message, 'INFRASTRUCTURE_ERROR', 503, details);
+    super('INFRASTRUCTURE_ERROR', message, 503, details);
   }
 }
 

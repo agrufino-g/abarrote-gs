@@ -57,6 +57,27 @@ export {
   type RateLimitResult,
 } from './rate-limit';
 
+// ── Tiered Rate Limiting (Enterprise) ──
+export {
+  checkTieredRateLimit,
+  withRateLimit,
+  checkBruteForce,
+  resetRateLimit,
+  roleIdToTier,
+  RateLimitError,
+  STANDARD,
+  RELAXED,
+  STRICT,
+  VERY_STRICT,
+  BRUTE_FORCE,
+  BULK,
+  READ_HEAVY,
+  type RateLimitTier,
+  type TieredRateLimitConfig,
+  type TieredRateLimitResult,
+  type RoleTier,
+} from './rate-limit-tiers';
+
 // ── Distributed Locks ──
 export {
   acquireLock,
