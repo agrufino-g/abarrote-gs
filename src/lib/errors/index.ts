@@ -3,7 +3,7 @@ export class AppError extends Error {
   public readonly statusCode: number;
   public readonly details?: Record<string, unknown>;
 
-  constructor(message: string, code: string, statusCode = 500, details?: Record<string, unknown>) {
+  constructor(code: string, message: string, statusCode = 500, details?: Record<string, unknown>) {
     super(message);
     this.name = this.constructor.name;
     this.code = code;
@@ -12,6 +12,10 @@ export class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 }
+
+// Re-export action factory
+export { createAction, withLogging, wrapActions } from './action-factory';
+export type { ActionResult, ActionOptions } from './action-factory';
 
 export class DomainError extends AppError {
   constructor(message: string, details?: Record<string, unknown>) {

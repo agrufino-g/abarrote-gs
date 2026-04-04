@@ -7,10 +7,11 @@ import { clientes, fiadoTransactions, fiadoItems } from '@/db/schema';
 import { eq, desc, sql, inArray } from 'drizzle-orm';
 import type { Cliente, FiadoTransaction, SaleItem } from '@/types';
 import { numVal } from './_helpers';
+import { withLogging, AppError } from '@/lib/errors';
 
 // ==================== CLIENTES ====================
 
-export async function fetchClientes(): Promise<Cliente[]> {
+async function _fetchClientes(): Promise<Cliente[]> {
   await requirePermission('customers.view');
   const rows = await db.select().from(clientes).orderBy(clientes.name);
   return rows.map((r) => ({
@@ -26,7 +27,7 @@ export async function fetchClientes(): Promise<Cliente[]> {
   }));
 }
 
-export async function createCliente(
+async function _createCliente(
   data: Omit<Cliente, 'id' | 'balance' | 'createdAt' | 'lastTransaction'>
 ): Promise<Cliente> {
   await requirePermission('customers.edit');
@@ -54,7 +55,7 @@ export async function createCliente(
   };
 }
 
-export async function updateCliente(id: string, data: Partial<Cliente>): Promise<void> {
+async function _updateCliente(id: string, data: Partial<Cliente>): Promise<void> {
   await requirePermission('customers.edit');
   validateSchema(idSchema, id, 'updateCliente.id');
   validateSchema(updateClienteSchema, data, 'updateCliente');
@@ -68,7 +69,7 @@ export async function updateCliente(id: string, data: Partial<Cliente>): Promise
   }
 }
 
-export async function deleteCliente(id: string): Promise<void> {
+async function _deleteCliente(id: string): Promise<void> {
   await requirePermission('customers.edit');
   validateId(id, 'Cliente ID');
   await db.delete(fiadoTransactions).where(eq(fiadoTransactions.clienteId, id));
@@ -77,7 +78,7 @@ export async function deleteCliente(id: string): Promise<void> {
 
 // ==================== FIADO ====================
 
-export async function fetchFiadoTransactions(): Promise<FiadoTransaction[]> {
+async function _fetchFiadoTransactions(): Promise<FiadoTransaction[]> {
   await requirePermission('customers.view');
   const rows = await db.select().from(fiadoTransactions).orderBy(desc(fiadoTransactions.date)).limit(100);
   if (rows.length === 0) return [];
@@ -116,7 +117,7 @@ export async function fetchFiadoTransactions(): Promise<FiadoTransaction[]> {
   }));
 }
 
-export async function createFiado(
+async function _createFiado(
   clienteId: string,
   amount: number,
   description: string,
@@ -127,7 +128,9 @@ export async function createFiado(
   validateSchema(createFiadoSchema, { clienteId, amount, description, saleFolio, items }, 'createFiado');
   const now = new Date();
   const clienteRows = await db.select().from(clientes).where(eq(clientes.id, clienteId));
-  if (!clienteRows.length) return;
+  if (!clienteRows.length) {
+    throw new AppError('CLIENTE_NOT_FOUND', 'Cliente no encontrado', 404);
+  }
 
   const cliente = clienteRows[0];
   const fiadoId = `fiado-${crypto.randomUUID()}`;
@@ -167,7 +170,7 @@ export async function createFiado(
     .where(eq(clientes.id, clienteId));
 }
 
-export async function createAbono(
+async function _createAbono(
   clienteId: string,
   amount: number,
   description: string
@@ -176,7 +179,9 @@ export async function createAbono(
   validateSchema(createAbonoSchema, { clienteId, amount, description }, 'createAbono');
   const now = new Date();
   const clienteRows = await db.select().from(clientes).where(eq(clientes.id, clienteId));
-  if (!clienteRows.length) return;
+  if (!clienteRows.length) {
+    throw new AppError('CLIENTE_NOT_FOUND', 'Cliente no encontrado', 404);
+  }
 
   const cliente = clienteRows[0];
 
@@ -198,3 +203,12 @@ export async function createAbono(
     })
     .where(eq(clientes.id, clienteId));
 }
+
+// ==================== WRAPPED EXPORTS ====================
+export const fetchClientes = withLogging('customer.fetchAll', _fetchClientes);
+export const createCliente = withLogging('customer.create', _createCliente);
+export const updateCliente = withLogging('customer.update', _updateCliente);
+export const deleteCliente = withLogging('customer.delete', _deleteCliente);
+export const fetchFiadoTransactions = withLogging('fiado.fetchAll', _fetchFiadoTransactions);
+export const createFiado = withLogging('fiado.create', _createFiado);
+export const createAbono = withLogging('fiado.createAbono', _createAbono);

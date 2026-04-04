@@ -8,11 +8,11 @@ import { products, saleItems, mermaRecords, pedidoItems, fiadoItems } from '@/db
 import { eq, or } from 'drizzle-orm';
 import type { Product } from '@/types';
 import { numVal } from './_helpers';
-import { AppError } from '@/lib/errors';
+import { AppError, withLogging } from '@/lib/errors';
 
 // ==================== PRODUCTS ====================
 
-export async function fetchAllProducts(): Promise<Product[]> {
+async function _fetchAllProducts(): Promise<Product[]> {
   await requireAuth();
   const rows = await db.select().from(products).orderBy(products.name);
   return rows.map((r) => ({
@@ -33,7 +33,7 @@ export async function fetchAllProducts(): Promise<Product[]> {
   }));
 }
 
-export async function createProduct(data: Omit<Product, 'id'>): Promise<Product> {
+async function _createProduct(data: Omit<Product, 'id'>): Promise<Product> {
   await requirePermission('inventory.edit');
   validateSchema(createProductSchema, data, 'createProduct');
   
@@ -88,14 +88,14 @@ export async function createProduct(data: Omit<Product, 'id'>): Promise<Product>
   return { ...data, id };
 }
 
-export async function updateProductStock(productId: string, newStock: number): Promise<void> {
+async function _updateProductStock(productId: string, newStock: number): Promise<void> {
   await requirePermission('inventory.edit');
   validateId(productId, 'Product ID');
   validateNumber(newStock, { label: 'Nuevo stock' });
   await db.update(products).set({ currentStock: newStock, updatedAt: new Date() }).where(eq(products.id, productId));
 }
 
-export async function deleteProduct(productId: string): Promise<void> {
+async function _deleteProduct(productId: string): Promise<void> {
   await requirePermission('inventory.delete');
   validateId(productId, 'Product ID');
   await cache.invalidatePattern('products:');
@@ -107,7 +107,7 @@ export async function deleteProduct(productId: string): Promise<void> {
   await db.delete(products).where(eq(products.id, productId));
 }
 
-export async function updateProduct(id: string, data: Partial<Product>): Promise<void> {
+async function _updateProduct(id: string, data: Partial<Product>): Promise<void> {
   await requirePermission('inventory.edit');
   validateSchema(idSchema, id, 'updateProduct.id');
   validateSchema(updateProductSchema, data, 'updateProduct');
@@ -127,3 +127,12 @@ export async function updateProduct(id: string, data: Partial<Product>): Promise
   if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
   await db.update(products).set(updateData).where(eq(products.id, id));
 }
+
+// ==================== WRAPPED EXPORTS ====================
+// All actions wrapped with logging for observability
+
+export const fetchAllProducts = withLogging('product.fetchAll', _fetchAllProducts);
+export const createProduct = withLogging('product.create', _createProduct);
+export const updateProductStock = withLogging('product.updateStock', _updateProductStock);
+export const deleteProduct = withLogging('product.delete', _deleteProduct);
+export const updateProduct = withLogging('product.update', _updateProduct);
