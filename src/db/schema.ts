@@ -152,6 +152,7 @@ export const productCategories = pgTable('product_categories', {
   icon: text('icon'), // Nombre del icono de Polaris
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at'),
 });
 
 // ==================== PRODUCTOS ====================
@@ -172,6 +173,7 @@ export const products = pgTable('products', {
   imageUrl: text('image_url'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at'),
 }, (t) => [
   index('products_category_idx').on(t.category),
   index('products_current_stock_idx').on(t.currentStock),
@@ -263,6 +265,7 @@ export const clientes = pgTable('clientes', {
   points: numeric('points', { precision: 10, scale: 2 }).notNull().default('0'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   lastTransaction: timestamp('last_transaction'),
+  deletedAt: timestamp('deleted_at'),
 });
 
 // ==================== FIADO TRANSACTIONS ====================
@@ -321,6 +324,7 @@ export const proveedores = pgTable('proveedores', {
   notas: text('notas').notNull().default(''),
   activo: boolean('activo').notNull().default(true),
   ultimoPedido: timestamp('ultimo_pedido'),
+  deletedAt: timestamp('deleted_at'),
 });
 
 // ==================== CORTES DE CAJA ====================
@@ -530,6 +534,7 @@ export const promotions = pgTable('promotions', {
   createdBy: text('created_by').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at'),
 }, (t) => [
   index('promotions_active_idx').on(t.active),
   index('promotions_dates_idx').on(t.startDate, t.endDate),
@@ -571,4 +576,21 @@ export const mercadopagoRefunds = pgTable('mercadopago_refunds', {
 }, (t) => [
   index('mp_refunds_sale_id_idx').on(t.saleId),
   index('mp_refunds_payment_id_idx').on(t.mpPaymentId),
+]);
+
+// ==================== FEATURE FLAGS ====================
+export const featureFlags = pgTable('feature_flags', {
+  id: text('id').primaryKey(),
+  description: text('description').notNull().default(''),
+  enabled: boolean('enabled').notNull().default(false),
+  rolloutPercentage: integer('rollout_percentage').notNull().default(0),
+  targetUserIds: text('target_user_ids').array().notNull().default([]),
+  targetRoleIds: text('target_role_ids').array().notNull().default([]),
+  activateAt: timestamp('activate_at'),
+  deactivateAt: timestamp('deactivate_at'),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => [
+  index('feature_flags_enabled_idx').on(t.enabled),
 ]);
