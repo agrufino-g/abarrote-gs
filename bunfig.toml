@@ -1,0 +1,3 @@
+[test]
+# Scope bun test to unit tests only; E2E runs via `bun run test:e2e` (Playwright)
+root = "./src/__tests__"
