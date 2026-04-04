@@ -1,0 +1,46 @@
+{
+  "name": "Abarrote GS",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "typescript.tsserver.maxTsServerMemory": 2048,
+        "typescript.tsserver.nodePath": "node",
+        "extensions.autoUpdate": false,
+        "files.watcherExclude": {
+          "**/node_modules/**": true,
+          "**/.next/**": true,
+          "**/drizzle/**": true,
+          "**/coverage/**": true,
+          "**/playwright-report/**": true,
+          "**/test-results/**": true
+        },
+        "search.exclude": {
+          "**/node_modules": true,
+          "**/.next": true,
+          "**/drizzle/meta": true
+        }
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    },
+    "codespaces": {
+      "openFiles": []
+    }
+  },
+  "postCreateCommand": "npm install -g bun@1.3.11 && bun install",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js Dev",
+      "onAutoForward": "notify"
+    }
+  }
+}
