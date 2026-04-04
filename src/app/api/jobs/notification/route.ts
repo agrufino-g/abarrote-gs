@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/infrastructure/qstash';
 import { logger } from '@/lib/logger';
+import { notificationPayloadSchema, parseJobPayload } from '@/infrastructure/jobs/schemas';
 
 // ══════════════════════════════════════════════════════════════
 // POST /api/jobs/notification
@@ -23,16 +24,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let payload: { message: string };
-  try {
-    payload = JSON.parse(body);
-  } catch {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+  const parsed = parseJobPayload(notificationPayloadSchema, body);
+  if (!parsed.success) {
+    logger.warn('Notification invalid payload', { action: 'job_notification_validation', error: parsed.error });
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-
-  if (!payload.message || typeof payload.message !== 'string') {
-    return NextResponse.json({ error: 'Missing message field' }, { status: 400 });
-  }
+  const payload = parsed.data;
 
   try {
     // Dynamic import to avoid circular deps with server actions

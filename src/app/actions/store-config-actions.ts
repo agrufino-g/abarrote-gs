@@ -9,6 +9,7 @@ import type { StoreConfig } from '@/types';
 import { DEFAULT_STORE_CONFIG } from '@/types';
 import { numVal } from './_helpers';
 import { validateSchema, saveStoreConfigSchema } from '@/lib/validation/schemas';
+import { cache } from '@/infrastructure/redis';
 
 // ==================== STORE CONFIG ====================
 
@@ -110,13 +111,19 @@ function mapStoreConfigRow(row: any): StoreConfig {
 }
 
 async function _fetchStoreConfig(): Promise<StoreConfig> {
+  // L1/L2 cache — store config rarely changes (5 min TTL)
+  const cached = await cache.get<StoreConfig>('config:store');
+  if (cached) return cached;
+
   try {
     const rows = await db.select().from(storeConfig).limit(1);
     if (rows.length === 0) {
       await db.insert(storeConfig).values({ id: 'main' });
       return DEFAULT_STORE_CONFIG;
     }
-    return mapStoreConfigRow(rows[0]);
+    const config = mapStoreConfigRow(rows[0]);
+    await cache.set('config:store', config, { ttlMs: 300_000 }); // 5 min
+    return config;
   } catch (error) {
     if (!isUndefinedColumnError(error)) throw error;
 
@@ -196,6 +203,9 @@ async function _saveStoreConfig(data: Partial<StoreConfig>): Promise<StoreConfig
     // Fallback: only use core columns guaranteed to exist since initial migration
     await persist(buildDbValues(CORE_DB_COLUMNS));
   }
+
+  // Invalidate cached config so next read picks up changes
+  await cache.invalidatePattern('config:');
 
   return _fetchStoreConfig();
 }

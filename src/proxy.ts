@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth/server';
+import { logger } from '@/lib/logger';
 
 const authHandler = auth.middleware({ loginUrl: '/auth/login' });
 
@@ -180,13 +181,33 @@ export async function proxy(request: Parameters<typeof authHandler>[0]) {
   // 4. Request-ID for tracing / observability
   const requestId = req.headers.get('x-request-id') ?? crypto.randomUUID();
 
-  // 5. Auth check + session handling (via auth.middleware)
+  // 5. Structured request logging
+  const start = Date.now();
+  logger.info('Incoming request', {
+    action: 'http_request',
+    requestId,
+    method: req.method,
+    path: req.nextUrl.pathname,
+    ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? undefined,
+  });
+
+  // 6. Auth check + session handling (via auth.middleware)
   const response = await authHandler(request);
 
   // Apply security headers + request-ID to all responses
   if (response) {
     applySecurityHeaders(response);
     response.headers.set('x-request-id', requestId);
+
+    // Structured response logging
+    logger.info('Request completed', {
+      action: 'http_response',
+      requestId,
+      method: req.method,
+      path: req.nextUrl.pathname,
+      status: response.status,
+      durationMs: Date.now() - start,
+    });
   }
 
   return response;

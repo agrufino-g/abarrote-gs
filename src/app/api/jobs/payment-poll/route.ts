@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/infrastructure/qstash';
 import { logger } from '@/lib/logger';
+import { paymentPollPayloadSchema, parseJobPayload } from '@/infrastructure/jobs/schemas';
 
 // ══════════════════════════════════════════════════════════════
 // POST /api/jobs/payment-poll
@@ -21,17 +22,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let payload: { chargeId: string; provider: 'conekta' | 'stripe' | 'clip' };
-  try {
-    payload = JSON.parse(body);
-  } catch {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+  const parsed = parseJobPayload(paymentPollPayloadSchema, body);
+  if (!parsed.success) {
+    logger.warn('Payment poll invalid payload', { action: 'job_payment_poll_validation', error: parsed.error });
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-
-  const validProviders = ['conekta', 'stripe', 'clip'] as const;
-  if (!payload.chargeId || !validProviders.includes(payload.provider)) {
-    return NextResponse.json({ error: 'Invalid chargeId or provider' }, { status: 400 });
-  }
+  const payload = parsed.data;
 
   try {
     const { checkChargeStatus } = await import('@/app/actions/payment-provider-actions');

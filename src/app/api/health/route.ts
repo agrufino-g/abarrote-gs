@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { checkRedisHealth, type RedisHealth } from '@/infrastructure/redis';
+import { checkRedisHealth, type RedisHealth, getCacheStats } from '@/infrastructure/redis';
+import { getAllCircuitBreakerStats } from '@/infrastructure/circuit-breaker';
+import { getAuditBufferSize } from '@/infrastructure/audit';
+import { getDomainEventStats } from '@/domain/events';
 import { db } from '@/db';
 import { sql } from 'drizzle-orm';
 
@@ -30,6 +33,12 @@ interface HealthStatus {
   checks: {
     database: DatabaseHealth;
     redis: RedisHealth;
+  };
+  infrastructure: {
+    circuitBreakers: ReturnType<typeof getAllCircuitBreakerStats>;
+    cache: ReturnType<typeof getCacheStats>;
+    auditBufferSize: number;
+    domainEvents: Record<string, number>;
   };
 }
 
@@ -101,6 +110,12 @@ export async function GET(): Promise<NextResponse<HealthStatus>> {
     checks: {
       database: dbHealth,
       redis: redisHealth,
+    },
+    infrastructure: {
+      circuitBreakers: getAllCircuitBreakerStats(),
+      cache: getCacheStats(),
+      auditBufferSize: getAuditBufferSize(),
+      domainEvents: getDomainEventStats(),
     },
   };
   

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/infrastructure/qstash';
 import { logger } from '@/lib/logger';
+import { stockAlertPayloadSchema, parseJobPayload } from '@/infrastructure/jobs/schemas';
 
 // ══════════════════════════════════════════════════════════════
 // POST /api/jobs/stock-alert
@@ -21,16 +22,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let payload: { productName: string; currentStock: number; minStock: number };
-  try {
-    payload = JSON.parse(body);
-  } catch {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+  const parsed = parseJobPayload(stockAlertPayloadSchema, body);
+  if (!parsed.success) {
+    logger.warn('Stock alert invalid payload', { action: 'job_stock_alert_validation', error: parsed.error });
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-
-  if (!payload.productName || typeof payload.currentStock !== 'number') {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
-  }
+  const payload = parsed.data;
 
   try {
     const { sendNotificationDirect } = await import('@/infrastructure/qstash/handlers');

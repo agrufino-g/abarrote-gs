@@ -16,7 +16,7 @@ import { paymentCharges } from '@/db/schema';
 import { createSaleSchema } from '@/lib/validation/schemas';
 import { publishJob } from '@/infrastructure/qstash';
 import { withLogging } from '@/lib/errors';
-import { withRateLimit, STRICT, idempotencyCheck } from '@/infrastructure/redis';
+import { withRateLimit, STRICT, idempotencyCheck, withLock } from '@/infrastructure/redis';
 
 // ==================== FOLIO ====================
 
@@ -183,10 +183,14 @@ async function _createSale(
   const id = `sale-${crypto.randomUUID()}`;
   const clienteId = (saleData as any).clienteId;
 
+  // ── Distributed lock: prevent concurrent folio/stock race conditions ──
+  // Lock by cajero to serialize sales from the same register
+  const { folio, stockAlerts } = await withLock(`sale:register:${cajero}`, async () => {
+
   // ── Transactional core: sale + items + stock + loyalty ──
   // All DB mutations run inside a single transaction so a failure at any
   // step rolls back everything — no more partial sales with wrong stock.
-  const { folio, stockAlerts } = await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     // 1. Folio generation (sequence-based, atomic)
     await tx.execute(sql`CREATE SEQUENCE IF NOT EXISTS folio_seq START WITH 309001`);
     const seqResult = await tx.execute(sql`SELECT nextval('folio_seq')::text AS folio`);
@@ -282,6 +286,8 @@ async function _createSale(
 
     return { folio: txFolio, stockAlerts: alerts };
   });
+
+  }, { ttlMs: 15_000, waitMs: 10_000 }); // withLock end
 
   // ── Side effects (outside transaction — non-critical) ──
 
