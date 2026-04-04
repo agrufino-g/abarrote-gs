@@ -524,7 +524,6 @@ export function AnalyticsView() {
                             value: Number(total || 0),
                           })),
                         }]}
-                        horizontal
                         xAxisOptions={{ 
                           labelFormatter: (value) => i18n.formatCurrency(Number(value || 0), { currency: 'MXN', precision: 0 })
                         }}

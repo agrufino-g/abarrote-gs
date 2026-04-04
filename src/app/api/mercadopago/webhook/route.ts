@@ -157,7 +157,7 @@ export async function POST(req: Request) {
                         paymentType: paymentData.payment_type_id || null,
                         installments: paymentData.installments || 1,
                         feeAmount: paymentData.fee_details?.length
-                            ? String(paymentData.fee_details.reduce((s: number, f: { amount: number }) => s + f.amount, 0))
+                            ? String(paymentData.fee_details.reduce((s, f) => s + (f.amount ?? 0), 0))
                             : null,
                         netAmount: paymentData.transaction_details?.net_received_amount
                             ? String(paymentData.transaction_details.net_received_amount)
@@ -173,7 +173,7 @@ export async function POST(req: Request) {
                             paymentType: paymentData.payment_type_id || null,
                             installments: paymentData.installments || 1,
                             feeAmount: paymentData.fee_details?.length
-                                ? String(paymentData.fee_details.reduce((s: number, f: { amount: number }) => s + f.amount, 0))
+                                ? String(paymentData.fee_details.reduce((s, f) => s + (f.amount ?? 0), 0))
                                 : null,
                             netAmount: paymentData.transaction_details?.net_received_amount
                                 ? String(paymentData.transaction_details.net_received_amount)

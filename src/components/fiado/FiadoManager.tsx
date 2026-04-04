@@ -21,7 +21,6 @@ import {
   Icon,
   Popover,
   Tooltip,
-  useIndexResourceState,
 } from '@shopify/polaris';
 import {
   PlusIcon,
@@ -138,14 +137,6 @@ export function FiadoManager({ mode = 'all' }: FiadoManagerProps) {
       return a.name.localeCompare(b.name) * order;
     });
   }, [clientes, searchQuery, sortBy, sortOrder, fiadoTransactions, mode, modeFilter]);
-
-  // Selection state for IndexTable - MUST BE AFTER filteredClientes initialization
-  const {
-    selectedResources,
-    allResourcesSelected,
-    handleSelectionChange,
-    clearSelection,
-  } = useIndexResourceState(filteredClientes);
 
   const clientesWithDebt = useMemo(() => clientes.filter((c) => c.balance > 0), [clientes]);
 
@@ -454,28 +445,13 @@ export function FiadoManager({ mode = 'all' }: FiadoManagerProps) {
             <IndexTable
               resourceName={{ singular: 'cliente', plural: 'clientes' }}
               itemCount={filteredClientes.length}
-              selectedResources={selectedResources}
-              onSelectionChange={handleSelectionChange}
-              selectable
+              selectable={false}
               headings={[
                 { title: 'Nombre del cliente' },
                 { title: 'Suscripción por email' },
                 { title: 'Ubicación' },
                 { title: 'Pedidos' },
                 { title: 'Saldo Pendiente' },
-              ]}
-              promotedBulkActions={[
-                {
-                  content: 'Eliminar seleccionados',
-                  onAction: () => {
-                    const confirmMsg = `¿Estás seguro de que deseas eliminar ${selectedResources.length} clientes?`;
-                    if (window.confirm(confirmMsg)) {
-                      selectedResources.forEach(id => deleteCliente(id));
-                      clearSelection();
-                    }
-                  },
-                  destructive: true,
-                },
               ]}
             >
               {filteredClientes.map((cliente, idx) => {
@@ -490,7 +466,6 @@ export function FiadoManager({ mode = 'all' }: FiadoManagerProps) {
                     id={cliente.id} 
                     key={cliente.id} 
                     position={idx}
-                    selected={selectedResources.includes(cliente.id)}
                   >
                     <IndexTable.Cell>
                       <Button variant="plain" onClick={() => setViewingProfile(cliente)}>

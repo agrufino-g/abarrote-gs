@@ -333,12 +333,7 @@ export function CustomCardPaymentForm({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={paymentMethodThumb} alt={paymentMethodName} style={{ height: 24, objectFit: 'contain' }} />
                 )}
-                <Badge tone="success">
-                  <InlineStack gap="100" blockAlign="center">
-                    <Icon source={LockIcon} />
-                    <span>Protegido</span>
-                  </InlineStack>
-                </Badge>
+                <Badge tone="success">Protegido</Badge>
               </InlineStack>
             </InlineStack>
 

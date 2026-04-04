@@ -165,7 +165,7 @@ export async function cacheInvalidatePattern(pattern: string): Promise<void> {
           match: `${REDIS_PREFIXES.CACHE}:*`,
           count: 100,
         });
-        cursor = nextCursor;
+        cursor = typeof nextCursor === 'string' ? Number(nextCursor) : nextCursor;
         const matching = keys.filter((k) => regex.test(k.replace(`${REDIS_PREFIXES.CACHE}:`, '')));
         if (matching.length > 0) {
           await redis.del(...matching);

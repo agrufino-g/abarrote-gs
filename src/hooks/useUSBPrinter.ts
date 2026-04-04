@@ -47,7 +47,7 @@ export function useUSBPrinter() {
     }
 
     try {
-      await printerDevice.transferOut(outEndpoint.endpointNumber, data);
+      await printerDevice.transferOut(outEndpoint.endpointNumber, data as unknown as BufferSource);
     } catch (err) {
       logger.error('Impresión USB falló', { error: err });
       throw err;

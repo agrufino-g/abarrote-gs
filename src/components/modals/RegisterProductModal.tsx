@@ -93,9 +93,10 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
         validates: [
           notEmpty('Ingresa un precio de costo'),
           (val) => (parseFloat(val) <= 0 ? 'Debe ser mayor a 0' : undefined),
-          (val, { unitPrice }) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (val, allValues: any) => {
             const cost = parseFloat(val);
-            const price = parseFloat(unitPrice);
+            const price = parseFloat(allValues?.unitPrice ?? '0');
             if (!isNaN(cost) && !isNaN(price) && cost >= price) {
               return 'El costo debe ser menor al precio de venta';
             }
@@ -122,8 +123,9 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
       expirationDate: useField({
         value: '',
         validates: [
-          (val, { isPerishable }) => {
-            if (isPerishable && !val) return 'Fecha obligatoria para perecederos';
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (val, allValues: any) => {
+            if (allValues?.isPerishable && !val) return 'Fecha obligatoria para perecederos';
           },
         ],
       }),

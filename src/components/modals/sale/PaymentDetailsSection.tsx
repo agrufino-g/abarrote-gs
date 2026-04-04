@@ -318,7 +318,7 @@ export function PaymentDetailsSection({
               <Spinner size="small" />
               <Text as="p" variant="bodyMd" fontWeight="semibold">{mpStatus}</Text>
             </InlineStack>
-            <ProgressBar progress={mpStatus.includes('Esperando') ? 50 : 25} tone="highlight" size="small" />
+            <ProgressBar progress={mpStatus.includes('Esperando') ? 50 : 25} tone="primary" size="small" />
             {mpError && (
               <Banner tone="critical">
                 <p>{mpError}</p>
@@ -373,7 +373,6 @@ export function PaymentDetailsSection({
             <CustomCardPaymentForm
               amount={total}
               externalReference={`venta-${Date.now()}`}
-              publicKey={mpConfig.publicKey}
               onSuccess={() => {
                 onMpWebSuccess();
                 finishSale('tarjeta_web');
@@ -569,7 +568,7 @@ export function PaymentDetailsSection({
       {/* ── SPEI Automático (Conekta) ── */}
       {paymentMethodField.value === 'spei_conekta' && (
         <BlockStack gap="400">
-          <Banner tone="highlight">
+          <Banner tone="info">
             <p>
               <strong>SPEI automático vía Conekta.</strong> Se generará una CLABE de referencia única para esta venta.
               El pago se confirma automáticamente cuando el cliente transfiere.
@@ -592,7 +591,7 @@ export function PaymentDetailsSection({
       {/* ── SPEI Automático (Stripe) ── */}
       {paymentMethodField.value === 'spei_stripe' && (
         <BlockStack gap="400">
-          <Banner tone="highlight">
+          <Banner tone="info">
             <p>
               <strong>SPEI automático vía Stripe.</strong> Se generará una CLABE de referencia única para esta venta.
               El pago se confirma automáticamente.
@@ -615,7 +614,7 @@ export function PaymentDetailsSection({
       {/* ── OXXO (Conekta) ── */}
       {paymentMethodField.value === 'oxxo_conekta' && (
         <BlockStack gap="400">
-          <Banner tone="highlight">
+          <Banner tone="info">
             <p>
               <strong>Pago en OXXO vía Conekta.</strong> Se generará un código de barras para que el cliente pague en cualquier OXXO.
               El pago se confirma automáticamente (puede tardar 1-2 horas).
@@ -638,7 +637,7 @@ export function PaymentDetailsSection({
       {/* ── OXXO (Stripe) ── */}
       {paymentMethodField.value === 'oxxo_stripe' && (
         <BlockStack gap="400">
-          <Banner tone="highlight">
+          <Banner tone="info">
             <p>
               <strong>Pago en OXXO vía Stripe.</strong> Se generará un voucher para que el cliente pague en tienda.
               La confirmación es automática.
@@ -661,7 +660,7 @@ export function PaymentDetailsSection({
       {/* ── Clip Checkout (link de pago) ── */}
       {paymentMethodField.value === 'tarjeta_clip' && (
         <BlockStack gap="400">
-          <Banner tone="highlight">
+          <Banner tone="info">
             <p>
               <strong>Pago con tarjeta vía Clip Checkout.</strong> Se generará un link de pago seguro.
               El cliente puede pagar con tarjeta de crédito o débito desde su navegador.
@@ -684,7 +683,7 @@ export function PaymentDetailsSection({
       {/* ── Clip Terminal (PinPad) ── */}
       {paymentMethodField.value === 'clip_terminal' && (
         <BlockStack gap="400">
-          <Banner tone="highlight">
+          <Banner tone="info">
             <p>
               <strong>Pago presencial con terminal Clip.</strong> Se enviará la intención de pago al lector PinPad conectado.
               El cliente pasa su tarjeta directamente en la terminal.

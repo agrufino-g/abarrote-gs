@@ -207,7 +207,7 @@ export function SalesHistory() {
     if (activeDateRange) {
       tmp.push({
         key: 'dateRange',
-        label: `Período: ${activeDateRange.label}`,
+        label: `Período: ${activeDateRange.title}`,
         onRemove: () => setActiveDateRange(null),
       });
     }

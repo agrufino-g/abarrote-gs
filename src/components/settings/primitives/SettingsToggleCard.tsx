@@ -132,7 +132,7 @@ export function SettingsToggleCard({
           <Box minWidth="120px">
             <Button
               role="switch"
-              ariaChecked={optimisticEnabled}
+              ariaChecked={optimisticEnabled ? "true" : "false"}
               onClick={handleToggle}
               loading={isSaving}
               disabled={disabled || isSaving}

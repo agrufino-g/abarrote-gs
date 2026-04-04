@@ -576,7 +576,7 @@ export function PaymentsSection({
               {loadingStatus ? (
                 <Spinner size="small" />
               ) : conektaStatus?.connected ? (
-                <Badge tone="success">Conectado ({conektaStatus.environment})</Badge>
+                <Badge tone="success">{`Conectado (${conektaStatus.environment ?? 'live'})`}</Badge>
               ) : (
                 <Badge>Sin conectar</Badge>
               )}
@@ -672,7 +672,7 @@ export function PaymentsSection({
               {loadingStatus ? (
                 <Spinner size="small" />
               ) : stripeStatus?.connected ? (
-                <Badge tone="success">Conectado ({stripeStatus.environment})</Badge>
+                <Badge tone="success">{`Conectado (${stripeStatus.environment ?? 'live'})`}</Badge>
               ) : (
                 <Badge>Sin conectar</Badge>
               )}
@@ -777,7 +777,7 @@ export function PaymentsSection({
               {loadingStatus ? (
                 <Spinner size="small" />
               ) : clipStatus?.connected ? (
-                <Badge tone="success">Conectado ({clipStatus.environment})</Badge>
+                <Badge tone="success">{`Conectado (${clipStatus.environment ?? 'live'})`}</Badge>
               ) : (
                 <Badge>Sin conectar</Badge>
               )}

@@ -117,7 +117,7 @@ export function CustomerDisplaySection({ config, updateField, savePatch, saving 
               </BlockStack>
               <Button
                 role="switch"
-                ariaChecked={isEnabled}
+                ariaChecked={isEnabled ? "true" : "false"}
                 onClick={handleToggle}
                 loading={saving}
                 disabled={saving}
@@ -218,7 +218,7 @@ export function CustomerDisplaySection({ config, updateField, savePatch, saving 
 
                 {config.customerDisplayPromoImage ? (
                   <BlockStack gap="300">
-                    <Box borderRadius="200" overflow="hidden">
+                    <Box borderRadius="200">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={config.customerDisplayPromoImage}

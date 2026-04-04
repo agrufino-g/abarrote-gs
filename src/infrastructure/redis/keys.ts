@@ -47,7 +47,7 @@ export async function deleteKeysByPattern(prefix: RedisPrefix, pattern: string):
   try {
     do {
       const [nextCursor, keys] = await redis.scan(cursor, { match: fullPattern, count: 100 });
-      cursor = nextCursor;
+      cursor = typeof nextCursor === 'string' ? Number(nextCursor) : nextCursor;
       if (keys.length > 0) {
         await redis.del(...keys);
         deletedCount += keys.length;
@@ -78,7 +78,7 @@ export async function countKeysByPrefix(prefix: RedisPrefix): Promise<number> {
   try {
     do {
       const [nextCursor, keys] = await redis.scan(cursor, { match: `${prefix}:*`, count: 100 });
-      cursor = nextCursor;
+      cursor = typeof nextCursor === 'string' ? Number(nextCursor) : nextCursor;
       total += keys.length;
     } while (cursor !== 0);
   } catch {

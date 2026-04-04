@@ -253,7 +253,7 @@ export function CustomerDisplaySectionV2() {
 
                   {storeConfig.customerDisplayPromoImage ? (
                     <BlockStack gap="300">
-                      <Box borderRadius="200" overflow="hidden">
+                      <Box borderRadius="200">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={storeConfig.customerDisplayPromoImage}

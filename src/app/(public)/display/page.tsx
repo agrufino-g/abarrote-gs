@@ -196,7 +196,9 @@ export default function CustomerDisplayPage() {
                 <img src={logoUrl} alt={storeName} style={{ maxWidth: 200, maxHeight: 120, objectFit: 'contain' }} />
               ) : (
                 <Box padding="600" background="bg-fill-success" borderRadius="400">
-                  <Icon source={StoreIcon} tone="textInverse" />
+                  <div style={{ color: 'white' }}>
+                    <Icon source={StoreIcon} />
+                  </div>
                 </Box>
               )}
 
@@ -218,14 +220,14 @@ export default function CustomerDisplayPage() {
               )}
 
               {promoImage && (
-                <Box borderRadius="300" overflow="hidden" maxWidth="500px">
+                <div style={{ borderRadius: 12, overflow: 'hidden', maxWidth: 500 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={promoImage}
                     alt="Promoción"
                     style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 12 }}
                   />
-                </Box>
+                </div>
               )}
 
               <BlockStack gap="100" inlineAlign="center">
@@ -330,7 +332,9 @@ export default function CustomerDisplayPage() {
                 <img src={logoUrl} alt={storeName} style={{ height: 28, objectFit: 'contain' }} />
               ) : (
                 <Box padding="200" background="bg-fill-success" borderRadius="200">
-                  <Icon source={StoreIcon} tone="textInverse" />
+                  <div style={{ color: 'white' }}>
+                    <Icon source={StoreIcon} />
+                  </div>
                 </Box>
               )}
               <Text variant="headingMd" as="span">{storeName}</Text>
@@ -341,7 +345,7 @@ export default function CustomerDisplayPage() {
                 <Icon source={ClockIcon} tone="subdued" />
                 <Text variant="bodySm" as="span" tone="subdued">{currentTime}</Text>
               </InlineStack>
-              <Badge tone="success">{itemCount} artículo{itemCount !== 1 ? 's' : ''}</Badge>
+              <Badge tone="success">{`${itemCount} artículo${itemCount !== 1 ? 's' : ''}`}</Badge>
             </InlineStack>
           </InlineStack>
         </Box>

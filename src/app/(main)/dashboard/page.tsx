@@ -345,15 +345,9 @@ export default function DashboardOverviewPage() {
                     <Box padding="800">
                       <EmptyState
                         heading="Aún no hay ventas para mostrar hoy"
-                        action={{ content: 'Ir a Caja', onAction: () => setSaleTicketOpen(true) }}
-                        secondaryAction={{ content: 'Ver historial', onAction: () => console.log('Historial') }}
+                        action={{ content: 'Ir a Caja', url: '/dashboard/sales' }}
+                        secondaryAction={{ content: 'Ver historial', url: '/dashboard/sales' }}
                         image="/illustrations/empty-sales.png"
-                        footerHelp={
-                          <p>
-                            ¿Necesitas ayuda? Consulta nuestra {' '}
-                            <Link url="#">guía de soporte</Link>.
-                          </p>
-                        }
                       >
                         <p>Cuando realices una venta, los detalles de la transacción aparecerán aquí para un seguimiento rápido y profesional.</p>
                       </EmptyState>

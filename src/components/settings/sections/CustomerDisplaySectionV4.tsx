@@ -188,7 +188,7 @@ export function CustomerDisplaySectionV4() {
           <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="100">
               <Text variant="headingMd" as="h3">Activar pantalla del cliente</Text>
-              <Text variant="bodySm" tone="subdued">
+              <Text variant="bodySm" as="p" tone="subdued">
                 Muestra productos y totales en un segundo monitor o tablet.
               </Text>
             </BlockStack>
@@ -206,7 +206,7 @@ export function CustomerDisplaySectionV4() {
           <Divider />
 
           <BlockStack gap="200">
-            <Text variant="bodySm" tone="subdued">
+            <Text variant="bodySm" as="p" tone="subdued">
               Abre la pantalla en un segundo monitor, tablet o navegador.
             </Text>
             <InlineStack gap="200">
@@ -217,7 +217,7 @@ export function CustomerDisplaySectionV4() {
                 {urlCopied ? '¡Copiado!' : 'Copiar URL'}
               </Button>
             </InlineStack>
-            <Text variant="bodySm" tone="subdued">{displayUrl}</Text>
+            <Text variant="bodySm" as="p" tone="subdued">{displayUrl}</Text>
           </BlockStack>
         </BlockStack>
       </Card>
@@ -227,7 +227,7 @@ export function CustomerDisplaySectionV4() {
         <BlockStack gap="400">
           <BlockStack gap="100">
             <Text variant="headingMd" as="h3">Mensajes personalizados</Text>
-            <Text variant="bodySm" tone="subdued">
+            <Text variant="bodySm" as="p" tone="subdued">
               Los cambios se guardan automáticamente.
             </Text>
           </BlockStack>
@@ -277,7 +277,7 @@ export function CustomerDisplaySectionV4() {
 
           {promoImage ? (
             <BlockStack gap="300">
-              <Box borderRadius="200" overflow="hidden">
+              <Box borderRadius="200">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src={promoImage} 
@@ -301,7 +301,7 @@ export function CustomerDisplaySectionV4() {
                 <Box padding="400">
                   <InlineStack align="center" gap="200">
                     <Spinner size="small" />
-                    <Text variant="bodySm">Subiendo imagen...</Text>
+                    <Text variant="bodySm" as="span">Subiendo imagen...</Text>
                   </InlineStack>
                 </Box>
               ) : (
@@ -309,7 +309,7 @@ export function CustomerDisplaySectionV4() {
               )}
             </DropZone>
           )}
-          <Text variant="bodySm" tone="subdued">
+          <Text variant="bodySm" as="p" tone="subdued">
             Se muestra en la pantalla de espera junto al texto promocional.
           </Text>
         </BlockStack>

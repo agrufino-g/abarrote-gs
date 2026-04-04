@@ -64,10 +64,11 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
       amountPaid: useField({
         value: '',
         validates: [
-          (val, { paymentMethod, total }) => {
-            if (paymentMethod === 'efectivo') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (val, allValues: any) => {
+            if (allValues?.paymentMethod === 'efectivo') {
               const paid = parseFloat(val);
-              if (isNaN(paid) || paid < total) return `Monto insuficiente. Total: ${formatCurrency(total)}`;
+              if (isNaN(paid) || paid < allValues?.total) return `Monto insuficiente. Total: ${formatCurrency(allValues?.total ?? 0)}`;
             }
           }
         ]
@@ -75,8 +76,9 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
       clienteId: useField({
         value: '',
         validates: [
-          (val, { paymentMethod }) => {
-            if ((paymentMethod === 'fiado' || paymentMethod === 'puntos') && !val) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (val, allValues: any) => {
+            if ((allValues?.paymentMethod === 'fiado' || allValues?.paymentMethod === 'puntos') && !val) {
               return 'Debes seleccionar un cliente';
             }
           }
@@ -134,12 +136,7 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
   });
 
   // Ticket printer
-  const { handlePrint } = useTicketPrinter({ 
-    completedSale, 
-    storeConfig, 
-    clienteId: fields.clienteId.value, 
-    clientes 
-  });
+  const { printTicket } = useTicketPrinter();
 
   // ── Callbacks ──
 
@@ -397,7 +394,7 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
         storeConfig={storeConfig}
         clienteId={fields.clienteId.value}
         clientes={clientes}
-        onPrint={handlePrint}
+        onPrint={() => printTicket(completedSale)}
         onNewSale={resetForm}
         onClose={handleClose}
       />
@@ -523,7 +520,6 @@ export function SaleTicketModal({ open, onClose }: SaleTicketModalProps) {
                 clabeNumber={storeConfig.clabeNumber}
                 paypalUsername={storeConfig.paypalUsername}
                 cobrarQrUrl={storeConfig.cobrarQrUrl}
-                storeConfig={storeConfig}
               />
             </BlockStack>
           )}

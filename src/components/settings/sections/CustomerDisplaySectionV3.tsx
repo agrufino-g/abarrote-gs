@@ -219,7 +219,7 @@ export function CustomerDisplaySectionV3() {
             <Box minWidth="120px">
               <Button
                 role="switch"
-                ariaChecked={isEnabled}
+                ariaChecked={isEnabled ? "true" : "false"}
                 onClick={handleToggle}
                 loading={isSaving}
                 disabled={isSaving}
@@ -320,7 +320,7 @@ export function CustomerDisplaySectionV3() {
 
               {storeConfig.customerDisplayPromoImage ? (
                 <BlockStack gap="300">
-                  <Box borderRadius="200" overflow="hidden">
+                  <Box borderRadius="200">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={storeConfig.customerDisplayPromoImage}

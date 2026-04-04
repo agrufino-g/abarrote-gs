@@ -119,7 +119,6 @@ export function CategoryManagerModal({ open, onClose }: CategoryManagerModalProp
                     shortcutActions={[
                       {
                         content: 'Eliminar',
-                        destructive: true,
                         onAction: () => handleDelete(id),
                       },
                     ]}

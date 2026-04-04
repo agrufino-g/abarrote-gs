@@ -45,42 +45,8 @@ const CORE_DB_COLUMNS = new Set([
   'loyaltyEnabled', 'pointsPerPeso', 'pointsValue', 'logoUrl',
 ]);
 
-function mapStoreConfigRow(
-  row: Omit<StoreConfig, 'telegramToken' | 'telegramChatId' | 'printerIp' | 'cashDrawerPort' | 'scalePort' | 'logoUrl' | 'inventoryGeneralColumns' | 'defaultMargin' | 'ticketTemplateVenta' | 'ticketTemplateProveedor' | 'clabeNumber' | 'paypalUsername' | 'cobrarQrUrl' | 'mpDeviceId' | 'mpPublicKey' | 'mpEnabled' | 'closeSystemTime' | 'autoCorteTime' | 'defaultStartingFund'> & {
-    telegramToken?: string | null;
-    telegramChatId?: string | null;
-    printerIp?: string | null;
-    cashDrawerPort?: string | null;
-    scalePort?: string | null;
-    logoUrl?: string | null;
-    inventoryGeneralColumns?: string | null;
-    defaultMargin?: string | null;
-    ticketTemplateVenta?: string | null;
-    ticketTemplateProveedor?: string | null;
-    clabeNumber?: string | null;
-    paypalUsername?: string | null;
-    cobrarQrUrl?: string | null;
-    mpDeviceId?: string | null;
-    mpPublicKey?: string | null;
-    mpEnabled?: boolean | null;
-    conektaEnabled?: boolean | null;
-    conektaPublicKey?: string | null;
-    stripeEnabled?: boolean | null;
-    stripePublicKey?: string | null;
-    clipEnabled?: boolean | null;
-    clipApiKey?: string | null;
-    clipSerialNumber?: string | null;
-    customerDisplayEnabled?: boolean | null;
-    customerDisplayWelcome?: string | null;
-    customerDisplayFarewell?: string | null;
-    customerDisplayPromoText?: string | null;
-    customerDisplayPromoImage?: string | null;
-    closeSystemTime?: string | null;
-    autoCorteTime?: string | null;
-    defaultStartingFund?: string | number | null;
-    updatedAt?: Date;
-  }
-): StoreConfig {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapStoreConfigRow(row: any): StoreConfig {
   return {
     id: row.id,
     storeName: row.storeName,

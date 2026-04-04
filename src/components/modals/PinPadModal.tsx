@@ -110,8 +110,7 @@ export function PinPadModal({
               borderRadius="300" 
               minWidth="260px"
               borderWidth="025"
-              borderColor={error ? 'border-critical' : 'border-transparent'}
-              shadow="inset-sm"
+              borderColor={error ? 'border-critical' : 'transparent'}
             >
               <InlineStack align="center" gap="400">
                 {Array.from({ length: Math.max(pin.length, 4) }).map((_, i) => (
