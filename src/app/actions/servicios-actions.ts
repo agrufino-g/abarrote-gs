@@ -1,6 +1,7 @@
 'use server';
 
 import { requirePermission, sanitize, validateNumber } from '@/lib/auth/guard';
+import { withLogging } from '@/lib/errors';
 import { db } from '@/db';
 import { servicios } from '@/db/schema';
 import { eq, desc, sql, and, gte, lte } from 'drizzle-orm';
@@ -49,7 +50,7 @@ async function generateFolio(): Promise<string> {
 
 // ==================== QUERIES ==
 
-export async function fetchServicios(filtro?: {
+async function _fetchServicios(filtro?: {
   tipo?: 'recarga' | 'servicio';
   desde?: string;
   hasta?: string;
@@ -74,7 +75,7 @@ export async function fetchServicios(filtro?: {
   return rows.map(mapRow);
 }
 
-export async function fetchServiciosResumen(): Promise<{
+async function _fetchServiciosResumen(): Promise<{
   totalHoy: number;
   comisionesHoy: number;
   recargasHoy: number;
@@ -112,7 +113,7 @@ export async function fetchServiciosResumen(): Promise<{
 
 // ==================== MUTATIONS ====================
 
-export async function createRecarga(data: {
+async function _createRecarga(data: {
   categoria: string;
   nombre: string;
   monto: number;
@@ -171,7 +172,7 @@ export async function createRecarga(data: {
   return mapRow(row);
 }
 
-export async function createPagoServicio(data: {
+async function _createPagoServicio(data: {
   categoria: string;
   nombre: string;
   monto: number;
@@ -228,7 +229,7 @@ export async function createPagoServicio(data: {
   return mapRow(row);
 }
 
-export async function cancelarServicio(id: string): Promise<void> {
+async function _cancelarServicio(id: string): Promise<void> {
   await requirePermission('servicios.edit');
   validateSchema(idSchema, id, 'cancelarServicio:id');
 
@@ -243,3 +244,11 @@ export async function cancelarServicio(id: string): Promise<void> {
   logger.info('Servicio cancelled', { id, folio: rows[0].folio });
   revalidatePath('/dashboard');
 }
+
+// ==================== EXPORTS ====================
+
+export const fetchServicios = withLogging('servicios.fetchServicios', _fetchServicios);
+export const fetchServiciosResumen = withLogging('servicios.fetchServiciosResumen', _fetchServiciosResumen);
+export const createRecarga = withLogging('servicios.createRecarga', _createRecarga);
+export const createPagoServicio = withLogging('servicios.createPagoServicio', _createPagoServicio);
+export const cancelarServicio = withLogging('servicios.cancelarServicio', _cancelarServicio);

@@ -8,6 +8,7 @@ import type { Devolucion, DevolucionItem } from '@/types';
 import { numVal } from './_helpers';
 import { adjustStock } from './_stock';
 import { validateSchema, createDevolucionSchema } from '@/lib/validation/schemas';
+import { withLogging } from '@/lib/errors';
 
 function mapDevolucion(row: typeof devoluciones.$inferSelect, items: DevolucionItem[]): Devolucion {
   return {
@@ -26,7 +27,7 @@ function mapDevolucion(row: typeof devoluciones.$inferSelect, items: DevolucionI
   };
 }
 
-export async function fetchDevoluciones(): Promise<Devolucion[]> {
+async function _fetchDevoluciones(): Promise<Devolucion[]> {
   await requirePermission('sales.view');
   const rows = await db.select().from(devoluciones).orderBy(desc(devoluciones.fecha));
   if (rows.length === 0) return [];
@@ -55,7 +56,7 @@ export async function fetchDevoluciones(): Promise<Devolucion[]> {
   return rows.map(row => mapDevolucion(row, itemsByDevId.get(row.id) || []));
 }
 
-export async function createDevolucion(data: {
+async function _createDevolucion(data: {
   saleId: string;
   saleFolio: string;
   tipo: Devolucion['tipo'];
@@ -122,7 +123,7 @@ export async function createDevolucion(data: {
 }
 
 // Precarga los items de una venta para poblar el formulario de devolución
-export async function getSaleItemsForDevolucion(saleId: string) {
+async function _getSaleItemsForDevolucion(saleId: string) {
   await requirePermission('sales.view');
   
   // 1. Obtener todos los items de la venta original
@@ -154,3 +155,9 @@ export async function getSaleItemsForDevolucion(saleId: string) {
     };
   }).filter(i => i.quantity > 0); // Solo mostrar items que aún tienen algo por devolver
 }
+
+// ==================== WRAPPED EXPORTS ====================
+
+export const fetchDevoluciones = withLogging('devolucion.fetchDevoluciones', _fetchDevoluciones);
+export const createDevolucion = withLogging('devolucion.createDevolucion', _createDevolucion);
+export const getSaleItemsForDevolucion = withLogging('devolucion.getSaleItemsForDevolucion', _getSaleItemsForDevolucion);

@@ -7,10 +7,11 @@ import { gastos, proveedores, pedidos, pedidoItems, products } from '@/db/schema
 import { eq, desc, sql } from 'drizzle-orm';
 import type { Gasto, GastoCategoria, Proveedor, PedidoRecord } from '@/types';
 import { numVal } from './_helpers';
+import { withLogging } from '@/lib/errors';
 
 // ==================== GASTOS ====================
 
-export async function fetchGastos(): Promise<Gasto[]> {
+async function _fetchGastos(): Promise<Gasto[]> {
   await requirePermission('expenses.view');
   const rows = await db.select().from(gastos).orderBy(desc(gastos.fecha));
   return rows.map((r) => ({
@@ -24,7 +25,7 @@ export async function fetchGastos(): Promise<Gasto[]> {
   }));
 }
 
-export async function createGasto(data: Omit<Gasto, 'id'>): Promise<Gasto> {
+async function _createGasto(data: Omit<Gasto, 'id'>): Promise<Gasto> {
   await requirePermission('expenses.create');
   validateSchema(createGastoSchema, data, 'createGasto');
   const id = `gasto-${crypto.randomUUID()}`;
@@ -42,7 +43,7 @@ export async function createGasto(data: Omit<Gasto, 'id'>): Promise<Gasto> {
   return { ...data, id };
 }
 
-export async function updateGasto(id: string, data: Partial<Gasto>): Promise<void> {
+async function _updateGasto(id: string, data: Partial<Gasto>): Promise<void> {
   await requirePermission('expenses.create');
   validateSchema(idSchema, id, 'updateGasto.id');
   validateSchema(updateGastoSchema, data, 'updateGasto');
@@ -58,7 +59,7 @@ export async function updateGasto(id: string, data: Partial<Gasto>): Promise<voi
   }
 }
 
-export async function deleteGasto(id: string): Promise<void> {
+async function _deleteGasto(id: string): Promise<void> {
   await requirePermission('expenses.delete');
   validateId(id, 'Gasto ID');
   await db.delete(gastos).where(eq(gastos.id, id));
@@ -66,7 +67,7 @@ export async function deleteGasto(id: string): Promise<void> {
 
 // ==================== PROVEEDORES ====================
 
-export async function fetchProveedores(): Promise<Proveedor[]> {
+async function _fetchProveedores(): Promise<Proveedor[]> {
   await requirePermission('suppliers.view');
   const rows = await db.select().from(proveedores).orderBy(proveedores.nombre);
   return rows.map((r) => ({
@@ -83,7 +84,7 @@ export async function fetchProveedores(): Promise<Proveedor[]> {
   }));
 }
 
-export async function createProveedor(
+async function _createProveedor(
   data: Omit<Proveedor, 'id' | 'ultimoPedido'>
 ): Promise<Proveedor> {
   await requirePermission('suppliers.edit');
@@ -103,7 +104,7 @@ export async function createProveedor(
   return { ...data, id, ultimoPedido: null };
 }
 
-export async function updateProveedor(id: string, data: Partial<Proveedor>): Promise<void> {
+async function _updateProveedor(id: string, data: Partial<Proveedor>): Promise<void> {
   await requirePermission('suppliers.edit');
   validateSchema(idSchema, id, 'updateProveedor.id');
   validateSchema(updateProveedorSchema, data, 'updateProveedor');
@@ -121,7 +122,7 @@ export async function updateProveedor(id: string, data: Partial<Proveedor>): Pro
   }
 }
 
-export async function deleteProveedor(id: string): Promise<void> {
+async function _deleteProveedor(id: string): Promise<void> {
   await requirePermission('suppliers.edit');
   validateId(id, 'Proveedor ID');
   await db.delete(proveedores).where(eq(proveedores.id, id));
@@ -129,7 +130,7 @@ export async function deleteProveedor(id: string): Promise<void> {
 
 // ==================== PEDIDOS ====================
 
-export async function fetchPedidos(): Promise<PedidoRecord[]> {
+async function _fetchPedidos(): Promise<PedidoRecord[]> {
   await requirePermission('suppliers.view');
   const rows = await db.select().from(pedidos).orderBy(desc(pedidos.fecha)).limit(50);
   if (rows.length === 0) return [];
@@ -137,28 +138,28 @@ export async function fetchPedidos(): Promise<PedidoRecord[]> {
   const pedidoIds = rows.map(r => r.id);
   const allItems = await db.select().from(pedidoItems).where(sql`${pedidoItems.pedidoId} IN ${pedidoIds}`);
   
-  const itemsByPedidoId = new Map<string, any[]>();
+  const itemsByPedidoId = new Map<string, typeof allItems>();
   for (const item of allItems) {
     const list = itemsByPedidoId.get(item.pedidoId) || [];
-    list.push({
-      productId: item.productId,
-      productName: item.productName,
-      cantidad: item.cantidad,
-    });
+    list.push(item);
     itemsByPedidoId.set(item.pedidoId, list);
   }
 
   return rows.map((row) => ({
     id: row.id,
     proveedor: row.proveedor,
-    productos: itemsByPedidoId.get(row.id) || [],
+    productos: (itemsByPedidoId.get(row.id) || []).map(item => ({
+      productId: item.productId,
+      productName: item.productName,
+      cantidad: item.cantidad,
+    })),
     notas: row.notas,
     fecha: row.fecha.toISOString(),
     estado: row.estado as 'pendiente' | 'enviado' | 'recibido',
   }));
 }
 
-export async function createPedido(
+async function _createPedido(
   data: Omit<PedidoRecord, 'id' | 'fecha' | 'estado'>
 ): Promise<PedidoRecord> {
   await requirePermission('suppliers.edit');
@@ -191,13 +192,13 @@ export async function createPedido(
   };
 }
 
-export async function updatePedidoStatus(id: string, estado: 'pendiente' | 'enviado' | 'recibido'): Promise<void> {
+async function _updatePedidoStatus(id: string, estado: 'pendiente' | 'enviado' | 'recibido'): Promise<void> {
   await requirePermission('suppliers.edit');
   validateSchema(updatePedidoStatusSchema, { id, estado }, 'updatePedidoStatus');
   await db.update(pedidos).set({ estado }).where(eq(pedidos.id, id));
 }
 
-export async function receivePedido(pedidoId: string): Promise<void> {
+async function _receivePedido(pedidoId: string): Promise<void> {
   await requirePermission('suppliers.edit');
   validateId(pedidoId, 'Pedido ID');
   await db.update(pedidos).set({ estado: 'recibido' }).where(eq(pedidos.id, pedidoId));
@@ -212,3 +213,18 @@ export async function receivePedido(pedidoId: string): Promise<void> {
       .where(eq(products.id, item.productId));
   }
 }
+
+// ==================== WRAPPED EXPORTS ====================
+
+export const fetchGastos = withLogging('finance.fetchGastos', _fetchGastos);
+export const createGasto = withLogging('finance.createGasto', _createGasto);
+export const updateGasto = withLogging('finance.updateGasto', _updateGasto);
+export const deleteGasto = withLogging('finance.deleteGasto', _deleteGasto);
+export const fetchProveedores = withLogging('finance.fetchProveedores', _fetchProveedores);
+export const createProveedor = withLogging('finance.createProveedor', _createProveedor);
+export const updateProveedor = withLogging('finance.updateProveedor', _updateProveedor);
+export const deleteProveedor = withLogging('finance.deleteProveedor', _deleteProveedor);
+export const fetchPedidos = withLogging('finance.fetchPedidos', _fetchPedidos);
+export const createPedido = withLogging('finance.createPedido', _createPedido);
+export const updatePedidoStatus = withLogging('finance.updatePedidoStatus', _updatePedidoStatus);
+export const receivePedido = withLogging('finance.receivePedido', _receivePedido);

@@ -1,6 +1,7 @@
 'use server';
 
 import { requireOwner } from '@/lib/auth/guard';
+import { withLogging } from '@/lib/errors';
 import {
   generateMPAuthorizationUrl,
   disconnectProvider,
@@ -12,7 +13,7 @@ import { logAudit } from '@/lib/audit';
  * Initiates MercadoPago OAuth flow.
  * Returns the authorization URL to redirect the user to.
  */
-export async function initiateMPOAuth(): Promise<{ url: string }> {
+async function _initiateMPOAuth(): Promise<{ url: string }> {
   const user = await requireOwner();
 
   const { url, state } = await generateMPAuthorizationUrl();
@@ -33,7 +34,7 @@ export async function initiateMPOAuth(): Promise<{ url: string }> {
  * Disconnects MercadoPago OAuth connection.
  * Clears encrypted tokens from DB.
  */
-export async function disconnectMPOAuth(): Promise<void> {
+async function _disconnectMPOAuth(): Promise<void> {
   const user = await requireOwner();
 
   await disconnectProvider('mercadopago');
@@ -51,6 +52,12 @@ export async function disconnectMPOAuth(): Promise<void> {
 /**
  * Returns current connection status for MercadoPago.
  */
-export async function getMPConnectionStatus() {
+async function _getMPConnectionStatus() {
   return getProviderConnectionStatus('mercadopago');
 }
+
+// ==================== EXPORTS WITH LOGGING ====================
+
+export const initiateMPOAuth = withLogging('oauth.initiateMPOAuth', _initiateMPOAuth);
+export const disconnectMPOAuth = withLogging('oauth.disconnectMPOAuth', _disconnectMPOAuth);
+export const getMPConnectionStatus = withLogging('oauth.getMPConnectionStatus', _getMPConnectionStatus);

@@ -1,6 +1,7 @@
 'use server';
 
 import { requirePermission } from '@/lib/auth/guard';
+import { withLogging } from '@/lib/errors';
 import { db } from '@/db';
 import { loyaltyTransactions, clientes } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -25,7 +26,7 @@ function mapTransaction(row: typeof loyaltyTransactions.$inferSelect): LoyaltyTr
   };
 }
 
-export async function fetchLoyaltyTransactions(clienteId?: string): Promise<LoyaltyTransaction[]> {
+async function _fetchLoyaltyTransactions(clienteId?: string): Promise<LoyaltyTransaction[]> {
   await requirePermission('customers.view');
   const rows = clienteId
     ? await db.select().from(loyaltyTransactions).where(eq(loyaltyTransactions.clienteId, clienteId)).orderBy(desc(loyaltyTransactions.fecha))
@@ -33,7 +34,7 @@ export async function fetchLoyaltyTransactions(clienteId?: string): Promise<Loya
   return rows.map(mapTransaction);
 }
 
-export async function createLoyaltyTransaction(data: {
+async function _createLoyaltyTransaction(data: {
   clienteId: string;
   clienteName: string;
   tipo: LoyaltyTransaction['tipo'];
@@ -69,3 +70,8 @@ export async function createLoyaltyTransaction(data: {
   const [row] = await db.select().from(loyaltyTransactions).where(eq(loyaltyTransactions.id, id)).limit(1);
   return mapTransaction(row);
 }
+
+// ==================== EXPORTS ====================
+
+export const fetchLoyaltyTransactions = withLogging('loyalty.fetchLoyaltyTransactions', _fetchLoyaltyTransactions);
+export const createLoyaltyTransaction = withLogging('loyalty.createLoyaltyTransaction', _createLoyaltyTransaction);

@@ -1,6 +1,7 @@
 'use server';
 
 import { requirePermission } from '@/lib/auth/guard';
+import { withLogging } from '@/lib/errors';
 import { db } from '@/db';
 import { cashMovements } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -21,7 +22,7 @@ function mapMovement(row: typeof cashMovements.$inferSelect): CashMovement {
   };
 }
 
-export async function fetchCashMovements(corteId?: string): Promise<CashMovement[]> {
+async function _fetchCashMovements(corteId?: string): Promise<CashMovement[]> {
   await requirePermission('corte.view');
   const rows = corteId
     ? await db.select().from(cashMovements).where(eq(cashMovements.corteId, corteId)).orderBy(desc(cashMovements.fecha))
@@ -29,7 +30,7 @@ export async function fetchCashMovements(corteId?: string): Promise<CashMovement
   return rows.map(mapMovement);
 }
 
-export async function createCashMovement(data: {
+async function _createCashMovement(data: {
   corteId?: string;
   tipo: CashMovement['tipo'];
   concepto: CashMovement['concepto'];
@@ -57,3 +58,6 @@ export async function createCashMovement(data: {
   const [row] = await db.select().from(cashMovements).where(eq(cashMovements.id, id)).limit(1);
   return mapMovement(row);
 }
+
+export const fetchCashMovements = withLogging('cashMovement.fetchCashMovements', _fetchCashMovements);
+export const createCashMovement = withLogging('cashMovement.createCashMovement', _createCashMovement);

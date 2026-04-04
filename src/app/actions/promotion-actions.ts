@@ -1,6 +1,7 @@
 'use server';
 
 import { requirePermission, validateId, sanitize } from '@/lib/auth/guard';
+import { withLogging } from '@/lib/errors';
 import { db } from '@/db';
 import { promotions } from '@/db/schema';
 import { eq, desc, and, gte, lte, sql } from 'drizzle-orm';
@@ -10,13 +11,13 @@ import { validateSchema, createPromotionSchema, updatePromotionSchema, idSchema 
 
 // ==================== FETCH ====================
 
-export async function fetchPromotions(): Promise<Promotion[]> {
+async function _fetchPromotions(): Promise<Promotion[]> {
   await requirePermission('inventory.view');
   const rows = await db.select().from(promotions).orderBy(desc(promotions.createdAt));
   return rows.map(mapRow);
 }
 
-export async function fetchActivePromotions(): Promise<Promotion[]> {
+async function _fetchActivePromotions(): Promise<Promotion[]> {
   await requirePermission('sales.create');
   const now = new Date();
   const rows = await db
@@ -38,7 +39,7 @@ export async function fetchActivePromotions(): Promise<Promotion[]> {
 
 // ==================== CRUD ====================
 
-export async function createPromotion(
+async function _createPromotion(
   data: Omit<Promotion, 'id' | 'usageCount' | 'createdAt' | 'updatedAt' | 'createdBy'>,
 ): Promise<Promotion> {
   const user = await requirePermission('inventory.edit');
@@ -76,7 +77,7 @@ export async function createPromotion(
   };
 }
 
-export async function updatePromotion(id: string, data: Partial<Promotion>): Promise<void> {
+async function _updatePromotion(id: string, data: Partial<Promotion>): Promise<void> {
   await requirePermission('inventory.edit');
   validateSchema(idSchema, id, 'updatePromotion:id');
   validateSchema(updatePromotionSchema, data, 'updatePromotion');
@@ -98,19 +99,19 @@ export async function updatePromotion(id: string, data: Partial<Promotion>): Pro
   await db.update(promotions).set(updateData).where(eq(promotions.id, id));
 }
 
-export async function deletePromotion(id: string): Promise<void> {
+async function _deletePromotion(id: string): Promise<void> {
   await requirePermission('inventory.edit');
   validateSchema(idSchema, id, 'deletePromotion:id');
   await db.delete(promotions).where(eq(promotions.id, id));
 }
 
-export async function togglePromotionActive(id: string, active: boolean): Promise<void> {
+async function _togglePromotionActive(id: string, active: boolean): Promise<void> {
   await requirePermission('inventory.edit');
   validateSchema(idSchema, id, 'togglePromotionActive:id');
   await db.update(promotions).set({ active, updatedAt: new Date() }).where(eq(promotions.id, id));
 }
 
-export async function incrementPromotionUsage(id: string): Promise<void> {
+async function _incrementPromotionUsage(id: string): Promise<void> {
   await requirePermission('sales.create');
   validateSchema(idSchema, id, 'incrementPromotionUsage:id');
   await db.update(promotions).set({
@@ -169,3 +170,13 @@ function validateApplicability(data: Pick<Promotion, 'applicableTo' | 'applicabl
     );
   }
 }
+
+// ==================== EXPORTS ====================
+
+export const fetchPromotions = withLogging('promotion.fetchPromotions', _fetchPromotions);
+export const fetchActivePromotions = withLogging('promotion.fetchActivePromotions', _fetchActivePromotions);
+export const createPromotion = withLogging('promotion.createPromotion', _createPromotion);
+export const updatePromotion = withLogging('promotion.updatePromotion', _updatePromotion);
+export const deletePromotion = withLogging('promotion.deletePromotion', _deletePromotion);
+export const togglePromotionActive = withLogging('promotion.togglePromotionActive', _togglePromotionActive);
+export const incrementPromotionUsage = withLogging('promotion.incrementPromotionUsage', _incrementPromotionUsage);

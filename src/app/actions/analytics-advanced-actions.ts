@@ -1,5 +1,6 @@
 'use server';
 
+import { withLogging } from '@/lib/errors';
 import { requirePermission } from '@/lib/auth/guard';
 import { db } from '@/db';
 import { products, saleRecords, saleItems, clientes, proveedores, pedidos, pedidoItems } from '@/db/schema';
@@ -23,7 +24,7 @@ import { logger } from '@/lib/logger';
 
 // ==================== 1. ABC INVENTORY CLASSIFICATION ====================
 
-export async function fetchABCAnalysis(periodDays = 30): Promise<ABCAnalysis> {
+async function _fetchABCAnalysis(periodDays = 30): Promise<ABCAnalysis> {
   await requirePermission('analytics.view');
 
   const cutoffDate = new Date();
@@ -121,7 +122,7 @@ export async function fetchABCAnalysis(periodDays = 30): Promise<ABCAnalysis> {
 
 // ==================== 2. SMART REORDER SUGGESTIONS ====================
 
-export async function fetchReorderSuggestions(): Promise<ReorderSuggestion[]> {
+async function _fetchReorderSuggestions(): Promise<ReorderSuggestion[]> {
   await requirePermission('inventory.view');
 
   const thirtyDaysAgo = new Date();
@@ -206,7 +207,7 @@ export async function fetchReorderSuggestions(): Promise<ReorderSuggestion[]> {
 /**
  * Auto-generates a draft pedido from reorder suggestions for a given supplier.
  */
-export async function createAutoReorderPedido(supplierName: string): Promise<{ id: string; itemCount: number }> {
+async function _createAutoReorderPedido(supplierName: string): Promise<{ id: string; itemCount: number }> {
   await requirePermission('pedidos.create');
 
   const suggestions = await fetchReorderSuggestions();
@@ -242,7 +243,7 @@ export async function createAutoReorderPedido(supplierName: string): Promise<{ i
 
 // ==================== 3. DAILY TELEGRAM REPORT ====================
 
-export async function sendDailyTelegramReport(): Promise<{ sent: boolean; message: string }> {
+async function _sendDailyTelegramReport(): Promise<{ sent: boolean; message: string }> {
   await requirePermission('reports.view');
 
   const config = await fetchStoreConfig();
@@ -329,7 +330,7 @@ ${lowStockList || '  ✅ Todo en orden'}`;
  * To connect to a real PAC (Facturama, SW Sapien, etc.),
  * set environment variables: CFDI_PAC_URL, CFDI_PAC_USER, CFDI_PAC_PASSWORD
  */
-export async function generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
+async function _generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
   await requirePermission('reports.export');
 
   // Validate RFC format (13 chars for persona moral, 12 for persona física)
@@ -473,7 +474,7 @@ export async function generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
 
 // ==================== 5. RFM CUSTOMER ANALYSIS ====================
 
-export async function fetchRFMAnalysis(periodDays = 90): Promise<RFMAnalysis> {
+async function _fetchRFMAnalysis(periodDays = 90): Promise<RFMAnalysis> {
   await requirePermission('analytics.view');
 
   const cutoffDate = new Date();
@@ -602,7 +603,7 @@ function classifyRFMSegment(r: number, f: number, m: number): RFMSegment {
 
 // ==================== 6. DEMAND FORECASTING ====================
 
-export async function fetchDemandForecast(): Promise<ForecastProduct[]> {
+async function _fetchDemandForecast(): Promise<ForecastProduct[]> {
   await requirePermission('analytics.view');
 
   const eightWeeksAgo = new Date();
@@ -707,3 +708,12 @@ export async function fetchDemandForecast(): Promise<ForecastProduct[]> {
 
   return forecasts.sort((a, b) => a.daysOfStock - b.daysOfStock);
 }
+
+// ==================== EXPORTS WITH LOGGING ====================
+export const fetchABCAnalysis = withLogging('analytics.fetchABCAnalysis', _fetchABCAnalysis);
+export const fetchReorderSuggestions = withLogging('analytics.fetchReorderSuggestions', _fetchReorderSuggestions);
+export const createAutoReorderPedido = withLogging('analytics.createAutoReorderPedido', _createAutoReorderPedido);
+export const sendDailyTelegramReport = withLogging('analytics.sendDailyTelegramReport', _sendDailyTelegramReport);
+export const generateCFDI = withLogging('analytics.generateCFDI', _generateCFDI);
+export const fetchRFMAnalysis = withLogging('analytics.fetchRFMAnalysis', _fetchRFMAnalysis);
+export const fetchDemandForecast = withLogging('analytics.fetchDemandForecast', _fetchDemandForecast);

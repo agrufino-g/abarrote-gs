@@ -15,7 +15,7 @@ import { logger } from '@/lib/logger';
 import type { KPIData } from '@/types';
 import { DEFAULT_STORE_CONFIG } from '@/types';
 
-import { parseError } from '@/lib/errors';
+import { parseError, withLogging } from '@/lib/errors';
 
 // ==================== FULL DASHBOARD FETCH ====================
 
@@ -56,7 +56,7 @@ const DEFAULT_KPI: KPIData = {
   mermaRateChange: 0,
 };
 
-export async function fetchDashboardFromDB() {
+async function _fetchDashboardFromDB() {
   // Guard: this action loads ALL business data — must be authenticated
   await requireAuth();
 
@@ -117,3 +117,6 @@ export async function fetchDashboardFromDB() {
     partialErrors, // Nuevo: el frontend ahora sabrá exactamente QUÉ falló y POR QUÉ
   };
 }
+
+// ==================== EXPORTS WITH LOGGING ====================
+export const fetchDashboardFromDB = withLogging('dashboard.fetchDashboardFromDB', _fetchDashboardFromDB);

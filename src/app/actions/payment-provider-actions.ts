@@ -1,6 +1,7 @@
 'use server';
 
 import { requireOwner } from '@/lib/auth/guard';
+import { withLogging } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import {
   connectConekta,
@@ -36,7 +37,7 @@ import { validateSchema, connectConektaSchema, connectStripeSchema, connectClipS
 // ── Conekta Actions ──
 // ══════════════════════════════════════════════════
 
-export async function connectConektaAction(params: {
+async function _connectConektaAction(params: {
   privateKey: string;
   publicKey: string;
   environment: 'sandbox' | 'production';
@@ -54,13 +55,13 @@ export async function connectConektaAction(params: {
   return connectConekta(params);
 }
 
-export async function disconnectConektaAction(): Promise<void> {
+async function _disconnectConektaAction(): Promise<void> {
   await requireOwner();
   logger.info('Conekta disconnection', { action: 'conekta_disconnect' });
   return disconnectConekta();
 }
 
-export async function getConektaStatusAction(): Promise<{
+async function _getConektaStatusAction(): Promise<{
   connected: boolean;
   environment: string | null;
   publicKey: string | null;
@@ -68,7 +69,7 @@ export async function getConektaStatusAction(): Promise<{
   return getConektaConnectionStatus();
 }
 
-export async function createSPEIConektaAction(params: {
+async function _createSPEIConektaAction(params: {
   amount: number;
   customerName: string;
   customerEmail: string;
@@ -89,7 +90,7 @@ export async function createSPEIConektaAction(params: {
   }
 }
 
-export async function createOXXOConektaAction(params: {
+async function _createOXXOConektaAction(params: {
   amount: number;
   customerName: string;
   customerEmail: string;
@@ -114,7 +115,7 @@ export async function createOXXOConektaAction(params: {
 // ── Stripe Actions ──
 // ══════════════════════════════════════════════════
 
-export async function connectStripeAction(params: {
+async function _connectStripeAction(params: {
   secretKey: string;
   publishableKey: string;
   webhookSecret?: string;
@@ -133,13 +134,13 @@ export async function connectStripeAction(params: {
   return connectStripe(params);
 }
 
-export async function disconnectStripeAction(): Promise<void> {
+async function _disconnectStripeAction(): Promise<void> {
   await requireOwner();
   logger.info('Stripe disconnection', { action: 'stripe_disconnect' });
   return disconnectStripe();
 }
 
-export async function getStripeStatusAction(): Promise<{
+async function _getStripeStatusAction(): Promise<{
   connected: boolean;
   environment: string | null;
   publishableKey: string | null;
@@ -147,7 +148,7 @@ export async function getStripeStatusAction(): Promise<{
   return getStripeConnectionStatus();
 }
 
-export async function createSPEIStripeAction(params: {
+async function _createSPEIStripeAction(params: {
   amount: number;
   customerEmail: string;
   description: string;
@@ -167,7 +168,7 @@ export async function createSPEIStripeAction(params: {
   }
 }
 
-export async function createOXXOStripeAction(params: {
+async function _createOXXOStripeAction(params: {
   amount: number;
   customerEmail: string;
   description: string;
@@ -191,7 +192,7 @@ export async function createOXXOStripeAction(params: {
 // ── Clip Actions ──
 // ══════════════════════════════════════════════════
 
-export async function connectClipAction(params: {
+async function _connectClipAction(params: {
   apiKey: string;
   secretKey: string;
   serialNumber?: string;
@@ -205,13 +206,13 @@ export async function connectClipAction(params: {
   return connectClip(params);
 }
 
-export async function disconnectClipAction(): Promise<void> {
+async function _disconnectClipAction(): Promise<void> {
   await requireOwner();
   logger.info('Clip disconnection', { action: 'clip_disconnect' });
   return disconnectClip();
 }
 
-export async function getClipStatusAction(): Promise<{
+async function _getClipStatusAction(): Promise<{
   connected: boolean;
   environment: string | null;
   apiKey: string | null;
@@ -220,7 +221,7 @@ export async function getClipStatusAction(): Promise<{
   return getClipConnectionStatus();
 }
 
-export async function createClipCheckoutAction(params: {
+async function _createClipCheckoutAction(params: {
   amount: number;
   description: string;
   saleReference: string;
@@ -239,7 +240,7 @@ export async function createClipCheckoutAction(params: {
   }
 }
 
-export async function createClipTerminalAction(params: {
+async function _createClipTerminalAction(params: {
   amount: number;
   saleReference: string;
   serialNumber?: string;
@@ -262,7 +263,7 @@ export async function createClipTerminalAction(params: {
 // ── Charge Polling (shared) ──
 // ══════════════════════════════════════════════════
 
-export async function checkChargeStatus(chargeId: string, provider: 'conekta' | 'stripe' | 'clip'): Promise<{
+async function _checkChargeStatus(chargeId: string, provider: 'conekta' | 'stripe' | 'clip'): Promise<{
   status: 'pending' | 'paid' | 'expired' | 'failed';
   paidAt: string | null;
 }> {
@@ -311,7 +312,7 @@ export async function checkChargeStatus(chargeId: string, provider: 'conekta' | 
   };
 }
 
-export async function getPendingCharges(provider?: 'conekta' | 'stripe' | 'clip'): Promise<Array<{
+async function _getPendingCharges(provider?: 'conekta' | 'stripe' | 'clip'): Promise<Array<{
   id: string;
   provider: string;
   amount: string;
@@ -348,3 +349,25 @@ export async function getPendingCharges(provider?: 'conekta' | 'stripe' | 'clip'
     createdAt: c.createdAt.toISOString(),
   }));
 }
+
+// ══════════════════════════════════════════════════
+// ── Exports with Logging ──
+// ══════════════════════════════════════════════════
+
+export const connectConektaAction = withLogging('paymentProvider.connectConektaAction', _connectConektaAction);
+export const disconnectConektaAction = withLogging('paymentProvider.disconnectConektaAction', _disconnectConektaAction);
+export const getConektaStatusAction = withLogging('paymentProvider.getConektaStatusAction', _getConektaStatusAction);
+export const createSPEIConektaAction = withLogging('paymentProvider.createSPEIConektaAction', _createSPEIConektaAction);
+export const createOXXOConektaAction = withLogging('paymentProvider.createOXXOConektaAction', _createOXXOConektaAction);
+export const connectStripeAction = withLogging('paymentProvider.connectStripeAction', _connectStripeAction);
+export const disconnectStripeAction = withLogging('paymentProvider.disconnectStripeAction', _disconnectStripeAction);
+export const getStripeStatusAction = withLogging('paymentProvider.getStripeStatusAction', _getStripeStatusAction);
+export const createSPEIStripeAction = withLogging('paymentProvider.createSPEIStripeAction', _createSPEIStripeAction);
+export const createOXXOStripeAction = withLogging('paymentProvider.createOXXOStripeAction', _createOXXOStripeAction);
+export const connectClipAction = withLogging('paymentProvider.connectClipAction', _connectClipAction);
+export const disconnectClipAction = withLogging('paymentProvider.disconnectClipAction', _disconnectClipAction);
+export const getClipStatusAction = withLogging('paymentProvider.getClipStatusAction', _getClipStatusAction);
+export const createClipCheckoutAction = withLogging('paymentProvider.createClipCheckoutAction', _createClipCheckoutAction);
+export const createClipTerminalAction = withLogging('paymentProvider.createClipTerminalAction', _createClipTerminalAction);
+export const checkChargeStatus = withLogging('paymentProvider.checkChargeStatus', _checkChargeStatus);
+export const getPendingCharges = withLogging('paymentProvider.getPendingCharges', _getPendingCharges);

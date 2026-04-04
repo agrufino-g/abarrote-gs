@@ -9,6 +9,7 @@ import type { UserRoleRecord, RoleDefinition, PermissionKey } from '@/types';
 import { DEFAULT_SYSTEM_ROLES } from '@/types';
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { checkRateLimit, getClientIp } from '@/infrastructure/redis';
+import { withLogging } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { validateSchema, createRoleSchema, updateRoleSchema, assignUserRoleSchema, createUserWithRoleSchema, updateUserPinSchema, updateUserProfileSchema, idSchema } from '@/lib/validation/schemas';
 
@@ -70,14 +71,14 @@ function mapRoleDef(r: typeof roleDefinitions.$inferSelect): RoleDefinition {
   };
 }
 
-export async function fetchRoleDefinitions(): Promise<RoleDefinition[]> {
+async function _fetchRoleDefinitions(): Promise<RoleDefinition[]> {
   await requirePermission('roles.manage');
   await seedSystemRoles();
   const rows = await db.select().from(roleDefinitions).orderBy(roleDefinitions.createdAt);
   return rows.map(mapRoleDef);
 }
 
-export async function createRoleDefinition(
+async function _createRoleDefinition(
   data: { name: string; description: string; permissions: PermissionKey[] },
   createdByUid: string
 ): Promise<RoleDefinition> {
@@ -108,7 +109,7 @@ export async function createRoleDefinition(
   };
 }
 
-export async function updateRoleDefinition(
+async function _updateRoleDefinition(
   id: string,
   data: { name?: string; description?: string; permissions?: PermissionKey[] }
 ): Promise<void> {
@@ -130,7 +131,7 @@ export async function updateRoleDefinition(
   await db.update(roleDefinitions).set(updates).where(eq(roleDefinitions.id, id));
 }
 
-export async function deleteRoleDefinition(id: string): Promise<void> {
+async function _deleteRoleDefinition(id: string): Promise<void> {
   await requireOwner();
   validateId(id, 'Role ID');
   const rows = await db.select().from(roleDefinitions).where(eq(roleDefinitions.id, id));
@@ -161,20 +162,20 @@ function mapUserRole(r: typeof userRoles.$inferSelect): UserRoleRecord {
   };
 }
 
-export async function fetchUserRoles(): Promise<UserRoleRecord[]> {
+async function _fetchUserRoles(): Promise<UserRoleRecord[]> {
   await requirePermission('roles.manage');
   const rows = await db.select().from(userRoles).orderBy(userRoles.createdAt);
   return rows.map(mapUserRole);
 }
 
-export async function getUserRoleByUid(firebaseUid: string): Promise<UserRoleRecord | null> {
+async function _getUserRoleByUid(firebaseUid: string): Promise<UserRoleRecord | null> {
   await requireAuth();
   const rows = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
   if (rows.length === 0) return null;
   return mapUserRole(rows[0]);
 }
 
-export async function ensureOwnerRole(firebaseUid: string, email: string, displayName: string): Promise<UserRoleRecord> {
+async function _ensureOwnerRole(firebaseUid: string, email: string, displayName: string): Promise<UserRoleRecord> {
   await seedSystemRoles();
 
   const allDefs = await db.select().from(roleDefinitions);
@@ -234,7 +235,7 @@ export async function ensureOwnerRole(firebaseUid: string, email: string, displa
   };
 }
 
-export async function assignUserRole(
+async function _assignUserRole(
   data: { firebaseUid: string; email: string; displayName: string; roleId: string },
   assignedByUid: string
 ): Promise<UserRoleRecord> {
@@ -278,7 +279,7 @@ export async function assignUserRole(
   };
 }
 
-export async function createFirebaseUserWithRole(
+async function _createFirebaseUserWithRole(
   data: { email: string; password?: string; displayName: string; roleId: string; pinCode?: string },
   assignedByUid: string
 ): Promise<UserRoleRecord> {
@@ -309,7 +310,7 @@ export async function createFirebaseUserWithRole(
   return newRole;
 }
 
-export async function updateUserPin(firebaseUid: string, pinCode: string): Promise<void> {
+async function _updateUserPin(firebaseUid: string, pinCode: string): Promise<void> {
   await requirePermission('roles.manage');
   validateSchema(updateUserPinSchema, { firebaseUid, pinCode }, 'updateUserPin');
   const hashed = hashPin(pinCode);
@@ -319,7 +320,7 @@ export async function updateUserPin(firebaseUid: string, pinCode: string): Promi
     .where(eq(userRoles.firebaseUid, firebaseUid));
 }
 
-export async function updateUserRole(
+async function _updateUserRole(
   firebaseUid: string,
   newRoleId: string,
   assignedByUid: string
@@ -356,12 +357,12 @@ export async function updateUserRole(
   });
 }
 
-export async function removeUserRole(firebaseUid: string): Promise<void> {
+async function _removeUserRole(firebaseUid: string): Promise<void> {
   await requireOwner();
   await db.delete(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
 }
 
-export async function generateGlobalId(firebaseUid: string): Promise<string> {
+async function _generateGlobalId(firebaseUid: string): Promise<string> {
   await requirePermission('roles.manage');
   const rows = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
   if (rows.length === 0) throw new Error('Usuario no encontrado');
@@ -385,7 +386,7 @@ export async function generateGlobalId(firebaseUid: string): Promise<string> {
   return globalId;
 }
 
-export async function deactivateUser(firebaseUid: string): Promise<void> {
+async function _deactivateUser(firebaseUid: string): Promise<void> {
   await requireOwner();
   const rows = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
   if (rows.length === 0) throw new Error('Usuario no encontrado');
@@ -397,7 +398,7 @@ export async function deactivateUser(firebaseUid: string): Promise<void> {
     .where(eq(userRoles.firebaseUid, firebaseUid));
 }
 
-export async function reactivateUser(firebaseUid: string): Promise<void> {
+async function _reactivateUser(firebaseUid: string): Promise<void> {
   await requireOwner();
   const rows = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
   if (rows.length === 0) throw new Error('Usuario no encontrado');
@@ -409,7 +410,7 @@ export async function reactivateUser(firebaseUid: string): Promise<void> {
     .where(eq(userRoles.firebaseUid, firebaseUid));
 }
 
-export async function updateUserProfile(
+async function _updateUserProfile(
   firebaseUid: string,
   data: { displayName?: string; avatarUrl?: string }
 ): Promise<UserRoleRecord> {
@@ -439,7 +440,7 @@ export async function updateUserProfile(
   return mapUserRole(rows[0]);
 }
 
-export async function authorizePin(
+async function _authorizePin(
   pinCode: string,
   requiredPermission: PermissionKey
 ): Promise<{ success: boolean; authorizedByUid?: string; userDisplayName?: string; error?: string }> {
@@ -527,3 +528,23 @@ export async function authorizePin(
     return { success: false, error: 'Error del servidor al validar PIN' };
   }
 }
+
+// ==================== EXPORTS ====================
+
+export const fetchRoleDefinitions = withLogging('role.fetchRoleDefinitions', _fetchRoleDefinitions);
+export const createRoleDefinition = withLogging('role.createRoleDefinition', _createRoleDefinition);
+export const updateRoleDefinition = withLogging('role.updateRoleDefinition', _updateRoleDefinition);
+export const deleteRoleDefinition = withLogging('role.deleteRoleDefinition', _deleteRoleDefinition);
+export const fetchUserRoles = withLogging('role.fetchUserRoles', _fetchUserRoles);
+export const getUserRoleByUid = withLogging('role.getUserRoleByUid', _getUserRoleByUid);
+export const ensureOwnerRole = withLogging('role.ensureOwnerRole', _ensureOwnerRole);
+export const assignUserRole = withLogging('role.assignUserRole', _assignUserRole);
+export const createFirebaseUserWithRole = withLogging('role.createFirebaseUserWithRole', _createFirebaseUserWithRole);
+export const updateUserPin = withLogging('role.updateUserPin', _updateUserPin);
+export const updateUserRole = withLogging('role.updateUserRole', _updateUserRole);
+export const removeUserRole = withLogging('role.removeUserRole', _removeUserRole);
+export const generateGlobalId = withLogging('role.generateGlobalId', _generateGlobalId);
+export const deactivateUser = withLogging('role.deactivateUser', _deactivateUser);
+export const reactivateUser = withLogging('role.reactivateUser', _reactivateUser);
+export const updateUserProfile = withLogging('role.updateUserProfile', _updateUserProfile);
+export const authorizePin = withLogging('role.authorizePin', _authorizePin);

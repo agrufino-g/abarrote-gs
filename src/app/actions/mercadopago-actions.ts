@@ -1,6 +1,7 @@
 'use server';
 
 import { requirePermission, sanitize, validateNumber } from '@/lib/auth/guard';
+import { withLogging } from '@/lib/errors';
 import { db } from '@/db';
 import { mercadopagoPayments, mercadopagoRefunds, saleRecords } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
@@ -15,7 +16,7 @@ import { validateSchema, createMPRefundSchema } from '@/lib/validation/schemas';
 /**
  * Fetch all MP payments linked to sales (most recent first).
  */
-export async function fetchMercadoPagoPayments(): Promise<
+async function _fetchMercadoPagoPayments(): Promise<
   {
     id: string;
     paymentId: string;
@@ -60,7 +61,7 @@ export async function fetchMercadoPagoPayments(): Promise<
 /**
  * Fetch all refunds (most recent first).
  */
-export async function fetchMercadoPagoRefunds(): Promise<MercadoPagoRefund[]> {
+async function _fetchMercadoPagoRefunds(): Promise<MercadoPagoRefund[]> {
   const user = await requirePermission('sales.view');
 
   const rows = await db
@@ -95,7 +96,7 @@ export async function fetchMercadoPagoRefunds(): Promise<MercadoPagoRefund[]> {
  *   4. Record refund in our DB
  *   5. Audit log
  */
-export async function createMercadoPagoRefund(input: {
+async function _createMercadoPagoRefund(input: {
   mpPaymentId: string;
   amount: number;
   reason: string;
@@ -238,7 +239,7 @@ export interface MPAccountBalance {
   };
 }
 
-export async function fetchMPAccountBalance(): Promise<MPAccountBalance> {
+async function _fetchMPAccountBalance(): Promise<MPAccountBalance> {
   await requirePermission('sales.view');
 
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
@@ -267,7 +268,7 @@ export interface MPPaymentLink {
   externalReference: string;
 }
 
-export async function generateMPPaymentLink(input: {
+async function _generateMPPaymentLink(input: {
   amount: number;
   description: string;
   externalReference?: string;
@@ -338,7 +339,7 @@ export interface MPDevice {
   operating_mode: string;
 }
 
-export async function fetchMPDevices(): Promise<MPDevice[]> {
+async function _fetchMPDevices(): Promise<MPDevice[]> {
   await requirePermission('sales.view');
 
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
@@ -377,7 +378,7 @@ export interface MPSearchResult {
   paging: { total: number; limit: number; offset: number };
 }
 
-export async function searchMPPayments(input: {
+async function _searchMPPayments(input: {
   status?: string;
   beginDate?: string;
   endDate?: string;
@@ -413,3 +414,13 @@ export async function searchMPPayments(input: {
 
   return response.json() as Promise<MPSearchResult>;
 }
+
+// ==================== EXPORTS WITH LOGGING ====================
+
+export const fetchMercadoPagoPayments = withLogging('mercadopago.fetchMercadoPagoPayments', _fetchMercadoPagoPayments);
+export const fetchMercadoPagoRefunds = withLogging('mercadopago.fetchMercadoPagoRefunds', _fetchMercadoPagoRefunds);
+export const createMercadoPagoRefund = withLogging('mercadopago.createMercadoPagoRefund', _createMercadoPagoRefund);
+export const fetchMPAccountBalance = withLogging('mercadopago.fetchMPAccountBalance', _fetchMPAccountBalance);
+export const generateMPPaymentLink = withLogging('mercadopago.generateMPPaymentLink', _generateMPPaymentLink);
+export const fetchMPDevices = withLogging('mercadopago.fetchMPDevices', _fetchMPDevices);
+export const searchMPPayments = withLogging('mercadopago.searchMPPayments', _searchMPPayments);

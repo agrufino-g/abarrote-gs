@@ -1,6 +1,7 @@
 'use server';
 
 import { requireOwner } from '@/lib/auth/guard';
+import { withLogging } from '@/lib/errors';
 import { db } from '@/db';
 import { storeConfig } from '@/db/schema';
 import { eq, getTableColumns } from 'drizzle-orm';
@@ -108,7 +109,7 @@ function mapStoreConfigRow(row: any): StoreConfig {
   };
 }
 
-export async function fetchStoreConfig(): Promise<StoreConfig> {
+async function _fetchStoreConfig(): Promise<StoreConfig> {
   try {
     const rows = await db.select().from(storeConfig).limit(1);
     if (rows.length === 0) {
@@ -163,7 +164,7 @@ export async function fetchStoreConfig(): Promise<StoreConfig> {
   }
 }
 
-export async function saveStoreConfig(data: Partial<StoreConfig>): Promise<StoreConfig> {
+async function _saveStoreConfig(data: Partial<StoreConfig>): Promise<StoreConfig> {
   await requireOwner();
   validateSchema(saveStoreConfigSchema, data, 'saveStoreConfig');
 
@@ -196,5 +197,10 @@ export async function saveStoreConfig(data: Partial<StoreConfig>): Promise<Store
     await persist(buildDbValues(CORE_DB_COLUMNS));
   }
 
-  return fetchStoreConfig();
+  return _fetchStoreConfig();
 }
+
+// ==================== EXPORTS ====================
+
+export const fetchStoreConfig = withLogging('storeConfig.fetchStoreConfig', _fetchStoreConfig);
+export const saveStoreConfig = withLogging('storeConfig.saveStoreConfig', _saveStoreConfig);

@@ -10,10 +10,11 @@ import { numVal } from './_helpers';
 import { sendNotification } from './_notifications';
 import { fetchAllProducts } from './product-actions';
 import { validateSchema, createMermaSchema, createInventoryAuditSchema, saveAuditItemSchema, idSchema } from '@/lib/validation/schemas';
+import { withLogging } from '@/lib/errors';
 
 // ==================== INVENTORY ALERTS (computed) ====================
 
-export async function fetchInventoryAlerts(): Promise<InventoryAlert[]> {
+async function _fetchInventoryAlerts(): Promise<InventoryAlert[]> {
   await requireAuth();
   const allProducts = await fetchAllProducts();
   const now = new Date();
@@ -70,7 +71,7 @@ export async function fetchInventoryAlerts(): Promise<InventoryAlert[]> {
 
 // ==================== KPI (computed) ====================
 
-export async function fetchKPIData(): Promise<KPIData> {
+async function _fetchKPIData(): Promise<KPIData> {
   await requireAuth();
   const now = new Date();
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(now);
@@ -143,7 +144,7 @@ export async function fetchKPIData(): Promise<KPIData> {
 
 // ==================== MERMAS ====================
 
-export async function fetchMermaRecords(): Promise<MermaRecord[]> {
+async function _fetchMermaRecords(): Promise<MermaRecord[]> {
   await requirePermission('inventory.edit');
   const rows = await db.select().from(mermaRecords).orderBy(desc(mermaRecords.date));
   return rows.map((r) => ({
@@ -157,7 +158,7 @@ export async function fetchMermaRecords(): Promise<MermaRecord[]> {
   }));
 }
 
-export async function createMerma(data: Omit<MermaRecord, 'id'>): Promise<MermaRecord> {
+async function _createMerma(data: Omit<MermaRecord, 'id'>): Promise<MermaRecord> {
   await requirePermission('inventory.edit');
   validateSchema(createMermaSchema, data, 'createMerma');
   const id = `merma-${crypto.randomUUID()}`;
@@ -184,7 +185,7 @@ export async function createMerma(data: Omit<MermaRecord, 'id'>): Promise<MermaR
 
 // ==================== INVENTORY AUDITS ====================
 
-export async function fetchInventoryAudits(): Promise<InventoryAudit[]> {
+async function _fetchInventoryAudits(): Promise<InventoryAudit[]> {
   await requirePermission('inventory.edit');
   const rows = await db.select().from(inventoryAudits).orderBy(desc(inventoryAudits.date));
   return rows.map((r) => ({
@@ -197,7 +198,7 @@ export async function fetchInventoryAudits(): Promise<InventoryAudit[]> {
   }));
 }
 
-export async function createInventoryAudit(data: {
+async function _createInventoryAudit(data: {
   title: string;
   auditor: string;
   notes: string;
@@ -216,7 +217,7 @@ export async function createInventoryAudit(data: {
   return id;
 }
 
-export async function getInventoryAudit(id: string): Promise<InventoryAudit | null> {
+async function _getInventoryAudit(id: string): Promise<InventoryAudit | null> {
   await requirePermission('inventory.edit');
   validateId(id, 'Audit ID');
   const rows = await db.select().from(inventoryAudits).where(eq(inventoryAudits.id, id));
@@ -244,7 +245,7 @@ export async function getInventoryAudit(id: string): Promise<InventoryAudit | nu
   };
 }
 
-export async function saveAuditItem(data: Omit<InventoryAuditItem, 'id'>): Promise<void> {
+async function _saveAuditItem(data: Omit<InventoryAuditItem, 'id'>): Promise<void> {
   await requirePermission('inventory.edit');
   validateSchema(saveAuditItemSchema, data, 'saveAuditItem');
   const id = `ai-${crypto.randomUUID()}`;
@@ -260,7 +261,7 @@ export async function saveAuditItem(data: Omit<InventoryAuditItem, 'id'>): Promi
   });
 }
 
-export async function completeInventoryAudit(id: string): Promise<void> {
+async function _completeInventoryAudit(id: string): Promise<void> {
   await requirePermission('inventory.edit');
   validateSchema(idSchema, id, 'completeInventoryAudit:id');
   const audit = await getInventoryAudit(id);
@@ -300,7 +301,7 @@ export async function completeInventoryAudit(id: string): Promise<void> {
   );
 }
 
-export async function sendStockReport(): Promise<void> {
+async function _sendStockReport(): Promise<void> {
   await requirePermission('inventory.view');
   const allProducts = await fetchAllProducts();
   const { escapeHTML } = await import('./_notifications');
@@ -323,3 +324,16 @@ export async function sendStockReport(): Promise<void> {
     `Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`
   );
 }
+
+// ==================== WRAPPED EXPORTS ====================
+
+export const fetchInventoryAlerts = withLogging('inventory.fetchInventoryAlerts', _fetchInventoryAlerts);
+export const fetchKPIData = withLogging('inventory.fetchKPIData', _fetchKPIData);
+export const fetchMermaRecords = withLogging('inventory.fetchMermaRecords', _fetchMermaRecords);
+export const createMerma = withLogging('inventory.createMerma', _createMerma);
+export const fetchInventoryAudits = withLogging('inventory.fetchInventoryAudits', _fetchInventoryAudits);
+export const createInventoryAudit = withLogging('inventory.createInventoryAudit', _createInventoryAudit);
+export const getInventoryAudit = withLogging('inventory.getInventoryAudit', _getInventoryAudit);
+export const saveAuditItem = withLogging('inventory.saveAuditItem', _saveAuditItem);
+export const completeInventoryAudit = withLogging('inventory.completeInventoryAudit', _completeInventoryAudit);
+export const sendStockReport = withLogging('inventory.sendStockReport', _sendStockReport);

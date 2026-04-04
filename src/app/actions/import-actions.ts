@@ -1,6 +1,7 @@
 'use server';
 
 import { requirePermission, AuthError, sanitize, validateNumber } from '@/lib/auth/guard';
+import { withLogging } from '@/lib/errors';
 import { db } from '@/db';
 import { products, clientes } from '@/db/schema';
 import { parse } from 'csv-parse/sync';
@@ -15,7 +16,7 @@ const s3 = new S3Client({
     },
 });
 
-export async function importProductsFromCSV(formData: FormData, overwrite: boolean, publish: boolean) {
+async function _importProductsFromCSV(formData: FormData, overwrite: boolean, publish: boolean) {
     try {
         await requirePermission('inventory.edit');
 
@@ -121,7 +122,7 @@ export async function importProductsFromCSV(formData: FormData, overwrite: boole
     }
 }
 
-export async function importCustomersFromCSV(formData: FormData) {
+async function _importCustomersFromCSV(formData: FormData) {
     try {
         await requirePermission('customers.edit');
 
@@ -202,3 +203,6 @@ export async function importCustomersFromCSV(formData: FormData) {
         };
     }
 }
+
+export const importProductsFromCSV = withLogging('import.importProductsFromCSV', _importProductsFromCSV);
+export const importCustomersFromCSV = withLogging('import.importCustomersFromCSV', _importCustomersFromCSV);

@@ -15,6 +15,7 @@ import { createClipCheckoutCharge, createClipTerminalCharge } from '@/lib/clip-p
 import { paymentCharges } from '@/db/schema';
 import { createSaleSchema } from '@/lib/validation/schemas';
 import { publishJob } from '@/infrastructure/qstash';
+import { withLogging } from '@/lib/errors';
 
 // ==================== FOLIO ====================
 
@@ -22,7 +23,7 @@ import { publishJob } from '@/infrastructure/qstash';
 
 // ==================== SALES DATA (computed) ====================
 
-export async function fetchSalesData(): Promise<SalesData[]> {
+async function _fetchSalesData(): Promise<SalesData[]> {
   await requirePermission('sales.view');
   const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const today = new Date();
@@ -68,7 +69,7 @@ export async function fetchSalesData(): Promise<SalesData[]> {
   }));
 }
 
-export async function fetchHourlySalesData(): Promise<HourlySalesData[]> {
+async function _fetchHourlySalesData(): Promise<HourlySalesData[]> {
   await requirePermission('sales.view');
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
   const startOfDay = new Date(`${todayStr}T00:00:00-06:00`);
@@ -107,7 +108,7 @@ export async function fetchHourlySalesData(): Promise<HourlySalesData[]> {
 
 // ==================== SALES ====================
 
-export async function fetchSaleRecords(): Promise<SaleRecord[]> {
+async function _fetchSaleRecords(): Promise<SaleRecord[]> {
   await requirePermission('sales.view');
   const rows = await db.select().from(saleRecords).orderBy(desc(saleRecords.date)).limit(100);
   if (rows.length === 0) return [];
@@ -154,7 +155,7 @@ export async function fetchSaleRecords(): Promise<SaleRecord[]> {
   }));
 }
 
-export async function createSale(
+async function _createSale(
   saleData: Omit<SaleRecord, 'id' | 'folio' | 'date'>
 ): Promise<SaleRecord> {
   return logger.withTiming('createSale', async () => {
@@ -442,7 +443,7 @@ export async function createSale(
 
 import { fiadoTransactions, fiadoItems } from '@/db/schema'; // We need this import added if it's missing, let's just make sure.
 
-export async function cancelSale(saleId: string): Promise<void> {
+async function _cancelSale(saleId: string): Promise<void> {
   await requirePermission('sales.cancel');
   validateId(saleId, 'Sale ID');
 
@@ -481,7 +482,7 @@ export async function cancelSale(saleId: string): Promise<void> {
   await db.update(saleRecords).set({ status: 'cancelada' }).where(eq(saleRecords.id, saleId));
 }
 
-export async function deleteSales(saleIds: string[]): Promise<void> {
+async function _deleteSales(saleIds: string[]): Promise<void> {
   await requirePermission('sales.cancel');
   if (saleIds.length === 0) return;
   saleIds.forEach(id => validateId(id, 'Sale ID'));
@@ -528,7 +529,7 @@ export async function deleteSales(saleIds: string[]): Promise<void> {
 
 // ==================== CORTES DE CAJA ====================
 
-export async function fetchCortesHistory(): Promise<CorteCaja[]> {
+async function _fetchCortesHistory(): Promise<CorteCaja[]> {
   await requirePermission('corte.view');
   const rows = await db.select().from(cortesCaja).orderBy(desc(cortesCaja.fecha)).limit(30);
   return rows.map((r) => ({
@@ -551,7 +552,7 @@ export async function fetchCortesHistory(): Promise<CorteCaja[]> {
   }));
 }
 
-export async function createCorteCaja(data: {
+async function _createCorteCaja(data: {
   cajero: string;
   efectivoContado: number;
   fondoInicial: number;
@@ -634,7 +635,7 @@ export async function createCorteCaja(data: {
   return corte;
 }
 
-export async function createAutoCorteCaja(): Promise<void> {
+async function _createAutoCorteCaja(): Promise<void> {
   const today = new Date().toISOString().split('T')[0];
 
   const existingCortes = await db.select().from(cortesCaja);
@@ -677,9 +678,21 @@ export async function createAutoCorteCaja(): Promise<void> {
   });
 }
 
-export async function deleteCortes(corteIds: string[]): Promise<void> {
+async function _deleteCortes(corteIds: string[]): Promise<void> {
   await requirePermission('corte.create');
   if (corteIds.length === 0) return;
   corteIds.forEach(id => validateId(id, 'Corte ID'));
   await db.delete(cortesCaja).where(inArray(cortesCaja.id, corteIds));
 }
+
+// ==================== EXPORTS WITH LOGGING ====================
+export const fetchSalesData = withLogging('sales.fetchSalesData', _fetchSalesData);
+export const fetchHourlySalesData = withLogging('sales.fetchHourlySalesData', _fetchHourlySalesData);
+export const fetchSaleRecords = withLogging('sales.fetchSaleRecords', _fetchSaleRecords);
+export const createSale = withLogging('sales.createSale', _createSale);
+export const cancelSale = withLogging('sales.cancelSale', _cancelSale);
+export const deleteSales = withLogging('sales.deleteSales', _deleteSales);
+export const fetchCortesHistory = withLogging('sales.fetchCortesHistory', _fetchCortesHistory);
+export const createCorteCaja = withLogging('sales.createCorteCaja', _createCorteCaja);
+export const createAutoCorteCaja = withLogging('sales.createAutoCorteCaja', _createAutoCorteCaja);
+export const deleteCortes = withLogging('sales.deleteCortes', _deleteCortes);
