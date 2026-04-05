@@ -34,7 +34,21 @@
  */
 
 import { logger, getRequestContext } from '@/lib/logger';
-import { isFeatureEnabled } from '@/infrastructure/feature-flags';
+
+// ══════════════════════════════════════════════════════════════
+// Kill Switch — In-memory toggle (no async, no DB dependency)
+// ══════════════════════════════════════════════════════════════
+
+let domainEventsEnabled = true;
+
+/** Disable/enable domain events at runtime (e.g., from feature flag admin) */
+export function setDomainEventsEnabled(enabled: boolean): void {
+  domainEventsEnabled = enabled;
+  logger.info(`Domain events ${enabled ? 'enabled' : 'disabled'}`, {
+    action: 'domain_events_toggle',
+    enabled,
+  });
+}
 
 // ══════════════════════════════════════════════════════════════
 // Event Types (Discriminated Union)
@@ -194,18 +208,11 @@ export function onAnyDomainEvent(handler: EventHandler): void {
  * to ensure emitters never await side effects.
  */
 export function emitDomainEvent(event: DomainEvent): void {
-  // Feature flag gate — allows kill-switch in production
-  void isFeatureEnabled('domain-events').then((enabled) => {
-    if (!enabled) {
-      logger.debug(`Domain events disabled by feature flag, skipping '${event.type}'`, {
-        action: 'domain_event_flag_disabled',
-        eventType: event.type,
-      });
-      return;
-    }
+  if (!domainEventsEnabled) {
+    return;
+  }
 
-    _dispatchEvent(event);
-  });
+  _dispatchEvent(event);
 }
 
 /** Internal dispatch — separated from flag check for testability */

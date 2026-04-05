@@ -49,7 +49,12 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: `${process.env.AWS_S3_BUCKET ?? 'kiosko-blob'}.s3.${process.env.AWS_REGION ?? 'us-east-2'}.amazonaws.com`,
+        hostname: 'kiosko-blob.s3.us-east-2.amazonaws.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.s3.*.amazonaws.com',
         pathname: '/**',
       },
       {

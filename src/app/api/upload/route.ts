@@ -19,7 +19,7 @@ const BUCKET = env.AWS_S3_BUCKET!;
  * Allowed S3 path prefixes — user-provided paths MUST start with one of these.
  * Prevents path traversal and uploading to arbitrary locations.
  */
-const ALLOWED_PATH_PREFIXES = ['products/', 'avatars/', 'logos/', 'receipts/'];
+const ALLOWED_PATH_PREFIXES = ['products/', 'avatars/', 'logos/', 'receipts/', 'promo/'];
 
 /**
  * Validates and sanitizes the upload path.

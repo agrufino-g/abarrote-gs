@@ -32,6 +32,19 @@ export type AuditStatus = (typeof AUDIT_STATUSES)[number];
 export const SERVICIO_ESTADOS = ['completado', 'pendiente', 'cancelado'] as const;
 export type ServicioEstado = (typeof SERVICIO_ESTADOS)[number];
 
+// === Customer Display Animation Types ===
+export const CUSTOMER_DISPLAY_ANIMATIONS = ['none', 'fade', 'slideUp', 'slideDown', 'slideLeft', 'slideRight', 'zoom', 'bounce'] as const;
+export type CustomerDisplayAnimation = (typeof CUSTOMER_DISPLAY_ANIMATIONS)[number];
+
+export const CUSTOMER_DISPLAY_PROMO_ANIMATIONS = ['none', 'slideUp', 'slideLeft', 'slideRight', 'fade', 'zoom', 'pulse', 'kenBurns'] as const;
+export type CustomerDisplayPromoAnimation = (typeof CUSTOMER_DISPLAY_PROMO_ANIMATIONS)[number];
+
+export const TRANSITION_SPEEDS = ['slow', 'normal', 'fast'] as const;
+export type TransitionSpeed = (typeof TRANSITION_SPEEDS)[number];
+
+export const CUSTOMER_DISPLAY_THEMES = ['light', 'dark', 'brand'] as const;
+export type CustomerDisplayTheme = (typeof CUSTOMER_DISPLAY_THEMES)[number];
+
 // === Configuración de Tienda (Ticket) ===
 export interface StoreConfig {
   id: string;
@@ -105,7 +118,15 @@ export interface StoreConfig {
   customerDisplayWelcome: string;
   customerDisplayFarewell: string;
   customerDisplayPromoText: string;
-  customerDisplayPromoImage: string;
+  customerDisplayPromoImage: string; // JSON array of URLs: '["url1","url2"]'
+  // Customer Display - Animations
+  customerDisplayIdleAnimation: CustomerDisplayAnimation;
+  customerDisplayTransitionSpeed: TransitionSpeed;
+  customerDisplayPromoAnimation: CustomerDisplayPromoAnimation;
+  customerDisplayShowClock: boolean;
+  customerDisplayTheme: CustomerDisplayTheme;
+  customerDisplayIdleCarousel: boolean;
+  customerDisplayCarouselInterval: string;
 }
 
 export const DEFAULT_STORE_CONFIG: StoreConfig = {
@@ -149,6 +170,13 @@ export const DEFAULT_STORE_CONFIG: StoreConfig = {
   customerDisplayFarewell: '',
   customerDisplayPromoText: '',
   customerDisplayPromoImage: '',
+  customerDisplayIdleAnimation: 'fade',
+  customerDisplayTransitionSpeed: 'normal',
+  customerDisplayPromoAnimation: 'slideUp',
+  customerDisplayShowClock: true,
+  customerDisplayTheme: 'light',
+  customerDisplayIdleCarousel: false,
+  customerDisplayCarouselInterval: '5',
 };
 
 export interface ProductCategory {

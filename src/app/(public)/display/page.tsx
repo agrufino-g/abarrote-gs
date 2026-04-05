@@ -1,9 +1,15 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { fetchStoreConfig } from '@/app/actions/store-config-actions';
 import { DEFAULT_STORE_CONFIG } from '@/types';
-import type { StoreConfig } from '@/types';
+import type {
+  StoreConfig,
+  CustomerDisplayAnimation,
+  CustomerDisplayPromoAnimation,
+  TransitionSpeed,
+  CustomerDisplayTheme,
+} from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import {
   Box,
@@ -18,6 +24,7 @@ import {
   IndexTable,
   EmptyState,
   Banner,
+  Thumbnail,
 } from '@shopify/polaris';
 import {
   OrderIcon,
@@ -26,9 +33,108 @@ import {
   CheckIcon,
   StoreIcon,
   ClockIcon,
+  StarFilledIcon,
+  GiftCardIcon,
 } from '@shopify/polaris-icons';
 
-// ── Types ──
+// ═══════════════════════════════════════════════════════════
+// Animation + Theme configuration
+// ═══════════════════════════════════════════════════════════
+
+const SPEED_MAP: Record<TransitionSpeed, number> = {
+  slow: 1200,
+  normal: 600,
+  fast: 300,
+};
+
+interface ThemeConfig {
+  bg: string;
+  bgSecondary: string;
+  text: string;
+  textMuted: string;
+  accent: string;
+  promoBg: string;
+  border: string;
+}
+
+const THEMES: Record<CustomerDisplayTheme, ThemeConfig> = {
+  light: {
+    bg: '#ffffff',
+    bgSecondary: '#f6f6f7',
+    text: '#1a1a1a',
+    textMuted: '#6d7175',
+    accent: '#008060',
+    promoBg: 'rgba(0, 128, 96, 0.08)',
+    border: '#e1e3e5',
+  },
+  dark: {
+    bg: '#1a1c1e',
+    bgSecondary: '#2a2c2e',
+    text: '#f1f1f1',
+    textMuted: '#9a9da0',
+    accent: '#36d399',
+    promoBg: 'rgba(54, 211, 153, 0.12)',
+    border: '#3a3c3e',
+  },
+  brand: {
+    bg: '#0a2540',
+    bgSecondary: '#123554',
+    text: '#ffffff',
+    textMuted: '#b0c4de',
+    accent: '#00d4aa',
+    promoBg: 'rgba(0, 212, 170, 0.12)',
+    border: '#1e4d7a',
+  },
+};
+
+/** Build inline animation style for a given config */
+function buildAnimStyle(
+  animation: string,
+  speedMs: number,
+  delayMs: number = 0,
+): React.CSSProperties {
+  if (animation === 'none') return {};
+  return {
+    animation: `cd-${animation} ${speedMs}ms ease ${delayMs}ms both`,
+  };
+}
+
+/** Build promo animation style */
+function buildPromoAnimStyle(
+  animation: string,
+  speedMs: number,
+  delayMs: number = 0,
+): React.CSSProperties {
+  if (animation === 'none') return {};
+  const isInfinite = animation === 'pulse' || animation === 'kenBurns';
+  const duration = animation === 'kenBurns' ? 8000 : animation === 'pulse' ? 2000 : speedMs;
+  return {
+    animation: `cd-promo-${animation} ${duration}ms ease ${delayMs}ms ${isInfinite ? 'infinite' : 'both'}`,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// Carousel hook
+// ═══════════════════════════════════════════════════════════
+
+function useCarousel(enabled: boolean, intervalSec: number, slideCount: number): number {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    if (!enabled || slideCount <= 1) {
+      setIndex(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setIndex((prev) => (prev + 1) % slideCount);
+    }, intervalSec * 1000);
+    return () => clearInterval(id);
+  }, [enabled, intervalSec, slideCount]);
+  return index;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Types
+// ═══════════════════════════════════════════════════════════
 
 interface DisplayItem {
   productName: string;
@@ -80,16 +186,19 @@ const EMPTY_SALE: SaleState = {
   status: 'idle',
 };
 
-// ── Component ──
+// ═══════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════
 
 export default function CustomerDisplayPage() {
-  // Local config state - loaded directly from DB, not from shared Zustand store
   const [storeConfig, setStoreConfig] = useState<StoreConfig>(DEFAULT_STORE_CONFIG);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [sale, setSale] = useState<SaleState>(EMPTY_SALE);
   const [currentTime, setCurrentTime] = useState('');
+  const [currentDate, setCurrentDate] = useState('');
+  const [animKey, setAnimKey] = useState(0);
 
-  // Load store config on mount
+  // Load store config
   useEffect(() => {
     let mounted = true;
     fetchStoreConfig()
@@ -100,11 +209,10 @@ export default function CustomerDisplayPage() {
         }
       })
       .catch(() => {
-        if (mounted) setConfigLoaded(true); // Still show fallback UI
+        if (mounted) setConfigLoaded(true);
       });
     return () => { mounted = false; };
   }, []);
-  const [currentDate, setCurrentDate] = useState('');
 
   // Clock
   useEffect(() => {
@@ -127,15 +235,16 @@ export default function CustomerDisplayPage() {
     return () => clearInterval(id);
   }, []);
 
-  // BroadcastChannel listener for sales AND config updates
+  // BroadcastChannel listener
   useEffect(() => {
     const channel = new BroadcastChannel('customer_display');
     channel.onmessage = (event) => {
       if (event.data.type === 'UPDATE_SALE') {
         setSale(event.data.payload as SaleState);
+        setAnimKey((k) => k + 1);
       } else if (event.data.type === 'UPDATE_CONFIG') {
-        // Real-time config sync when settings change in dashboard
         setStoreConfig(event.data.payload as StoreConfig);
+        setAnimKey((k) => k + 1);
       }
     };
     return () => channel.close();
@@ -149,19 +258,62 @@ export default function CustomerDisplayPage() {
     }
   }, [sale.status]);
 
+  // ── Derived values ──
   const storeName = storeConfig.storeName || 'Tu Tienda';
   const logoUrl = storeConfig.logoUrl;
   const paymentLabel = PAYMENT_LABELS[sale.paymentMethod] ?? sale.paymentMethod;
   const welcomeMsg = storeConfig.customerDisplayWelcome || `¡Bienvenido a ${storeName}!`;
   const farewellMsg = storeConfig.customerDisplayFarewell || `${storeName} le agradece su preferencia`;
   const promoText = storeConfig.customerDisplayPromoText || '';
-  const promoImage = storeConfig.customerDisplayPromoImage || '';
+  const promoImages = useMemo(() => {
+    const raw = storeConfig.customerDisplayPromoImage || '';
+    if (!raw) return [];
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.filter((u): u is string => typeof u === 'string' && u.length > 0);
+    } catch { /* not JSON */ }
+    return raw.startsWith('http') ? [raw] : [];
+  }, [storeConfig.customerDisplayPromoImage]);
   const itemCount = useMemo(
     () => sale.items.reduce((sum, i) => sum + i.quantity, 0),
     [sale.items],
   );
 
-  // ── Gate: display must be enabled in settings ──
+  // ── Animation config ──
+  const idleAnimation = (storeConfig.customerDisplayIdleAnimation || 'fade') as CustomerDisplayAnimation;
+  const promoAnimation = (storeConfig.customerDisplayPromoAnimation || 'slideUp') as CustomerDisplayPromoAnimation;
+  const transitionSpeed = (storeConfig.customerDisplayTransitionSpeed || 'normal') as TransitionSpeed;
+  const theme = (storeConfig.customerDisplayTheme || 'light') as CustomerDisplayTheme;
+  const showClock = storeConfig.customerDisplayShowClock !== false;
+  const carouselEnabled = storeConfig.customerDisplayIdleCarousel === true;
+  const carouselInterval = Number(storeConfig.customerDisplayCarouselInterval) || 5;
+
+  const speedMs = SPEED_MAP[transitionSpeed] ?? 600;
+  const themeConfig = THEMES[theme] ?? THEMES.light;
+
+  // Carousel
+  const carouselSlides = useMemo(() => {
+    const slides: Array<string> = ['welcome'];
+    if (promoText) slides.push('promo-text');
+    for (let i = 0; i < promoImages.length; i++) {
+      slides.push(`promo-image-${i}`);
+    }
+    return slides;
+  }, [promoText, promoImages]);
+
+  const carouselIndex = useCarousel(carouselEnabled, carouselInterval, carouselSlides.length);
+  const activeSlide = carouselSlides[carouselIndex] ?? 'welcome';
+
+  // Themed wrapper style
+  const themedBg: React.CSSProperties = {
+    background: themeConfig.bg,
+    minHeight: '100vh',
+  };
+
+  // ════════════════════════════════════════════════════════
+  // DISABLED SCREEN
+  // ════════════════════════════════════════════════════════
+
   if (!storeConfig.customerDisplayEnabled) {
     return (
       <div className="cd-fullscreen">
@@ -180,147 +332,239 @@ export default function CustomerDisplayPage() {
             </BlockStack>
           </div>
         </Box>
-        <DisplayStyles />
+        <AnimationStyles />
       </div>
     );
   }
 
-  // ── IDLE SCREEN ──
+  // ════════════════════════════════════════════════════════
+  // IDLE SCREEN — 100% Polaris + CSS animations via inline styles
+  // ════════════════════════════════════════════════════════
+
   if (sale.status === 'idle') {
     return (
-      <div className="cd-fullscreen">
-        <Box padding="0" minHeight="100vh" background="bg-surface">
-          <div className="cd-center-col">
-            <BlockStack gap="800" inlineAlign="center">
+      <div className="cd-fullscreen" style={themedBg}>
+        <div className="cd-center-col" key={carouselEnabled ? `carousel-${carouselIndex}` : `static-${animKey}`}>
+          <BlockStack gap="800" inlineAlign="center">
+
+            {/* Logo / Store icon */}
+            <div style={buildAnimStyle(idleAnimation, speedMs, 0)}>
               {logoUrl ? (
-                <img src={logoUrl} alt={storeName} style={{ maxWidth: 200, maxHeight: 120, objectFit: 'contain' }} />
+                <Thumbnail source={logoUrl} alt={storeName} size="large" />
               ) : (
-                <Box padding="600" background="bg-fill-success" borderRadius="400">
-                  <div style={{ color: 'white' }}>
+                <Box padding="600" borderRadius="400" background="bg-fill-success">
+                  <div style={{ color: '#fff' }}>
                     <Icon source={StoreIcon} />
                   </div>
                 </Box>
               )}
+            </div>
 
-              <BlockStack gap="200" inlineAlign="center">
-                <Text variant="heading2xl" as="h1" alignment="center">
-                  {welcomeMsg}
-                </Text>
-                <Text variant="headingMd" as="p" tone="subdued" alignment="center">
-                  Estamos a su servicio
-                </Text>
-              </BlockStack>
-
-              {promoText && (
-                <Box padding="400" background="bg-fill-success-secondary" borderRadius="300" maxWidth="600px">
-                  <Text variant="bodyLg" as="p" alignment="center" tone="success">
-                    {promoText}
-                  </Text>
-                </Box>
-              )}
-
-              {promoImage && (
-                <div style={{ borderRadius: 12, overflow: 'hidden', maxWidth: 500 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={promoImage}
-                    alt="Promoción"
-                    style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 12 }}
-                  />
+            {/* Content — carousel or static */}
+            {carouselEnabled ? (
+              <div style={buildAnimStyle(idleAnimation, speedMs, 100)}>
+                {activeSlide === 'welcome' && (
+                  <BlockStack gap="200" inlineAlign="center">
+                    <Text variant="heading2xl" as="h1" alignment="center">
+                      <span style={{ color: themeConfig.text }}>{welcomeMsg}</span>
+                    </Text>
+                    <Text variant="headingMd" as="p" alignment="center">
+                      <span style={{ color: themeConfig.textMuted }}>Estamos a su servicio</span>
+                    </Text>
+                  </BlockStack>
+                )}
+                {activeSlide === 'promo-text' && (
+                  <Box padding="400" borderRadius="300" maxWidth="600px">
+                    <div style={{ background: themeConfig.promoBg, borderRadius: 12, padding: '16px 24px' }}>
+                      <InlineStack gap="200" blockAlign="center" align="center">
+                        <Icon source={GiftCardIcon} tone="success" />
+                        <Text variant="bodyLg" as="p" alignment="center" tone="success">
+                          {promoText}
+                        </Text>
+                      </InlineStack>
+                    </div>
+                  </Box>
+                )}
+                {activeSlide.startsWith('promo-image-') && (() => {
+                  const imgIdx = Number(activeSlide.split('-')[2]);
+                  const imgUrl = promoImages[imgIdx];
+                  if (!imgUrl) return null;
+                  return (
+                    <Box borderRadius="300" maxWidth="500px">
+                      <div style={buildPromoAnimStyle(promoAnimation, speedMs)}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imgUrl}
+                          alt={`Promoción ${imgIdx + 1}`}
+                          style={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 12 }}
+                        />
+                      </div>
+                    </Box>
+                  );
+                })()}
+              </div>
+            ) : (
+              <>
+                {/* Welcome text */}
+                <div style={buildAnimStyle(idleAnimation, speedMs, 100)}>
+                  <BlockStack gap="200" inlineAlign="center">
+                    <Text variant="heading2xl" as="h1" alignment="center">
+                      <span style={{ color: themeConfig.text }}>{welcomeMsg}</span>
+                    </Text>
+                    <Text variant="headingMd" as="p" alignment="center">
+                      <span style={{ color: themeConfig.textMuted }}>Estamos a su servicio</span>
+                    </Text>
+                  </BlockStack>
                 </div>
-              )}
 
-              <BlockStack gap="100" inlineAlign="center">
-                <Text variant="heading3xl" as="p" tone="subdued" fontWeight="regular">
-                  {currentTime}
-                </Text>
-                <Text variant="bodySm" as="p" tone="subdued" alignment="center">
-                  {currentDate}
-                </Text>
-              </BlockStack>
-            </BlockStack>
+                {/* Promo text */}
+                {promoText && (
+                  <div style={buildAnimStyle(idleAnimation, speedMs, 200)}>
+                    <Box padding="400" borderRadius="300" maxWidth="600px">
+                      <div style={{ background: themeConfig.promoBg, borderRadius: 12, padding: '16px 24px' }}>
+                        <InlineStack gap="200" blockAlign="center" align="center">
+                          <Icon source={GiftCardIcon} tone="success" />
+                          <Text variant="bodyLg" as="p" alignment="center" tone="success">
+                            {promoText}
+                          </Text>
+                        </InlineStack>
+                      </div>
+                    </Box>
+                  </div>
+                )}
 
-            {storeConfig.phone && (
-              <div className="cd-idle-bottom">
-                <Text variant="bodySm" as="p" tone="subdued" alignment="center">
-                  Tel. {storeConfig.phone}
-                  {storeConfig.address ? ` · ${storeConfig.address}` : ''}
-                </Text>
+                {/* Promo images */}
+                {promoImages.length > 0 && (
+                  <div style={buildPromoAnimStyle(promoAnimation, speedMs, 300)}>
+                    <Box borderRadius="300" maxWidth="500px">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={promoImages[0]}
+                        alt="Promoción"
+                        style={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 12 }}
+                      />
+                    </Box>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Clock */}
+            {showClock && (
+              <div style={buildAnimStyle(idleAnimation, speedMs, carouselEnabled ? 200 : 400)}>
+                <BlockStack gap="100" inlineAlign="center">
+                  <InlineStack gap="200" blockAlign="center" align="center">
+                    <Icon source={ClockIcon} tone="subdued" />
+                    <Text variant="heading3xl" as="p" fontWeight="regular">
+                      <span style={{ color: themeConfig.textMuted, letterSpacing: '2px' }}>{currentTime}</span>
+                    </Text>
+                  </InlineStack>
+                  <Text variant="bodySm" as="p" alignment="center">
+                    <span style={{ color: themeConfig.textMuted, textTransform: 'capitalize' }}>{currentDate}</span>
+                  </Text>
+                </BlockStack>
               </div>
             )}
-          </div>
-        </Box>
-        <DisplayStyles />
+
+          </BlockStack>
+
+          {/* Bottom contact */}
+          {storeConfig.phone && (
+            <div className="cd-idle-bottom">
+              <Text variant="bodySm" as="p" alignment="center">
+                <span style={{ color: themeConfig.textMuted }}>
+                  Tel. {storeConfig.phone}
+                  {storeConfig.address ? ` · ${storeConfig.address}` : ''}
+                </span>
+              </Text>
+            </div>
+          )}
+        </div>
+        <AnimationStyles />
       </div>
     );
   }
 
-  // ── FINISHED SCREEN ──
+  // ════════════════════════════════════════════════════════
+  // FINISHED SCREEN
+  // ════════════════════════════════════════════════════════
+
   if (sale.status === 'finished') {
     return (
       <div className="cd-fullscreen">
         <Box padding="0" minHeight="100vh" background="bg-surface">
           <div className="cd-center-col">
             <BlockStack gap="600" inlineAlign="center">
-              <Box padding="500" background="bg-fill-success-secondary" borderRadius="full">
-                <Icon source={CheckIcon} tone="success" />
-              </Box>
+              <div style={buildAnimStyle('bounce', 800)}>
+                <Box padding="500" background="bg-fill-success-secondary" borderRadius="full">
+                  <Icon source={CheckIcon} tone="success" />
+                </Box>
+              </div>
 
-              <Text variant="heading2xl" as="h1" alignment="center" tone="success">
-                ¡Gracias por su compra!
-              </Text>
+              <div style={buildAnimStyle('fade', 600, 200)}>
+                <Text variant="heading2xl" as="h1" alignment="center" tone="success">
+                  ¡Gracias por su compra!
+                </Text>
+              </div>
 
-              <Box maxWidth="460px" width="100%">
-                <Card>
-                  <BlockStack gap="400">
-                    <InlineStack align="space-between">
-                      <Text variant="bodyLg" as="span" tone="subdued">Total pagado</Text>
-                      <Text variant="headingXl" as="span" fontWeight="bold">
-                        {formatCurrency(sale.total)}
-                      </Text>
-                    </InlineStack>
-
-                    <Divider />
-
-                    <InlineStack align="space-between">
-                      <Text variant="bodyMd" as="span" tone="subdued">Método</Text>
-                      <Badge>{paymentLabel}</Badge>
-                    </InlineStack>
-
-                    {sale.folio && (
+              <div style={buildAnimStyle('slideUp', 600, 300)}>
+                <Box maxWidth="460px" width="100%">
+                  <Card>
+                    <BlockStack gap="400">
                       <InlineStack align="space-between">
-                        <Text variant="bodyMd" as="span" tone="subdued">Folio</Text>
-                        <Text variant="bodyMd" as="span" fontWeight="semibold">{sale.folio}</Text>
+                        <Text variant="bodyLg" as="span" tone="subdued">Total pagado</Text>
+                        <Text variant="headingXl" as="span" fontWeight="bold">
+                          {formatCurrency(sale.total)}
+                        </Text>
                       </InlineStack>
-                    )}
-
-                    {sale.change != null && sale.change > 0 && (
-                      <>
-                        <Divider />
+                      <Divider />
+                      <InlineStack align="space-between">
+                        <Text variant="bodyMd" as="span" tone="subdued">Método</Text>
+                        <Badge>{paymentLabel}</Badge>
+                      </InlineStack>
+                      {sale.folio && (
                         <InlineStack align="space-between">
-                          <Text variant="bodyLg" as="span" tone="subdued">Su cambio</Text>
-                          <Text variant="headingLg" as="span" fontWeight="bold" tone="caution">
-                            {formatCurrency(sale.change)}
-                          </Text>
+                          <Text variant="bodyMd" as="span" tone="subdued">Folio</Text>
+                          <Text variant="bodyMd" as="span" fontWeight="semibold">{sale.folio}</Text>
                         </InlineStack>
-                      </>
-                    )}
-                  </BlockStack>
-                </Card>
-              </Box>
+                      )}
+                      {sale.change != null && sale.change > 0 && (
+                        <>
+                          <Divider />
+                          <InlineStack align="space-between">
+                            <Text variant="bodyLg" as="span" tone="subdued">Su cambio</Text>
+                            <Text variant="headingLg" as="span" fontWeight="bold" tone="caution">
+                              {formatCurrency(sale.change)}
+                            </Text>
+                          </InlineStack>
+                        </>
+                      )}
+                    </BlockStack>
+                  </Card>
+                </Box>
+              </div>
 
-              <Text variant="bodyMd" as="p" tone="subdued" alignment="center">
-                {farewellMsg}
-              </Text>
+              <div style={buildAnimStyle('fade', 600, 500)}>
+                <InlineStack gap="200" blockAlign="center" align="center">
+                  <Icon source={StarFilledIcon} tone="warning" />
+                  <Text variant="bodyMd" as="p" tone="subdued" alignment="center">
+                    {farewellMsg}
+                  </Text>
+                  <Icon source={StarFilledIcon} tone="warning" />
+                </InlineStack>
+              </div>
             </BlockStack>
           </div>
         </Box>
-        <DisplayStyles />
+        <AnimationStyles />
       </div>
     );
   }
 
-  // ── ACTIVE / PAYING SCREEN ──
+  // ════════════════════════════════════════════════════════
+  // ACTIVE / PAYING SCREEN
+  // ════════════════════════════════════════════════════════
+
   return (
     <div className="cd-fullscreen">
       <Box minHeight="100vh" background="bg-surface-secondary">
@@ -329,7 +573,7 @@ export default function CustomerDisplayPage() {
           <InlineStack align="space-between" blockAlign="center">
             <InlineStack gap="300" blockAlign="center">
               {logoUrl ? (
-                <img src={logoUrl} alt={storeName} style={{ height: 28, objectFit: 'contain' }} />
+                <Thumbnail source={logoUrl} alt={storeName} size="small" />
               ) : (
                 <Box padding="200" background="bg-fill-success" borderRadius="200">
                   <div style={{ color: 'white' }}>
@@ -339,7 +583,6 @@ export default function CustomerDisplayPage() {
               )}
               <Text variant="headingMd" as="span">{storeName}</Text>
             </InlineStack>
-
             <InlineStack gap="300" blockAlign="center">
               <InlineStack gap="100" blockAlign="center">
                 <Icon source={ClockIcon} tone="subdued" />
@@ -350,7 +593,7 @@ export default function CustomerDisplayPage() {
           </InlineStack>
         </Box>
 
-        {/* Body: items + totals */}
+        {/* Body */}
         <div className="cd-split">
           {/* Left: Items */}
           <div className="cd-left">
@@ -360,7 +603,6 @@ export default function CustomerDisplayPage() {
                   <Icon source={OrderIcon} tone="subdued" />
                   <Text variant="headingSm" as="h2" tone="subdued">SU COMPRA</Text>
                 </InlineStack>
-
                 {sale.items.length === 0 ? (
                   <Box paddingBlockStart="1200">
                     <EmptyState heading="Escaneando productos…" image="">
@@ -417,14 +659,12 @@ export default function CustomerDisplayPage() {
           <div className="cd-right">
             <Box padding="500">
               <BlockStack gap="500">
-                {/* Totals card */}
                 <Card>
                   <BlockStack gap="300">
                     <InlineStack align="space-between">
                       <Text variant="bodyLg" as="span">Subtotal</Text>
                       <Text variant="bodyLg" as="span">{formatCurrency(sale.subtotal)}</Text>
                     </InlineStack>
-
                     {sale.discountAmount > 0 && (
                       <InlineStack align="space-between">
                         <Text variant="bodyLg" as="span" tone="success">Descuento</Text>
@@ -433,12 +673,10 @@ export default function CustomerDisplayPage() {
                         </Text>
                       </InlineStack>
                     )}
-
                     <InlineStack align="space-between">
                       <Text variant="bodySm" as="span" tone="subdued">IVA (16%)</Text>
                       <Text variant="bodySm" as="span" tone="subdued">{formatCurrency(sale.iva)}</Text>
                     </InlineStack>
-
                     {sale.cardSurcharge > 0 && (
                       <InlineStack align="space-between">
                         <Text variant="bodySm" as="span" tone="caution">Comisión tarjeta</Text>
@@ -447,9 +685,7 @@ export default function CustomerDisplayPage() {
                         </Text>
                       </InlineStack>
                     )}
-
                     <Divider />
-
                     <InlineStack align="space-between" blockAlign="center">
                       <Text variant="headingXl" as="span">TOTAL</Text>
                       <Text variant="heading2xl" as="span" fontWeight="bold">
@@ -459,7 +695,6 @@ export default function CustomerDisplayPage() {
                   </BlockStack>
                 </Card>
 
-                {/* Payment status */}
                 {sale.status === 'paying' ? (
                   <Banner tone="warning">
                     <InlineStack gap="300" blockAlign="center">
@@ -487,7 +722,6 @@ export default function CustomerDisplayPage() {
                   </Card>
                 )}
 
-                {/* Footer */}
                 <Box paddingBlockStart="200">
                   <Text variant="bodySm" as="p" tone="subdued" alignment="center">
                     Gracias por su preferencia
@@ -498,30 +732,99 @@ export default function CustomerDisplayPage() {
           </div>
         </div>
       </Box>
-      <DisplayStyles />
+      <AnimationStyles />
     </div>
   );
 }
 
-// ── Minimal layout styles (only structural, Polaris handles visual) ──
+// ═══════════════════════════════════════════════════════════
+// CSS Keyframes only — visual styling is via Polaris components
+// ═══════════════════════════════════════════════════════════
 
-function DisplayStyles() {
+function AnimationStyles() {
   return (
     <style>{`
-      .cd-fullscreen { width:100vw; height:100vh; overflow:hidden; }
-      .cd-center-col { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:40px 24px; position:relative; }
-      .cd-idle-bottom { position:absolute; bottom:24px; }
-      .cd-split { display:flex; flex:1; min-height:0; height:calc(100vh - 52px); }
-      .cd-left { flex:1.6; overflow-y:auto; }
-      .cd-right { flex:1; display:flex; flex-direction:column; }
+      .cd-fullscreen { width: 100vw; height: 100vh; overflow: hidden; }
+      .cd-center-col {
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        min-height: 100vh; padding: 40px 24px;
+        position: relative;
+      }
+      .cd-idle-bottom { position: absolute; bottom: 24px; }
+      .cd-split { display: flex; flex: 1; min-height: 0; height: calc(100vh - 52px); }
+      .cd-left { flex: 1.6; overflow-y: auto; }
+      .cd-right { flex: 1; display: flex; flex-direction: column; }
 
-      /* Hide Polaris frame chrome in fullscreen display */
-      .Polaris-Frame,.Polaris-Frame__Navigation,.Polaris-Frame__TopBar,.Polaris-TopBar { display:none !important; }
-      .Polaris-Frame__Content { padding:0 !important; margin:0 !important; max-width:100vw !important; }
+      .Polaris-Frame, .Polaris-Frame__Navigation,
+      .Polaris-Frame__TopBar, .Polaris-TopBar { display: none !important; }
+      .Polaris-Frame__Content { padding: 0 !important; margin: 0 !important; max-width: 100vw !important; }
 
-      .cd-left::-webkit-scrollbar { width:6px; }
-      .cd-left::-webkit-scrollbar-track { background:transparent; }
-      .cd-left::-webkit-scrollbar-thumb { background:var(--p-color-border); border-radius:3px; }
+      .cd-left::-webkit-scrollbar { width: 6px; }
+      .cd-left::-webkit-scrollbar-track { background: transparent; }
+      .cd-left::-webkit-scrollbar-thumb { background: var(--p-color-border); border-radius: 3px; }
+
+      /* ═══ IDLE ANIMATIONS ═══ */
+      @keyframes cd-fade {
+        from { opacity: 0; } to { opacity: 1; }
+      }
+      @keyframes cd-slideUp {
+        from { opacity: 0; transform: translateY(40px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes cd-slideDown {
+        from { opacity: 0; transform: translateY(-40px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes cd-slideLeft {
+        from { opacity: 0; transform: translateX(60px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes cd-slideRight {
+        from { opacity: 0; transform: translateX(-60px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes cd-zoom {
+        from { opacity: 0; transform: scale(0.85); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+      @keyframes cd-bounce {
+        0%   { opacity: 0; transform: scale(0.3); }
+        50%  { opacity: 1; transform: scale(1.05); }
+        70%  { transform: scale(0.95); }
+        100% { transform: scale(1); }
+      }
+
+      /* ═══ PROMO ANIMATIONS ═══ */
+      @keyframes cd-promo-slideUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes cd-promo-slideLeft {
+        from { opacity: 0; transform: translateX(50px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes cd-promo-slideRight {
+        from { opacity: 0; transform: translateX(-50px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes cd-promo-fade {
+        from { opacity: 0; } to { opacity: 1; }
+      }
+      @keyframes cd-promo-zoom {
+        from { opacity: 0; transform: scale(0.8); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+      @keyframes cd-promo-pulse {
+        0%   { transform: scale(1); }
+        50%  { transform: scale(1.04); }
+        100% { transform: scale(1); }
+      }
+      @keyframes cd-promo-kenBurns {
+        0%   { transform: scale(1) translate(0, 0); }
+        50%  { transform: scale(1.08) translate(-1%, -1%); }
+        100% { transform: scale(1) translate(0, 0); }
+      }
     `}</style>
   );
 }

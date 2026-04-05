@@ -10,310 +10,825 @@ import {
   InlineStack,
   Text,
   Box,
-  Divider,
   DropZone,
   Spinner,
   TextField,
+  Badge,
+  InlineGrid,
+  Icon,
+  Checkbox,
+  Divider,
+  RangeSlider,
+  ButtonGroup,
+  Tooltip,
+  Thumbnail,
+  Popover,
+  OptionList,
 } from '@shopify/polaris';
+import {
+  DesktopIcon,
+  ClipboardIcon,
+  DeleteIcon,
+  ImageIcon,
+  ExternalIcon,
+  StatusActiveIcon,
+  PlayIcon,
+  RefreshIcon,
+  ViewIcon,
+  PaintBrushFlatIcon,
+  ClockIcon,
+  SettingsIcon,
+  GiftCardIcon,
+  StoreIcon,
+  CashDollarIcon,
+  CheckIcon,
+  StarFilledIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { uploadFile } from '@/lib/storage';
 import { parseError } from '@/lib/errors';
+import type {
+  CustomerDisplayAnimation,
+  CustomerDisplayPromoAnimation,
+  TransitionSpeed,
+  CustomerDisplayTheme,
+} from '@/types';
+import {
+  CUSTOMER_DISPLAY_ANIMATIONS,
+  CUSTOMER_DISPLAY_PROMO_ANIMATIONS,
+  TRANSITION_SPEEDS,
+  CUSTOMER_DISPLAY_THEMES,
+} from '@/types';
 
-/**
- * CustomerDisplaySectionV4 — Complete redesign with:
- * - useTransition for non-blocking updates
- * - Local state for inputs with store sync
- * - Clear visual feedback on save
- * - Explicit error handling with console logs
- */
+// ═══════════════════════════════════════════════════════════
+// Constants / Labels
+// ═══════════════════════════════════════════════════════════
+
+const IDLE_ANIM_LABELS: Record<CustomerDisplayAnimation, string> = {
+  none: 'Sin animación',
+  fade: 'Desvanecer (Fade)',
+  slideUp: 'Deslizar arriba',
+  slideDown: 'Deslizar abajo',
+  slideLeft: 'Deslizar izquierda',
+  slideRight: 'Deslizar derecha',
+  zoom: 'Zoom',
+  bounce: 'Rebote',
+};
+
+const PROMO_ANIM_LABELS: Record<CustomerDisplayPromoAnimation, string> = {
+  none: 'Sin animación',
+  slideUp: 'Deslizar arriba',
+  slideLeft: 'Deslizar izquierda',
+  slideRight: 'Deslizar derecha',
+  fade: 'Desvanecer (Fade)',
+  zoom: 'Zoom',
+  pulse: 'Pulso (infinito)',
+  kenBurns: 'Ken Burns (zoom lento)',
+};
+
+const SPEED_LABELS: Record<TransitionSpeed, string> = {
+  slow: 'Lenta (1.2s)',
+  normal: 'Normal (0.6s)',
+  fast: 'Rápida (0.3s)',
+};
+
+const THEME_META: Record<CustomerDisplayTheme, { label: string; bg: string; text: string; accent: string }> = {
+  light: { label: 'Claro', bg: '#ffffff', text: '#1a1a1a', accent: '#008060' },
+  dark:  { label: 'Oscuro', bg: '#1a1c1e', text: '#f1f1f1', accent: '#36d399' },
+  brand: { label: 'Marca', bg: '#0a2540', text: '#ffffff', accent: '#00d4aa' },
+};
+
+const MAX_PROMO_IMAGES = 5;
+
+/** Parse the JSON-serialized promo images field. Backward-compatible: plain URL → [url]. */
+function parsePromoImages(raw: string): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter((u): u is string => typeof u === 'string' && u.length > 0);
+  } catch {
+    // Not JSON → treat as single URL
+  }
+  return raw.startsWith('http') ? [raw] : [];
+}
+
+function serializePromoImages(urls: string[]): string {
+  if (urls.length === 0) return '';
+  if (urls.length === 1) return JSON.stringify(urls); // Still JSON for consistency
+  return JSON.stringify(urls);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Component
+// ═══════════════════════════════════════════════════════════
+
 export function CustomerDisplaySectionV4() {
-  // ─────────────────────────────────────────────────────────────────────────
-  // Store connection
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Store ──
   const storeConfig = useDashboardStore((s) => s.storeConfig);
-  const saveStoreConfig = useDashboardStore((s) => s.saveStoreConfig);
+  const doSave = useDashboardStore((s) => s.saveStoreConfig);
 
-  // Local state for text inputs (needed for controlled inputs with debounce)
-  const [welcomeMsg, setWelcomeMsg] = useState(storeConfig.customerDisplayWelcome || '');
-  const [farewellMsg, setFarewellMsg] = useState(storeConfig.customerDisplayFarewell || '');
-  const [promoText, setPromoText] = useState(storeConfig.customerDisplayPromoText || '');
+  // ── Local optimistic state for ALL fields ──
+  // Text fields
+  const [welcome, setWelcome] = useState(storeConfig.customerDisplayWelcome ?? '');
+  const [farewell, setFarewell] = useState(storeConfig.customerDisplayFarewell ?? '');
+  const [promoText, setPromoText] = useState(storeConfig.customerDisplayPromoText ?? '');
+  // Toggle/select fields — optimistic local state
+  const [enabled, setEnabled] = useState(storeConfig.customerDisplayEnabled ?? false);
+  const [promoImages, setPromoImages] = useState<string[]>(parsePromoImages(storeConfig.customerDisplayPromoImage ?? ''));
+  const [idleAnim, setIdleAnim] = useState<CustomerDisplayAnimation>((storeConfig.customerDisplayIdleAnimation ?? 'fade') as CustomerDisplayAnimation);
+  const [promoAnim, setPromoAnim] = useState<CustomerDisplayPromoAnimation>((storeConfig.customerDisplayPromoAnimation ?? 'slideUp') as CustomerDisplayPromoAnimation);
+  const [speed, setSpeed] = useState<TransitionSpeed>((storeConfig.customerDisplayTransitionSpeed ?? 'normal') as TransitionSpeed);
+  const [showClock, setShowClock] = useState(storeConfig.customerDisplayShowClock ?? true);
+  const [theme, setTheme] = useState<CustomerDisplayTheme>((storeConfig.customerDisplayTheme ?? 'light') as CustomerDisplayTheme);
+  const [carousel, setCarousel] = useState(storeConfig.customerDisplayIdleCarousel ?? false);
+  const [carouselSec, setCarouselSec] = useState(storeConfig.customerDisplayCarouselInterval ?? '5');
 
-  // Sync local state when store changes externally
+  // Sync ALL local state when store hydrates (initial load or external update)
   useEffect(() => {
-    setWelcomeMsg(storeConfig.customerDisplayWelcome || '');
-    setFarewellMsg(storeConfig.customerDisplayFarewell || '');
-    setPromoText(storeConfig.customerDisplayPromoText || '');
-  }, [storeConfig.customerDisplayWelcome, storeConfig.customerDisplayFarewell, storeConfig.customerDisplayPromoText]);
+    setWelcome(storeConfig.customerDisplayWelcome ?? '');
+    setFarewell(storeConfig.customerDisplayFarewell ?? '');
+    setPromoText(storeConfig.customerDisplayPromoText ?? '');
+    setEnabled(storeConfig.customerDisplayEnabled ?? false);
+    setPromoImages(parsePromoImages(storeConfig.customerDisplayPromoImage ?? ''));
+    setIdleAnim((storeConfig.customerDisplayIdleAnimation ?? 'fade') as CustomerDisplayAnimation);
+    setPromoAnim((storeConfig.customerDisplayPromoAnimation ?? 'slideUp') as CustomerDisplayPromoAnimation);
+    setSpeed((storeConfig.customerDisplayTransitionSpeed ?? 'normal') as TransitionSpeed);
+    setShowClock(storeConfig.customerDisplayShowClock ?? true);
+    setTheme((storeConfig.customerDisplayTheme ?? 'light') as CustomerDisplayTheme);
+    setCarousel(storeConfig.customerDisplayIdleCarousel ?? false);
+    setCarouselSec(storeConfig.customerDisplayCarouselInterval ?? '5');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeConfig]);
 
-  // Read toggle directly from store (no local state needed - button handles it)
-  const isEnabled = storeConfig.customerDisplayEnabled;
-  const promoImage = storeConfig.customerDisplayPromoImage || '';
-
-  // UI state
+  // ── UI state ──
   const [isPending, startTransition] = useTransition();
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [urlCopied, setUrlCopied] = useState(false);
-  const [promoUploading, setPromoUploading] = useState(false);
-  
-  // Debounce refs for text fields
-  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [idleAnimPop, setIdleAnimPop] = useState(false);
+  const [promoAnimPop, setPromoAnimPop] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const displayUrl = typeof window !== 'undefined' ? `${window.location.origin}/display` : '/display';
+  const isBusy = isPending || status === 'saving';
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Save helper with feedback
-  // ─────────────────────────────────────────────────────────────────────────
-  const saveField = useCallback(async (field: string, value: unknown) => {
-    setSaveStatus('saving');
-    setErrorMessage(null);
-
+  // ── Optimistic save: update local state immediately, persist to server, rollback on error ──
+  const save = useCallback(async (field: string, value: unknown, rollback?: () => void) => {
+    setStatus('saving');
+    setErrorMsg(null);
     try {
-      console.log(`[CustomerDisplay] Saving ${field}:`, value);
-      await saveStoreConfig({ [field]: value });
-      console.log(`[CustomerDisplay] Saved ${field} successfully`);
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (error) {
-      console.error(`[CustomerDisplay] Error saving ${field}:`, error);
-      const { description } = parseError(error);
-      setErrorMessage(description);
-      setSaveStatus('error');
+      await doSave({ [field]: value });
+      setStatus('saved');
+      setTimeout(() => setStatus('idle'), 2000);
+    } catch (err) {
+      rollback?.();
+      setErrorMsg(parseError(err).description);
+      setStatus('error');
     }
-  }, [saveStoreConfig]);
+  }, [doSave]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Toggle handler - immediate save
-  // ─────────────────────────────────────────────────────────────────────────
-  const handleToggle = useCallback(() => {
-    const newValue = !isEnabled;
-    startTransition(() => {
-      saveField('customerDisplayEnabled', newValue);
-    });
-  }, [isEnabled, saveField]);
+  const debouncedSave = useCallback((field: string, val: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => save(field, val), 800);
+  }, [save]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Text field handlers with debounce - update local state immediately, save after delay
-  // ─────────────────────────────────────────────────────────────────────────
-  const debouncedSave = useCallback((field: string, value: string) => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-    saveTimerRef.current = setTimeout(() => {
-      saveField(field, value);
-    }, 800);
-  }, [saveField]);
+  // ── Optimistic handlers ──
+  const toggleEnabled = useCallback(() => {
+    const prev = enabled;
+    setEnabled(!prev);
+    startTransition(() => { save('customerDisplayEnabled', !prev, () => setEnabled(prev)); });
+  }, [enabled, save]);
 
-  const handleWelcomeChange = useCallback((value: string) => {
-    setWelcomeMsg(value);
-    debouncedSave('customerDisplayWelcome', value);
-  }, [debouncedSave]);
+  const onWelcome  = useCallback((v: string) => { setWelcome(v);  debouncedSave('customerDisplayWelcome', v); }, [debouncedSave]);
+  const onFarewell = useCallback((v: string) => { setFarewell(v); debouncedSave('customerDisplayFarewell', v); }, [debouncedSave]);
+  const onPromo    = useCallback((v: string) => { setPromoText(v); debouncedSave('customerDisplayPromoText', v); }, [debouncedSave]);
 
-  const handleFarewellChange = useCallback((value: string) => {
-    setFarewellMsg(value);
-    debouncedSave('customerDisplayFarewell', value);
-  }, [debouncedSave]);
+  const onTheme = useCallback((t: CustomerDisplayTheme) => {
+    const prev = theme;
+    setTheme(t);
+    save('customerDisplayTheme', t, () => setTheme(prev));
+  }, [theme, save]);
 
-  const handlePromoTextChange = useCallback((value: string) => {
-    setPromoText(value);
-    debouncedSave('customerDisplayPromoText', value);
-  }, [debouncedSave]);
+  const onIdleAnim = useCallback((v: string) => {
+    const prev = idleAnim;
+    setIdleAnim(v as CustomerDisplayAnimation);
+    setIdleAnimPop(false);
+    save('customerDisplayIdleAnimation', v, () => setIdleAnim(prev));
+  }, [idleAnim, save]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Actions
-  // ─────────────────────────────────────────────────────────────────────────
-  const handleOpenDisplay = useCallback(() => {
+  const onPromoAnim = useCallback((v: string) => {
+    const prev = promoAnim;
+    setPromoAnim(v as CustomerDisplayPromoAnimation);
+    setPromoAnimPop(false);
+    save('customerDisplayPromoAnimation', v, () => setPromoAnim(prev));
+  }, [promoAnim, save]);
+
+  const onSpeed = useCallback((s: TransitionSpeed) => {
+    const prev = speed;
+    setSpeed(s);
+    save('customerDisplayTransitionSpeed', s, () => setSpeed(prev));
+  }, [speed, save]);
+
+  const onShowClock = useCallback((v: boolean) => {
+    const prev = showClock;
+    setShowClock(v);
+    save('customerDisplayShowClock', v, () => setShowClock(prev));
+  }, [showClock, save]);
+
+  const onCarousel = useCallback((v: boolean) => {
+    const prev = carousel;
+    setCarousel(v);
+    save('customerDisplayIdleCarousel', v, () => setCarousel(prev));
+  }, [carousel, save]);
+
+  const onCarouselSec = useCallback((v: number) => {
+    const prev = carouselSec;
+    const str = String(v);
+    setCarouselSec(str);
+    save('customerDisplayCarouselInterval', str, () => setCarouselSec(prev));
+  }, [carouselSec, save]);
+
+  const copyUrl = useCallback(async () => {
+    try { await navigator.clipboard.writeText(displayUrl); setUrlCopied(true); setTimeout(() => setUrlCopied(false), 2500); } catch { /* noop */ }
+  }, [displayUrl]);
+
+  const openDisplay = useCallback(() => {
     window.open('/display', 'customer_display', 'width=1024,height=768,menubar=no,toolbar=no');
   }, []);
 
-  const handleCopyUrl = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(displayUrl);
-      setUrlCopied(true);
-      setTimeout(() => setUrlCopied(false), 2500);
-    } catch {
-      // Fallback
-    }
-  }, [displayUrl]);
-
-  const handlePromoImageDrop = useCallback(async (_accepted: File[], rejected: File[]) => {
-    if (rejected.length > 0) {
-      setErrorMessage('Solo se aceptan imágenes (JPG, PNG, WebP) de máximo 2 MB.');
-      return;
-    }
+  const onImageDrop = useCallback((_a: File[], rej: File[]) => {
+    if (rej.length) setErrorMsg('Solo imágenes (JPG, PNG, WebP) de máximo 2 MB.');
   }, []);
 
-  const handlePromoImageAccepted = useCallback(async (files: File[]) => {
+  const onImageAccepted = useCallback(async (files: File[]) => {
+    if (promoImages.length >= MAX_PROMO_IMAGES) {
+      setErrorMsg(`Máximo ${MAX_PROMO_IMAGES} imágenes promocionales.`);
+      return;
+    }
     const file = files[0];
     if (!file) return;
-    setPromoUploading(true);
-    setErrorMessage(null);
+    setUploading(true);
+    setErrorMsg(null);
     try {
-      const url = await uploadFile(file, 'promo');
-      await saveField('customerDisplayPromoImage', url);
-    } catch (error) {
-      const { description } = parseError(error);
-      setErrorMessage(description);
-    } finally {
-      setPromoUploading(false);
-    }
-  }, [saveField]);
+      const ext = file.name.split('.').pop() ?? 'webp';
+      const url = await uploadFile(file, `promo/display-${Date.now()}.${ext}`);
+      const updated = [...promoImages, url];
+      setPromoImages(updated);
+      await save('customerDisplayPromoImage', serializePromoImages(updated), () => setPromoImages(promoImages));
+    } catch (err) { setErrorMsg(parseError(err).description); }
+    finally { setUploading(false); }
+  }, [save, promoImages]);
 
-  const handleRemovePromoImage = useCallback(() => {
-    saveField('customerDisplayPromoImage', '');
-  }, [saveField]);
+  const removeImage = useCallback((index: number) => {
+    const prev = [...promoImages];
+    const updated = promoImages.filter((_, i) => i !== index);
+    setPromoImages(updated);
+    save('customerDisplayPromoImage', serializePromoImages(updated), () => setPromoImages(prev));
+  }, [promoImages, save]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────────────────────
+  const reorderImage = useCallback((from: number, to: number) => {
+    if (to < 0 || to >= promoImages.length) return;
+    const prev = [...promoImages];
+    const updated = [...promoImages];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    setPromoImages(updated);
+    save('customerDisplayPromoImage', serializePromoImages(updated), () => setPromoImages(prev));
+  }, [promoImages, save]);
+
+  // ─────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────
+
   return (
     <BlockStack gap="400">
-      {/* Error banner */}
-      {errorMessage && (
-        <Banner tone="critical" onDismiss={() => setErrorMessage(null)}>
-          {errorMessage}
-        </Banner>
-      )}
 
-      {/* Success banner */}
-      {saveStatus === 'saved' && (
-        <Banner tone="success" onDismiss={() => setSaveStatus('idle')}>
-          Cambios guardados correctamente
-        </Banner>
-      )}
+      {/* Banners */}
+      {errorMsg && <Banner tone="critical" onDismiss={() => setErrorMsg(null)}>{errorMsg}</Banner>}
+      {status === 'saved' && <Banner tone="success" onDismiss={() => setStatus('idle')}>Cambios guardados.</Banner>}
 
-      {/* Main toggle card */}
+      {/* ═══════════════════════════════════════════════════
+          CARD 1 — Estado y acceso rápido
+          ═══════════════════════════════════════════════════ */}
       <Card>
         <BlockStack gap="400">
-          <InlineStack align="space-between" blockAlign="center">
-            <BlockStack gap="100">
-              <Text variant="headingMd" as="h3">Activar pantalla del cliente</Text>
-              <Text variant="bodySm" as="p" tone="subdued">
-                Muestra productos y totales en un segundo monitor o tablet.
-              </Text>
-            </BlockStack>
-            
-            <Button
-              variant={isEnabled ? 'primary' : 'secondary'}
-              onClick={handleToggle}
-              loading={isPending || saveStatus === 'saving'}
-              tone={isEnabled ? 'success' : undefined}
-            >
-              {isEnabled ? 'Activada' : 'Desactivada'}
-            </Button>
+          <InlineStack align="space-between" blockAlign="center" wrap={false}>
+            <InlineStack gap="300" blockAlign="center">
+              <Box padding="200" background={enabled ? 'bg-fill-success-secondary' : 'bg-surface-secondary'} borderRadius="200">
+                <Icon source={DesktopIcon} tone={enabled ? 'success' : 'subdued'} />
+              </Box>
+              <BlockStack gap="050">
+                <Text variant="headingMd" as="h3">Pantalla del cliente</Text>
+                <Text variant="bodySm" as="p" tone="subdued">Segundo monitor o tablet para mostrar la compra.</Text>
+              </BlockStack>
+            </InlineStack>
+            <Badge tone={enabled ? 'success' : undefined}>{enabled ? 'Activa' : 'Inactiva'}</Badge>
           </InlineStack>
 
-          <Divider />
-
-          <BlockStack gap="200">
-            <Text variant="bodySm" as="p" tone="subdued">
-              Abre la pantalla en un segundo monitor, tablet o navegador.
-            </Text>
-            <InlineStack gap="200">
-              <Button onClick={handleOpenDisplay} disabled={!isEnabled}>
-                Abrir pantalla
-              </Button>
-              <Button variant="plain" onClick={handleCopyUrl}>
-                {urlCopied ? '¡Copiado!' : 'Copiar URL'}
-              </Button>
+          <Box background="bg-surface-secondary" borderRadius="200" padding="300">
+            <InlineStack align="space-between" blockAlign="center" wrap={false}>
+              <InlineStack gap="200" blockAlign="center">
+                <Icon source={StatusActiveIcon} tone={enabled ? 'success' : 'subdued'} />
+                <Text variant="bodySm" as="span" tone="subdued">{displayUrl}</Text>
+              </InlineStack>
+              <ButtonGroup>
+                <Tooltip content="Copiar URL">
+                  <Button icon={ClipboardIcon} size="slim" onClick={copyUrl}>
+                    {urlCopied ? '✓ Copiado' : 'Copiar'}
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Abrir en ventana 1024×768">
+                  <Button icon={ExternalIcon} size="slim" variant="primary" onClick={openDisplay} disabled={!enabled}>
+                    Abrir pantalla
+                  </Button>
+                </Tooltip>
+              </ButtonGroup>
             </InlineStack>
-            <Text variant="bodySm" as="p" tone="subdued">{displayUrl}</Text>
-          </BlockStack>
+          </Box>
+
+          <InlineStack align="end">
+            <Button
+              onClick={toggleEnabled}
+              loading={isBusy}
+              variant={enabled ? 'secondary' : 'primary'}
+              tone={enabled ? 'critical' : undefined}
+            >
+              {enabled ? 'Desactivar pantalla' : 'Activar pantalla'}
+            </Button>
+          </InlineStack>
         </BlockStack>
       </Card>
 
-      {/* Custom messages card */}
+      {/* ═══════════════════════════════════════════════════
+          CARD 2 — Mensajes
+          ═══════════════════════════════════════════════════ */}
       <Card>
         <BlockStack gap="400">
-          <BlockStack gap="100">
+          <InlineStack gap="200" blockAlign="center">
             <Text variant="headingMd" as="h3">Mensajes personalizados</Text>
-            <Text variant="bodySm" as="p" tone="subdued">
-              Los cambios se guardan automáticamente.
-            </Text>
-          </BlockStack>
-
+            <Badge tone="info">Auto-guardado</Badge>
+          </InlineStack>
           <FormLayout>
-            <TextField
-              label="Mensaje de bienvenida"
-              placeholder="Ej: ¡Bienvenido! Gracias por visitarnos"
-              value={welcomeMsg}
-              onChange={handleWelcomeChange}
-              maxLength={120}
-              showCharacterCount
-              helpText="Se muestra cuando no hay venta activa."
-              autoComplete="off"
-            />
-
-            <TextField
-              label="Mensaje de despedida"
-              placeholder="Ej: ¡Gracias por su compra!"
-              value={farewellMsg}
-              onChange={handleFarewellChange}
-              maxLength={120}
-              showCharacterCount
-              helpText="Se muestra al finalizar la venta."
-              autoComplete="off"
-            />
-
-            <TextField
-              label="Texto promocional"
-              placeholder="Ej: 2x1 en refrescos"
-              value={promoText}
-              onChange={handlePromoTextChange}
-              maxLength={200}
-              showCharacterCount
-              multiline={2}
-              helpText="Se muestra en la pantalla de espera."
-              autoComplete="off"
-            />
+            <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+              <TextField label="Mensaje de bienvenida" placeholder="Ej: ¡Bienvenido!" value={welcome} onChange={onWelcome} maxLength={120} showCharacterCount helpText="Se muestra en pantalla de espera." autoComplete="off" />
+              <TextField label="Mensaje de despedida" placeholder="Ej: ¡Gracias por su compra!" value={farewell} onChange={onFarewell} maxLength={120} showCharacterCount helpText="Se muestra al finalizar la venta." autoComplete="off" />
+            </InlineGrid>
+            <TextField label="Texto promocional" placeholder="Ej: 2x1 en refrescos · Solo hoy" value={promoText} onChange={onPromo} maxLength={200} showCharacterCount multiline={2} helpText="Aparece con ícono de regalo en pantalla de espera." autoComplete="off" />
           </FormLayout>
         </BlockStack>
       </Card>
 
-      {/* Promo image card */}
+      {/* ═══════════════════════════════════════════════════
+          CARD 3 — Imágenes promocionales
+          ═══════════════════════════════════════════════════ */}
       <Card>
         <BlockStack gap="400">
-          <Text variant="headingMd" as="h3">Imagen promocional</Text>
-
-          {promoImage ? (
-            <BlockStack gap="300">
-              <Box borderRadius="200">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={promoImage} 
-                  alt="Promoción" 
-                  style={{ maxWidth: '100%', maxHeight: 200, objectFit: 'contain' }} 
-                />
+          <InlineStack align="space-between" blockAlign="center">
+            <InlineStack gap="200" blockAlign="center">
+              <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+                <Icon source={ImageIcon} tone="subdued" />
               </Box>
-              <Button variant="plain" tone="critical" onClick={handleRemovePromoImage}>
-                Eliminar imagen
-              </Button>
-            </BlockStack>
-          ) : (
-            <DropZone
-              accept="image/*"
-              type="image"
-              allowMultiple={false}
-              onDrop={handlePromoImageDrop}
-              onDropAccepted={handlePromoImageAccepted}
-            >
-              {promoUploading ? (
-                <Box padding="400">
-                  <InlineStack align="center" gap="200">
-                    <Spinner size="small" />
-                    <Text variant="bodySm" as="span">Subiendo imagen...</Text>
+              <BlockStack gap="050">
+                <Text variant="headingMd" as="h3">Imágenes promocionales</Text>
+                <Text variant="bodySm" as="p" tone="subdued">Se muestran en pantalla de espera. Recomendado: 1200×400px.</Text>
+              </BlockStack>
+            </InlineStack>
+            <Badge tone={promoImages.length >= MAX_PROMO_IMAGES ? 'warning' : 'info'}>
+              {`${promoImages.length}/${MAX_PROMO_IMAGES}`}
+            </Badge>
+          </InlineStack>
+
+          {/* Image gallery */}
+          {promoImages.length > 0 && (
+            <BlockStack gap="300">
+              {promoImages.map((url, idx) => (
+                <Box key={url} background="bg-surface-secondary" borderRadius="200" padding="300">
+                  <InlineStack align="space-between" blockAlign="center" gap="300" wrap={false}>
+                    <InlineStack gap="300" blockAlign="center" wrap={false}>
+                      <Text variant="bodySm" as="span" tone="subdued" fontWeight="bold">{idx + 1}</Text>
+                      <Thumbnail source={url} alt={`Promo ${idx + 1}`} size="small" />
+                      <Text variant="bodySm" as="span" tone="subdued" truncate>
+                        {url.split('/').pop() ?? 'imagen'}
+                      </Text>
+                    </InlineStack>
+                    <InlineStack gap="100" blockAlign="center">
+                      <Tooltip content="Mover izquierda">
+                        <Button icon={ChevronLeftIcon} size="slim" variant="plain" disabled={idx === 0} onClick={() => reorderImage(idx, idx - 1)} accessibilityLabel="Mover izquierda" />
+                      </Tooltip>
+                      <Tooltip content="Mover derecha">
+                        <Button icon={ChevronRightIcon} size="slim" variant="plain" disabled={idx === promoImages.length - 1} onClick={() => reorderImage(idx, idx + 1)} accessibilityLabel="Mover derecha" />
+                      </Tooltip>
+                      <Tooltip content="Eliminar imagen">
+                        <Button icon={DeleteIcon} size="slim" variant="plain" tone="critical" onClick={() => removeImage(idx)} accessibilityLabel="Eliminar" />
+                      </Tooltip>
+                    </InlineStack>
                   </InlineStack>
                 </Box>
+              ))}
+            </BlockStack>
+          )}
+
+          {/* Upload zone (hidden when max reached) */}
+          {promoImages.length < MAX_PROMO_IMAGES && (
+            <DropZone accept="image/*" type="image" allowMultiple={false} onDrop={onImageDrop} onDropAccepted={onImageAccepted}>
+              {uploading ? (
+                <Box padding="600">
+                  <BlockStack gap="200" inlineAlign="center">
+                    <Spinner size="small" />
+                    <Text variant="bodySm" as="span" tone="subdued">Subiendo...</Text>
+                  </BlockStack>
+                </Box>
               ) : (
-                <DropZone.FileUpload actionHint="JPG, PNG o WebP" />
+                <DropZone.FileUpload actionHint="JPG, PNG o WebP · Máximo 2 MB" />
               )}
             </DropZone>
           )}
-          <Text variant="bodySm" as="p" tone="subdued">
-            Se muestra en la pantalla de espera junto al texto promocional.
-          </Text>
+
+          {promoImages.length >= MAX_PROMO_IMAGES && (
+            <Banner tone="warning">Has alcanzado el límite de {MAX_PROMO_IMAGES} imágenes. Elimina una para subir más.</Banner>
+          )}
+        </BlockStack>
+      </Card>
+
+      {/* ═══════════════════════════════════════════════════
+          CARD 4 — Tema visual
+          ═══════════════════════════════════════════════════ */}
+      <Card>
+        <BlockStack gap="400">
+          <InlineStack gap="200" blockAlign="center">
+            <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+              <Icon source={PaintBrushFlatIcon} tone="info" />
+            </Box>
+            <BlockStack gap="050">
+              <Text variant="headingMd" as="h3">Tema visual</Text>
+              <Text variant="bodySm" as="p" tone="subdued">Selecciona la paleta de colores de la pantalla.</Text>
+            </BlockStack>
+          </InlineStack>
+
+          <InlineStack gap="300" blockAlign="stretch">
+            {CUSTOMER_DISPLAY_THEMES.map((t) => {
+              const mt = THEME_META[t];
+              const active = theme === t;
+              return (
+                <div key={t} role="button" tabIndex={0} onClick={() => onTheme(t)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onTheme(t); }} style={{ cursor: 'pointer', border: active ? `2px solid ${mt.accent}` : '2px solid transparent', borderRadius: 12, padding: 12, background: active ? 'var(--p-color-bg-surface-selected)' : 'var(--p-color-bg-surface-secondary)' }}>
+                  <BlockStack gap="200" inlineAlign="center">
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 8,
+                      background: mt.bg, border: `2px solid ${mt.accent}`,
+                    }} />
+                    <Text variant="bodySm" as="span" fontWeight={active ? 'bold' : undefined}>{mt.label}</Text>
+                    {active && <Icon source={CheckIcon} tone="success" />}
+                  </BlockStack>
+                </div>
+              );
+            })}
+          </InlineStack>
+        </BlockStack>
+      </Card>
+
+      {/* ═══════════════════════════════════════════════════
+          CARD 5 — Animaciones
+          ═══════════════════════════════════════════════════ */}
+      <Card>
+        <BlockStack gap="500">
+          <InlineStack gap="200" blockAlign="center">
+            <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+              <Icon source={PlayIcon} tone="info" />
+            </Box>
+            <BlockStack gap="050">
+              <Text variant="headingMd" as="h3">Animaciones</Text>
+              <Text variant="bodySm" as="p" tone="subdued">Configura cómo aparecen los elementos en la pantalla.</Text>
+            </BlockStack>
+          </InlineStack>
+
+          <Divider />
+
+          <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+            {/* Idle animation — Popover + OptionList */}
+            <BlockStack gap="200">
+              <Text variant="bodySm" as="p" fontWeight="semibold">Animación de entrada</Text>
+              <Popover
+                active={idleAnimPop}
+                activator={
+                  <Button onClick={() => setIdleAnimPop((p) => !p)} disclosure fullWidth textAlign="left">
+                    {IDLE_ANIM_LABELS[idleAnim]}
+                  </Button>
+                }
+                onClose={() => setIdleAnimPop(false)}
+                fullWidth
+              >
+                <OptionList
+                  onChange={(sel) => { onIdleAnim(sel[0]); }}
+                  options={CUSTOMER_DISPLAY_ANIMATIONS.map((v) => ({ label: IDLE_ANIM_LABELS[v], value: v }))}
+                  selected={[idleAnim]}
+                />
+              </Popover>
+              <Text variant="bodySm" as="p" tone="subdued">Cómo entran los elementos al iniciar.</Text>
+            </BlockStack>
+
+            {/* Promo animation — Popover + OptionList */}
+            <BlockStack gap="200">
+              <Text variant="bodySm" as="p" fontWeight="semibold">Animación de promoción</Text>
+              <Popover
+                active={promoAnimPop}
+                activator={
+                  <Button onClick={() => setPromoAnimPop((p) => !p)} disclosure fullWidth textAlign="left">
+                    {PROMO_ANIM_LABELS[promoAnim]}
+                  </Button>
+                }
+                onClose={() => setPromoAnimPop(false)}
+                fullWidth
+              >
+                <OptionList
+                  onChange={(sel) => { onPromoAnim(sel[0]); }}
+                  options={CUSTOMER_DISPLAY_PROMO_ANIMATIONS.map((v) => ({ label: PROMO_ANIM_LABELS[v], value: v }))}
+                  selected={[promoAnim]}
+                />
+              </Popover>
+              <Text variant="bodySm" as="p" tone="subdued">Efecto para la imagen/texto de promo.</Text>
+            </BlockStack>
+          </InlineGrid>
+
+          <Divider />
+
+          {/* Speed — segmented buttons */}
+          <BlockStack gap="200">
+            <Text variant="bodySm" as="p" fontWeight="semibold">Velocidad de transición</Text>
+            <ButtonGroup variant="segmented">
+              {TRANSITION_SPEEDS.map((s) => (
+                <Button key={s} pressed={speed === s} onClick={() => onSpeed(s)}>
+                  {SPEED_LABELS[s]}
+                </Button>
+              ))}
+            </ButtonGroup>
+          </BlockStack>
+        </BlockStack>
+      </Card>
+
+      {/* ═══════════════════════════════════════════════════
+          CARD 6 — Reloj y carrusel
+          ═══════════════════════════════════════════════════ */}
+      <Card>
+        <BlockStack gap="400">
+          <InlineStack gap="200" blockAlign="center">
+            <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+              <Icon source={ClockIcon} tone="subdued" />
+            </Box>
+            <BlockStack gap="050">
+              <Text variant="headingMd" as="h3">Reloj y carrusel</Text>
+              <Text variant="bodySm" as="p" tone="subdued">Controla el reloj digital y la rotación de contenido.</Text>
+            </BlockStack>
+          </InlineStack>
+
+          <Divider />
+
+          <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+            <BlockStack gap="300">
+              <Checkbox
+                label="Mostrar reloj digital"
+                checked={showClock}
+                onChange={onShowClock}
+                helpText="Hora y fecha en la pantalla de espera."
+              />
+              <Checkbox
+                label="Carrusel automático"
+                checked={carousel}
+                onChange={onCarousel}
+                helpText="Alterna bienvenida → promo → imagen."
+              />
+            </BlockStack>
+
+            {carousel && (
+              <BlockStack gap="200">
+                <Text variant="bodySm" as="p" fontWeight="semibold">Intervalo del carrusel</Text>
+                <RangeSlider
+                  label={`${carouselSec} segundos`}
+                  value={Number(carouselSec)}
+                  min={3}
+                  max={15}
+                  step={1}
+                  onChange={(v) => onCarouselSec(v as number)}
+                  output
+                />
+                <Text variant="bodySm" as="p" tone="subdued">Tiempo entre cada slide.</Text>
+              </BlockStack>
+            )}
+          </InlineGrid>
+        </BlockStack>
+      </Card>
+
+      {/* ═══════════════════════════════════════════════════
+          CARD 7 — Vista previa
+          ═══════════════════════════════════════════════════ */}
+      <PreviewCard
+        theme={theme}
+        welcome={welcome}
+        farewell={farewell}
+        promoText={promoText}
+        promoImages={promoImages}
+        showClock={showClock}
+        storeName={storeConfig.storeName ?? 'Tu Tienda'}
+      />
+
+      {/* ═══════════════════════════════════════════════════
+          CARD 8 — Info técnica
+          ═══════════════════════════════════════════════════ */}
+      <Card>
+        <BlockStack gap="400">
+          <InlineStack gap="200" blockAlign="center">
+            <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+              <Icon source={SettingsIcon} tone="subdued" />
+            </Box>
+            <Text variant="headingMd" as="h3">Información técnica</Text>
+          </InlineStack>
+          <Divider />
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="050">
+                <Text variant="bodyMd" as="p" fontWeight="semibold">Sincronización en tiempo real</Text>
+                <Text variant="bodySm" as="p" tone="subdued">Cambios se reflejan al instante en /display via BroadcastChannel.</Text>
+              </BlockStack>
+              <Badge tone="success">Activa</Badge>
+            </InlineStack>
+            <Divider />
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="050">
+                <Text variant="bodyMd" as="p" fontWeight="semibold">Auto-retorno a espera</Text>
+                <Text variant="bodySm" as="p" tone="subdued">Después de cada venta, la pantalla vuelve al modo espera automáticamente.</Text>
+              </BlockStack>
+              <Badge tone="info">6 segundos</Badge>
+            </InlineStack>
+            <Divider />
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="050">
+                <Text variant="bodyMd" as="p" fontWeight="semibold">Modo pantalla completa</Text>
+                <Text variant="bodySm" as="p" tone="subdued">Oculta la navegación del navegador automáticamente. Usa F11 para máximo efecto.</Text>
+              </BlockStack>
+              <Badge tone="info">Automático</Badge>
+            </InlineStack>
+          </BlockStack>
         </BlockStack>
       </Card>
     </BlockStack>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Preview sub-component (keeps main component clean)
+// ═══════════════════════════════════════════════════════════
+
+interface PreviewProps {
+  theme: CustomerDisplayTheme;
+  welcome: string;
+  farewell: string;
+  promoText: string;
+  promoImages: string[];
+  showClock: boolean;
+  storeName: string;
+}
+
+function PreviewCard({ theme, welcome, farewell, promoText, promoImages, showClock, storeName }: PreviewProps) {
+  const [previewMode, setPreviewMode] = useState<'idle' | 'sale' | 'done'>('idle');
+  const [key, setKey] = useState(0);
+  const [previewImgIdx, setPreviewImgIdx] = useState(0);
+  const replay = useCallback(() => setKey((k) => k + 1), []);
+  const m = THEME_META[theme];
+  const previewImg = promoImages[previewImgIdx % promoImages.length] ?? '';
+
+  return (
+    <Card>
+      <BlockStack gap="400">
+        <InlineStack align="space-between" blockAlign="center">
+          <InlineStack gap="200" blockAlign="center">
+            <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+              <Icon source={ViewIcon} tone="info" />
+            </Box>
+            <BlockStack gap="050">
+              <Text variant="headingMd" as="h3">Vista previa</Text>
+              <Text variant="bodySm" as="p" tone="subdued">Así se verá cada estado de la pantalla.</Text>
+            </BlockStack>
+          </InlineStack>
+          <ButtonGroup>
+            <Button size="slim" pressed={previewMode === 'idle'}  onClick={() => { setPreviewMode('idle');  replay(); }}>Espera</Button>
+            <Button size="slim" pressed={previewMode === 'sale'}  onClick={() => { setPreviewMode('sale');  replay(); }}>Venta</Button>
+            <Button size="slim" pressed={previewMode === 'done'}  onClick={() => { setPreviewMode('done');  replay(); }}>Finalizada</Button>
+            <Tooltip content="Reproducir animación">
+              <Button icon={RefreshIcon} size="slim" onClick={replay} />
+            </Tooltip>
+          </ButtonGroup>
+        </InlineStack>
+
+        <div style={{ borderRadius: 12, border: '1px solid var(--p-color-border)', overflow: 'hidden' }}>
+          <div key={key} style={{ background: previewMode === 'idle' ? m.bg : undefined, minHeight: 250, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 }}>
+
+            {previewMode === 'idle' && (
+              <>
+                <Box padding="300" borderRadius="300" background="bg-fill-success">
+                  <div style={{ color: '#fff' }}><Icon source={StoreIcon} /></div>
+                </Box>
+                <Text variant="headingLg" as="p" alignment="center">
+                  <span style={{ color: m.text }}>{welcome || '¡Bienvenido!'}</span>
+                </Text>
+                <Text variant="bodySm" as="p" alignment="center">
+                  <span style={{ color: m.accent }}>Estamos a su servicio</span>
+                </Text>
+                {promoText && (
+                  <Box padding="200" borderRadius="200">
+                    <InlineStack gap="100" blockAlign="center" align="center">
+                      <Icon source={GiftCardIcon} tone="success" />
+                      <Text variant="bodySm" as="span" tone="success">{promoText}</Text>
+                    </InlineStack>
+                  </Box>
+                )}
+                {previewImg && (
+                  <BlockStack gap="100" inlineAlign="center">
+                    <Thumbnail source={previewImg} alt="Promo" size="large" />
+                    {promoImages.length > 1 && (
+                      <InlineStack gap="200" blockAlign="center" align="center">
+                        <Button size="slim" variant="plain" icon={ChevronLeftIcon} onClick={() => setPreviewImgIdx((i) => (i - 1 + promoImages.length) % promoImages.length)} accessibilityLabel="Anterior" />
+                        <Text variant="bodySm" as="span" tone="subdued">{(previewImgIdx % promoImages.length) + 1}/{promoImages.length}</Text>
+                        <Button size="slim" variant="plain" icon={ChevronRightIcon} onClick={() => setPreviewImgIdx((i) => (i + 1) % promoImages.length)} accessibilityLabel="Siguiente" />
+                      </InlineStack>
+                    )}
+                  </BlockStack>
+                )}
+                {showClock && (
+                  <InlineStack gap="100" blockAlign="center">
+                    <Icon source={ClockIcon} tone="subdued" />
+                    <Text variant="headingSm" as="span" tone="subdued">
+                      {new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </InlineStack>
+                )}
+              </>
+            )}
+
+            {previewMode === 'sale' && (
+              <Box width="100%">
+                <BlockStack gap="300">
+                  <Box padding="200" background="bg-surface" borderRadius="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Box padding="100" background="bg-fill-success" borderRadius="100"><div style={{ color: '#fff' }}><Icon source={StoreIcon} /></div></Box>
+                        <Text variant="bodySm" as="span" fontWeight="bold">{storeName}</Text>
+                      </InlineStack>
+                      <Badge tone="success">3 artículos</Badge>
+                    </InlineStack>
+                  </Box>
+                  <InlineGrid columns={2} gap="300">
+                    <Card>
+                      <BlockStack gap="100">
+                        <InlineStack align="space-between"><InlineStack gap="100"><Badge tone="success" size="small">2</Badge><Text variant="bodySm" as="span">Coca-Cola 600ml</Text></InlineStack><Text variant="bodySm" as="span" fontWeight="bold">$30.00</Text></InlineStack>
+                        <InlineStack align="space-between"><InlineStack gap="100"><Badge tone="success" size="small">1</Badge><Text variant="bodySm" as="span">Pan Bimbo</Text></InlineStack><Text variant="bodySm" as="span" fontWeight="bold">$52.00</Text></InlineStack>
+                      </BlockStack>
+                    </Card>
+                    <Card>
+                      <BlockStack gap="200">
+                        <InlineStack align="space-between"><Text variant="bodySm" as="span" tone="subdued">Subtotal</Text><Text variant="bodySm" as="span">$82.00</Text></InlineStack>
+                        <Divider />
+                        <InlineStack align="space-between"><Text variant="headingSm" as="span">TOTAL</Text><Text variant="headingMd" as="span" fontWeight="bold">$82.00</Text></InlineStack>
+                        <Divider />
+                        <InlineStack gap="100" blockAlign="center" align="center"><Icon source={CashDollarIcon} tone="subdued" /><Text variant="bodySm" as="span" fontWeight="bold">Efectivo</Text></InlineStack>
+                      </BlockStack>
+                    </Card>
+                  </InlineGrid>
+                </BlockStack>
+              </Box>
+            )}
+
+            {previewMode === 'done' && (
+              <>
+                <Box padding="300" background="bg-fill-success-secondary" borderRadius="full"><Icon source={CheckIcon} tone="success" /></Box>
+                <Text variant="headingLg" as="p" alignment="center" tone="success">¡Gracias por su compra!</Text>
+                <Box maxWidth="280px" width="100%">
+                  <Card>
+                    <BlockStack gap="200">
+                      <InlineStack align="space-between"><Text variant="bodySm" as="span" tone="subdued">Total</Text><Text variant="headingSm" as="span" fontWeight="bold">$82.00</Text></InlineStack>
+                      <Divider />
+                      <InlineStack align="space-between"><Text variant="bodySm" as="span" tone="subdued">Método</Text><Badge>Efectivo</Badge></InlineStack>
+                      <InlineStack align="space-between"><Text variant="bodySm" as="span" tone="subdued">Cambio</Text><Text variant="bodySm" as="span" tone="caution" fontWeight="bold">$18.00</Text></InlineStack>
+                    </BlockStack>
+                  </Card>
+                </Box>
+                <InlineStack gap="100" blockAlign="center">
+                  <Icon source={StarFilledIcon} tone="warning" />
+                  <Text variant="bodySm" as="p" tone="subdued">{farewell || 'Gracias por su preferencia'}</Text>
+                  <Icon source={StarFilledIcon} tone="warning" />
+                </InlineStack>
+              </>
+            )}
+          </div>
+        </div>
+
+        <InlineStack align="center">
+          <Badge tone="info">
+            {previewMode === 'idle' ? 'Pantalla de espera' : previewMode === 'sale' ? 'Venta activa' : 'Venta finalizada'}
+          </Badge>
+        </InlineStack>
+      </BlockStack>
+    </Card>
   );
 }

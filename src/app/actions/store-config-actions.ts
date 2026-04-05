@@ -46,6 +46,11 @@ const CORE_DB_COLUMNS = new Set([
   'storeNumber', 'ticketBarcodeFormat', 'enableNotifications',
   'telegramToken', 'telegramChatId', 'printerIp', 'cashDrawerPort', 'scalePort',
   'loyaltyEnabled', 'pointsPerPeso', 'pointsValue', 'logoUrl',
+  'customerDisplayEnabled', 'customerDisplayWelcome', 'customerDisplayFarewell',
+  'customerDisplayPromoText', 'customerDisplayPromoImage',
+  'customerDisplayIdleAnimation', 'customerDisplayTransitionSpeed',
+  'customerDisplayPromoAnimation', 'customerDisplayShowClock',
+  'customerDisplayTheme', 'customerDisplayIdleCarousel', 'customerDisplayCarouselInterval',
 ]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -108,6 +113,13 @@ function mapStoreConfigRow(row: any): StoreConfig {
     closeSystemTime: (row.closeSystemTime as string) ?? DEFAULT_STORE_CONFIG.closeSystemTime,
     autoCorteTime: (row.autoCorteTime as string) ?? DEFAULT_STORE_CONFIG.autoCorteTime,
     defaultStartingFund: Number(row.defaultStartingFund) || DEFAULT_STORE_CONFIG.defaultStartingFund,
+    customerDisplayIdleAnimation: row.customerDisplayIdleAnimation ?? DEFAULT_STORE_CONFIG.customerDisplayIdleAnimation,
+    customerDisplayTransitionSpeed: row.customerDisplayTransitionSpeed ?? DEFAULT_STORE_CONFIG.customerDisplayTransitionSpeed,
+    customerDisplayPromoAnimation: row.customerDisplayPromoAnimation ?? DEFAULT_STORE_CONFIG.customerDisplayPromoAnimation,
+    customerDisplayShowClock: row.customerDisplayShowClock ?? DEFAULT_STORE_CONFIG.customerDisplayShowClock,
+    customerDisplayTheme: row.customerDisplayTheme ?? DEFAULT_STORE_CONFIG.customerDisplayTheme,
+    customerDisplayIdleCarousel: row.customerDisplayIdleCarousel ?? DEFAULT_STORE_CONFIG.customerDisplayIdleCarousel,
+    customerDisplayCarouselInterval: row.customerDisplayCarouselInterval ?? DEFAULT_STORE_CONFIG.customerDisplayCarouselInterval,
   };
 }
 
@@ -162,6 +174,18 @@ async function _fetchStoreConfig(): Promise<StoreConfig> {
       pointsPerPeso: storeConfig.pointsPerPeso,
       pointsValue: storeConfig.pointsValue,
       logoUrl: storeConfig.logoUrl,
+      customerDisplayEnabled: storeConfig.customerDisplayEnabled,
+      customerDisplayWelcome: storeConfig.customerDisplayWelcome,
+      customerDisplayFarewell: storeConfig.customerDisplayFarewell,
+      customerDisplayPromoText: storeConfig.customerDisplayPromoText,
+      customerDisplayPromoImage: storeConfig.customerDisplayPromoImage,
+      customerDisplayIdleAnimation: storeConfig.customerDisplayIdleAnimation,
+      customerDisplayTransitionSpeed: storeConfig.customerDisplayTransitionSpeed,
+      customerDisplayPromoAnimation: storeConfig.customerDisplayPromoAnimation,
+      customerDisplayShowClock: storeConfig.customerDisplayShowClock,
+      customerDisplayTheme: storeConfig.customerDisplayTheme,
+      customerDisplayIdleCarousel: storeConfig.customerDisplayIdleCarousel,
+      customerDisplayCarouselInterval: storeConfig.customerDisplayCarouselInterval,
     }).from(storeConfig).limit(1);
 
     if (rows.length === 0) {

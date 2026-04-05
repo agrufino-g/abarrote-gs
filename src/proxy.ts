@@ -114,8 +114,8 @@ const scriptSrc = isDev
 const CSP = [
   "default-src 'self'",
   scriptSrc,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.shopify.com",
+  "font-src 'self' data: https://fonts.gstatic.com https://cdn.shopify.com",
   "img-src 'self' data: blob: https://*.amazonaws.com https://lh3.googleusercontent.com https://*.mlstatic.com https://*.firebasestorage.app",
   "connect-src 'self' https://*.neon.tech wss://*.neon.tech https://firestore.googleapis.com https://firebase.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.upstash.io https://api.mercadopago.com https://api.stripe.com https://api.conekta.io https://api.telegram.org https://*.firebaseio.com wss://*.firebaseio.com https://*.amazonaws.com",
   "frame-src 'none'",

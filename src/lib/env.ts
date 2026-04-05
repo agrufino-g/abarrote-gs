@@ -115,9 +115,17 @@ function validateEnv() {
 
     // In test environment, just warn — don't crash test runners
     if (process.env.NODE_ENV === 'test') {
+      // Remove invalid URL values that fail z.string().url() in test env
+      const testCleaned = { ...cleaned };
+      const urlFields = ['BASE_URL', 'NEXT_PUBLIC_APP_URL', 'CFDI_PAC_URL'];
+      for (const field of urlFields) {
+        if (testCleaned[field]) {
+          try { new URL(testCleaned[field] as string); } catch { delete testCleaned[field]; }
+        }
+      }
       return envSchema.parse({
-        ...cleaned,
-        DATABASE_URL: cleaned.DATABASE_URL || 'postgresql://test:test@localhost/test',
+        ...testCleaned,
+        DATABASE_URL: testCleaned.DATABASE_URL || 'postgresql://test:test@localhost/test',
       });
     }
 
