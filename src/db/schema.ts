@@ -78,6 +78,13 @@ export const storeConfig = pgTable('store_config', {
   customerDisplayTheme: text('customer_display_theme').notNull().default('light'),
   customerDisplayIdleCarousel: boolean('customer_display_idle_carousel').notNull().default(false),
   customerDisplayCarouselInterval: text('customer_display_carousel_interval').notNull().default('5'),
+  // Customer Display - Extended settings
+  customerDisplayLogo: text('customer_display_logo'),
+  customerDisplayFontScale: text('customer_display_font_scale').notNull().default('1'),
+  customerDisplayAutoReturnSec: text('customer_display_auto_return_sec').notNull().default('6'),
+  customerDisplayAccentColor: text('customer_display_accent_color'),
+  customerDisplaySoundEnabled: boolean('customer_display_sound_enabled').notNull().default(false),
+  customerDisplayOrientation: text('customer_display_orientation').notNull().default('landscape'),
   inventoryGeneralColumns: text('inventory_general_columns').notNull().default('["title","sku","available","onHand"]'),
   defaultMargin: text('default_margin').notNull().default('30'),
   defaultStartingFund: numeric('default_starting_fund', { precision: 10, scale: 2 }).notNull().default('500'),

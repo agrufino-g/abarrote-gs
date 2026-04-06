@@ -45,6 +45,9 @@ export type TransitionSpeed = (typeof TRANSITION_SPEEDS)[number];
 export const CUSTOMER_DISPLAY_THEMES = ['light', 'dark', 'brand'] as const;
 export type CustomerDisplayTheme = (typeof CUSTOMER_DISPLAY_THEMES)[number];
 
+export const CUSTOMER_DISPLAY_ORIENTATIONS = ['landscape', 'portrait'] as const;
+export type CustomerDisplayOrientation = (typeof CUSTOMER_DISPLAY_ORIENTATIONS)[number];
+
 // === Configuración de Tienda (Ticket) ===
 export interface StoreConfig {
   id: string;
@@ -127,6 +130,13 @@ export interface StoreConfig {
   customerDisplayTheme: CustomerDisplayTheme;
   customerDisplayIdleCarousel: boolean;
   customerDisplayCarouselInterval: string;
+  // Customer Display - Extended
+  customerDisplayLogo: string;
+  customerDisplayFontScale: string;
+  customerDisplayAutoReturnSec: string;
+  customerDisplayAccentColor: string;
+  customerDisplaySoundEnabled: boolean;
+  customerDisplayOrientation: string;
 }
 
 export const DEFAULT_STORE_CONFIG: StoreConfig = {
@@ -177,6 +187,12 @@ export const DEFAULT_STORE_CONFIG: StoreConfig = {
   customerDisplayTheme: 'light',
   customerDisplayIdleCarousel: false,
   customerDisplayCarouselInterval: '5',
+  customerDisplayLogo: '',
+  customerDisplayFontScale: '1',
+  customerDisplayAutoReturnSec: '6',
+  customerDisplayAccentColor: '',
+  customerDisplaySoundEnabled: false,
+  customerDisplayOrientation: 'landscape',
 };
 
 export interface ProductCategory {

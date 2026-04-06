@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { fetchStoreConfig } from '@/app/actions/store-config-actions';
 import { DEFAULT_STORE_CONFIG } from '@/types';
 import type {
@@ -50,40 +50,48 @@ const SPEED_MAP: Record<TransitionSpeed, number> = {
 interface ThemeConfig {
   bg: string;
   bgSecondary: string;
+  bgGradient: string;
   text: string;
   textMuted: string;
   accent: string;
   promoBg: string;
   border: string;
+  decorLine: string;
 }
 
 const THEMES: Record<CustomerDisplayTheme, ThemeConfig> = {
   light: {
     bg: '#ffffff',
     bgSecondary: '#f6f6f7',
+    bgGradient: 'radial-gradient(ellipse at 50% 0%, #f0fdf4 0%, #ffffff 50%, #f8fafc 100%)',
     text: '#1a1a1a',
     textMuted: '#6d7175',
     accent: '#008060',
     promoBg: 'rgba(0, 128, 96, 0.08)',
     border: '#e1e3e5',
+    decorLine: 'linear-gradient(90deg, transparent, #008060, transparent)',
   },
   dark: {
-    bg: '#1a1c1e',
-    bgSecondary: '#2a2c2e',
+    bg: '#0f1114',
+    bgSecondary: '#1a1d21',
+    bgGradient: 'radial-gradient(ellipse at 50% 0%, #1e293b 0%, #0f1114 50%, #0a0c0e 100%)',
     text: '#f1f1f1',
     textMuted: '#9a9da0',
     accent: '#36d399',
     promoBg: 'rgba(54, 211, 153, 0.12)',
-    border: '#3a3c3e',
+    border: '#2a2d31',
+    decorLine: 'linear-gradient(90deg, transparent, #36d399, transparent)',
   },
   brand: {
     bg: '#0a2540',
     bgSecondary: '#123554',
+    bgGradient: 'radial-gradient(ellipse at 50% 0%, #1e4d7a 0%, #0a2540 50%, #061b2e 100%)',
     text: '#ffffff',
     textMuted: '#b0c4de',
     accent: '#00d4aa',
     promoBg: 'rgba(0, 212, 170, 0.12)',
     border: '#1e4d7a',
+    decorLine: 'linear-gradient(90deg, transparent, #00d4aa, transparent)',
   },
 };
 
@@ -250,21 +258,46 @@ export default function CustomerDisplayPage() {
     return () => channel.close();
   }, []);
 
-  // Auto-clear finished sale
+  // Auto-clear finished sale (configurable)
+  const autoReturnMs = (Number(storeConfig.customerDisplayAutoReturnSec) || 6) * 1000;
   useEffect(() => {
     if (sale.status === 'finished') {
-      const timer = setTimeout(() => setSale(EMPTY_SALE), 6000);
+      const timer = setTimeout(() => setSale(EMPTY_SALE), autoReturnMs);
       return () => clearTimeout(timer);
     }
-  }, [sale.status]);
+  }, [sale.status, autoReturnMs]);
+
+  // Sound notification on sale start
+  const soundEnabled = storeConfig.customerDisplaySoundEnabled === true;
+  const prevStatusRef = useRef(sale.status);
+  useEffect(() => {
+    if (soundEnabled && prevStatusRef.current === 'idle' && sale.status === 'active') {
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        osc.type = 'sine';
+        gain.gain.value = 0.3;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        osc.stop(ctx.currentTime + 0.15);
+      } catch { /* AudioContext not available */ }
+    }
+    prevStatusRef.current = sale.status;
+  }, [sale.status, soundEnabled]);
 
   // ── Derived values ──
   const storeName = storeConfig.storeName || 'Tu Tienda';
-  const logoUrl = storeConfig.logoUrl;
+  const displayLogo = storeConfig.customerDisplayLogo || storeConfig.logoUrl || '';
   const paymentLabel = PAYMENT_LABELS[sale.paymentMethod] ?? sale.paymentMethod;
   const welcomeMsg = storeConfig.customerDisplayWelcome || `¡Bienvenido a ${storeName}!`;
   const farewellMsg = storeConfig.customerDisplayFarewell || `${storeName} le agradece su preferencia`;
   const promoText = storeConfig.customerDisplayPromoText || '';
+  const fontScale = Number(storeConfig.customerDisplayFontScale) || 1;
+  const orientation = storeConfig.customerDisplayOrientation || 'landscape';
   const promoImages = useMemo(() => {
     const raw = storeConfig.customerDisplayPromoImage || '';
     if (!raw) return [];
@@ -289,7 +322,12 @@ export default function CustomerDisplayPage() {
   const carouselInterval = Number(storeConfig.customerDisplayCarouselInterval) || 5;
 
   const speedMs = SPEED_MAP[transitionSpeed] ?? 600;
-  const themeConfig = THEMES[theme] ?? THEMES.light;
+  const baseTheme = THEMES[theme] ?? THEMES.light;
+  // Override accent color if custom one is set
+  const customAccent = storeConfig.customerDisplayAccentColor || '';
+  const themeConfig = customAccent
+    ? { ...baseTheme, accent: customAccent }
+    : baseTheme;
 
   // Carousel
   const carouselSlides = useMemo(() => {
@@ -308,6 +346,7 @@ export default function CustomerDisplayPage() {
   const themedBg: React.CSSProperties = {
     background: themeConfig.bg,
     minHeight: '100vh',
+    fontSize: `${fontScale}rem`,
   };
 
   // ════════════════════════════════════════════════════════
@@ -343,16 +382,16 @@ export default function CustomerDisplayPage() {
 
   if (sale.status === 'idle') {
     return (
-      <div className="cd-fullscreen" style={themedBg}>
+      <div className="cd-fullscreen" style={{ background: themeConfig.bg }}>
         <div className="cd-center-col" key={carouselEnabled ? `carousel-${carouselIndex}` : `static-${animKey}`}>
-          <BlockStack gap="800" inlineAlign="center">
+          <BlockStack gap="600" inlineAlign="center">
 
-            {/* Logo / Store icon */}
+            {/* Logo / Store icon — matches preview */}
             <div style={buildAnimStyle(idleAnimation, speedMs, 0)}>
-              {logoUrl ? (
-                <Thumbnail source={logoUrl} alt={storeName} size="large" />
+              {displayLogo ? (
+                <Thumbnail source={displayLogo} alt={storeName} size="large" />
               ) : (
-                <Box padding="600" borderRadius="400" background="bg-fill-success">
+                <Box padding="600" borderRadius="300" background="bg-fill-success">
                   <div style={{ color: '#fff' }}>
                     <Icon source={StoreIcon} />
                   </div>
@@ -368,51 +407,32 @@ export default function CustomerDisplayPage() {
                     <Text variant="heading2xl" as="h1" alignment="center">
                       <span style={{ color: themeConfig.text }}>{welcomeMsg}</span>
                     </Text>
-                    <Text variant="headingMd" as="p" alignment="center">
-                      <span style={{ color: themeConfig.textMuted }}>Estamos a su servicio</span>
+                    <Text variant="bodyMd" as="p" alignment="center">
+                      <span style={{ color: themeConfig.accent }}>Estamos a su servicio</span>
                     </Text>
                   </BlockStack>
                 )}
                 {activeSlide === 'promo-text' && (
-                  <Box padding="400" borderRadius="300" maxWidth="600px">
-                    <div style={{ background: themeConfig.promoBg, borderRadius: 12, padding: '16px 24px' }}>
-                      <InlineStack gap="200" blockAlign="center" align="center">
-                        <Icon source={GiftCardIcon} tone="success" />
-                        <Text variant="bodyLg" as="p" alignment="center" tone="success">
-                          {promoText}
-                        </Text>
-                      </InlineStack>
-                    </div>
+                  <Box padding="400" borderRadius="200">
+                    <InlineStack gap="200" blockAlign="center" align="center">
+                      <Icon source={GiftCardIcon} tone="success" />
+                      <Text variant="bodyLg" as="p" alignment="center" tone="success">
+                        {promoText}
+                      </Text>
+                    </InlineStack>
                   </Box>
                 )}
-                {activeSlide.startsWith('promo-image-') && (() => {
-                  const imgIdx = Number(activeSlide.split('-')[2]);
-                  const imgUrl = promoImages[imgIdx];
-                  if (!imgUrl) return null;
-                  return (
-                    <Box borderRadius="300" maxWidth="500px">
-                      <div style={buildPromoAnimStyle(promoAnimation, speedMs)}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={imgUrl}
-                          alt={`Promoción ${imgIdx + 1}`}
-                          style={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 12 }}
-                        />
-                      </div>
-                    </Box>
-                  );
-                })()}
               </div>
             ) : (
-              <>
+              <BlockStack gap="400" inlineAlign="center">
                 {/* Welcome text */}
                 <div style={buildAnimStyle(idleAnimation, speedMs, 100)}>
                   <BlockStack gap="200" inlineAlign="center">
                     <Text variant="heading2xl" as="h1" alignment="center">
                       <span style={{ color: themeConfig.text }}>{welcomeMsg}</span>
                     </Text>
-                    <Text variant="headingMd" as="p" alignment="center">
-                      <span style={{ color: themeConfig.textMuted }}>Estamos a su servicio</span>
+                    <Text variant="bodyMd" as="p" alignment="center">
+                      <span style={{ color: themeConfig.accent }}>Estamos a su servicio</span>
                     </Text>
                   </BlockStack>
                 </div>
@@ -420,66 +440,73 @@ export default function CustomerDisplayPage() {
                 {/* Promo text */}
                 {promoText && (
                   <div style={buildAnimStyle(idleAnimation, speedMs, 200)}>
-                    <Box padding="400" borderRadius="300" maxWidth="600px">
-                      <div style={{ background: themeConfig.promoBg, borderRadius: 12, padding: '16px 24px' }}>
-                        <InlineStack gap="200" blockAlign="center" align="center">
-                          <Icon source={GiftCardIcon} tone="success" />
-                          <Text variant="bodyLg" as="p" alignment="center" tone="success">
-                            {promoText}
-                          </Text>
-                        </InlineStack>
-                      </div>
+                    <Box padding="400" borderRadius="200">
+                      <InlineStack gap="200" blockAlign="center" align="center">
+                        <Icon source={GiftCardIcon} tone="success" />
+                        <Text variant="bodyLg" as="p" alignment="center" tone="success">
+                          {promoText}
+                        </Text>
+                      </InlineStack>
                     </Box>
                   </div>
                 )}
 
-                {/* Promo images */}
+                {/* Promo image (first one) — static mode, inline like preview */}
                 {promoImages.length > 0 && (
-                  <div style={buildPromoAnimStyle(promoAnimation, speedMs, 300)}>
-                    <Box borderRadius="300" maxWidth="500px">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={promoImages[0]}
-                        alt="Promoción"
-                        style={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 12 }}
-                      />
-                    </Box>
+                  <div style={buildAnimStyle(idleAnimation, speedMs, 300)}>
+                    <Thumbnail source={promoImages[0]} alt="Promoción" size="large" />
                   </div>
                 )}
-              </>
+              </BlockStack>
             )}
 
-            {/* Clock */}
+            {/* Clock — matches preview */}
             {showClock && (
               <div style={buildAnimStyle(idleAnimation, speedMs, carouselEnabled ? 200 : 400)}>
-                <BlockStack gap="100" inlineAlign="center">
-                  <InlineStack gap="200" blockAlign="center" align="center">
-                    <Icon source={ClockIcon} tone="subdued" />
-                    <Text variant="heading3xl" as="p" fontWeight="regular">
-                      <span style={{ color: themeConfig.textMuted, letterSpacing: '2px' }}>{currentTime}</span>
-                    </Text>
-                  </InlineStack>
-                  <Text variant="bodySm" as="p" alignment="center">
-                    <span style={{ color: themeConfig.textMuted, textTransform: 'capitalize' }}>{currentDate}</span>
+                <InlineStack gap="200" blockAlign="center" align="center">
+                  <Icon source={ClockIcon} tone="subdued" />
+                  <Text variant="headingLg" as="p">
+                    <span style={{ color: themeConfig.textMuted }}>{currentTime}</span>
                   </Text>
-                </BlockStack>
+                </InlineStack>
               </div>
             )}
 
           </BlockStack>
-
-          {/* Bottom contact */}
-          {storeConfig.phone && (
-            <div className="cd-idle-bottom">
-              <Text variant="bodySm" as="p" alignment="center">
-                <span style={{ color: themeConfig.textMuted }}>
-                  Tel. {storeConfig.phone}
-                  {storeConfig.address ? ` · ${storeConfig.address}` : ''}
-                </span>
-              </Text>
-            </div>
-          )}
         </div>
+
+        {/* Bottom contact */}
+        {storeConfig.phone && (
+          <div className="cd-idle-bottom" style={{ position: 'absolute', bottom: 24, left: 0, right: 0, textAlign: 'center' }}>
+            <Text variant="bodySm" as="p" alignment="center">
+              <span style={{ color: themeConfig.textMuted }}>
+                Tel. {storeConfig.phone}
+                {storeConfig.address ? ` · ${storeConfig.address}` : ''}
+              </span>
+            </Text>
+          </div>
+        )}
+
+        {/* Full-screen promo image overlay (carousel mode) */}
+        {(() => {
+          if (carouselEnabled && activeSlide.startsWith('promo-image-')) {
+            const imgIdx = Number(activeSlide.split('-')[2]);
+            const imgUrl = promoImages[imgIdx];
+            if (!imgUrl) return null;
+            return (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 10, background: themeConfig.bg }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imgUrl}
+                  alt={`Promoción ${imgIdx + 1}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         <AnimationStyles />
       </div>
     );
@@ -572,8 +599,8 @@ export default function CustomerDisplayPage() {
         <Box padding="300" paddingInlineStart="500" paddingInlineEnd="500" background="bg-surface" borderBlockEndWidth="025" borderColor="border">
           <InlineStack align="space-between" blockAlign="center">
             <InlineStack gap="300" blockAlign="center">
-              {logoUrl ? (
-                <Thumbnail source={logoUrl} alt={storeName} size="small" />
+              {displayLogo ? (
+                <Thumbnail source={displayLogo} alt={storeName} size="small" />
               ) : (
                 <Box padding="200" background="bg-fill-success" borderRadius="200">
                   <div style={{ color: 'white' }}>
@@ -744,7 +771,7 @@ export default function CustomerDisplayPage() {
 function AnimationStyles() {
   return (
     <style>{`
-      .cd-fullscreen { width: 100vw; height: 100vh; overflow: hidden; }
+      .cd-fullscreen { width: 100vw; height: 100vh; overflow: hidden; position: relative; }
       .cd-center-col {
         display: flex; flex-direction: column;
         align-items: center; justify-content: center;

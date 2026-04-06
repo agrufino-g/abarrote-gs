@@ -96,8 +96,9 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (val, allValues: any) => {
             const cost = parseFloat(val);
-            const price = parseFloat(allValues?.unitPrice ?? '0');
-            if (!isNaN(cost) && !isNaN(price) && cost >= price) {
+            const price = parseFloat(allValues?.unitPrice ?? '');
+            // Only validate cost < price when both fields have actual values
+            if (!isNaN(cost) && !isNaN(price) && price > 0 && cost >= price) {
               return 'El costo debe ser menor al precio de venta';
             }
           },

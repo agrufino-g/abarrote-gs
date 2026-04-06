@@ -24,6 +24,7 @@ import {
   Thumbnail,
   Popover,
   OptionList,
+  ColorPicker,
 } from '@shopify/polaris';
 import {
   DesktopIcon,
@@ -45,6 +46,10 @@ import {
   StarFilledIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  TextFontIcon,
+  SoundIcon,
+  MobileIcon,
+  ColorIcon,
 } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { uploadFile } from '@/lib/storage';
@@ -61,6 +66,42 @@ import {
   TRANSITION_SPEEDS,
   CUSTOMER_DISPLAY_THEMES,
 } from '@/types';
+
+// ═══════════════════════════════════════════════════════════
+// Color helpers (hex ↔ HSB for Polaris ColorPicker)
+// ═══════════════════════════════════════════════════════════
+
+function hexToHsb(hex: string): { hue: number; saturation: number; brightness: number } {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16) / 255;
+  const g = parseInt(h.substring(2, 4), 16) / 255;
+  const b = parseInt(h.substring(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const d = max - min;
+  let hue = 0;
+  if (d !== 0) {
+    if (max === r) hue = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+    else if (max === g) hue = ((b - r) / d + 2) * 60;
+    else hue = ((r - g) / d + 4) * 60;
+  }
+  const saturation = max === 0 ? 0 : d / max;
+  return { hue, saturation, brightness: max };
+}
+
+function hsbToHex({ hue, saturation, brightness }: { hue: number; saturation: number; brightness: number }): string {
+  const c = brightness * saturation;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = brightness - c;
+  let r = 0, g = 0, b = 0;
+  if (hue < 60) { r = c; g = x; }
+  else if (hue < 120) { r = x; g = c; }
+  else if (hue < 180) { g = c; b = x; }
+  else if (hue < 240) { g = x; b = c; }
+  else if (hue < 300) { r = x; b = c; }
+  else { r = c; b = x; }
+  const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
 
 // ═══════════════════════════════════════════════════════════
 // Constants / Labels
@@ -144,6 +185,13 @@ export function CustomerDisplaySectionV4() {
   const [theme, setTheme] = useState<CustomerDisplayTheme>((storeConfig.customerDisplayTheme ?? 'light') as CustomerDisplayTheme);
   const [carousel, setCarousel] = useState(storeConfig.customerDisplayIdleCarousel ?? false);
   const [carouselSec, setCarouselSec] = useState(storeConfig.customerDisplayCarouselInterval ?? '5');
+  // Extended settings
+  const [customLogo, setCustomLogo] = useState(storeConfig.customerDisplayLogo ?? '');
+  const [fontScale, setFontScale] = useState(storeConfig.customerDisplayFontScale ?? '1');
+  const [autoReturnSec, setAutoReturnSec] = useState(storeConfig.customerDisplayAutoReturnSec ?? '6');
+  const [accentColor, setAccentColor] = useState(storeConfig.customerDisplayAccentColor ?? '');
+  const [soundEnabled, setSoundEnabled] = useState(storeConfig.customerDisplaySoundEnabled ?? false);
+  const [orientation, setOrientation] = useState(storeConfig.customerDisplayOrientation ?? 'landscape');
 
   // Sync ALL local state when store hydrates (initial load or external update)
   useEffect(() => {
@@ -159,6 +207,12 @@ export function CustomerDisplaySectionV4() {
     setTheme((storeConfig.customerDisplayTheme ?? 'light') as CustomerDisplayTheme);
     setCarousel(storeConfig.customerDisplayIdleCarousel ?? false);
     setCarouselSec(storeConfig.customerDisplayCarouselInterval ?? '5');
+    setCustomLogo(storeConfig.customerDisplayLogo ?? '');
+    setFontScale(storeConfig.customerDisplayFontScale ?? '1');
+    setAutoReturnSec(storeConfig.customerDisplayAutoReturnSec ?? '6');
+    setAccentColor(storeConfig.customerDisplayAccentColor ?? '');
+    setSoundEnabled(storeConfig.customerDisplaySoundEnabled ?? false);
+    setOrientation(storeConfig.customerDisplayOrientation ?? 'landscape');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeConfig]);
 
@@ -171,6 +225,7 @@ export function CustomerDisplaySectionV4() {
   const [idleAnimPop, setIdleAnimPop] = useState(false);
   const [promoAnimPop, setPromoAnimPop] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
 
   const displayUrl = typeof window !== 'undefined' ? `${window.location.origin}/display` : '/display';
   const isBusy = isPending || status === 'saving';
@@ -251,13 +306,70 @@ export function CustomerDisplaySectionV4() {
     save('customerDisplayCarouselInterval', str, () => setCarouselSec(prev));
   }, [carouselSec, save]);
 
+  const onFontScale = useCallback((v: number) => {
+    const prev = fontScale;
+    const str = String(v);
+    setFontScale(str);
+    save('customerDisplayFontScale', str, () => setFontScale(prev));
+  }, [fontScale, save]);
+
+  const onAutoReturn = useCallback((v: number) => {
+    const prev = autoReturnSec;
+    const str = String(v);
+    setAutoReturnSec(str);
+    save('customerDisplayAutoReturnSec', str, () => setAutoReturnSec(prev));
+  }, [autoReturnSec, save]);
+
+  const onAccentColor = useCallback((v: string) => {
+    setAccentColor(v);
+    debouncedSave('customerDisplayAccentColor', v);
+  }, [debouncedSave]);
+
+  const onSoundEnabled = useCallback((v: boolean) => {
+    const prev = soundEnabled;
+    setSoundEnabled(v);
+    save('customerDisplaySoundEnabled', v, () => setSoundEnabled(prev));
+  }, [soundEnabled, save]);
+
+  const onOrientation = useCallback((v: string) => {
+    const prev = orientation;
+    setOrientation(v);
+    save('customerDisplayOrientation', v, () => setOrientation(prev));
+  }, [orientation, save]);
+
   const copyUrl = useCallback(async () => {
     try { await navigator.clipboard.writeText(displayUrl); setUrlCopied(true); setTimeout(() => setUrlCopied(false), 2500); } catch { /* noop */ }
   }, [displayUrl]);
 
   const openDisplay = useCallback(() => {
-    window.open('/display', 'customer_display', 'width=1024,height=768,menubar=no,toolbar=no');
+    const w = orientation === 'portrait' ? 768 : 1024;
+    const h = orientation === 'portrait' ? 1024 : 768;
+    window.open('/display', 'customer_display', `width=${w},height=${h},menubar=no,toolbar=no`);
+  }, [orientation]);
+
+  const onLogoDrop = useCallback((_a: File[], rej: File[]) => {
+    if (rej.length) setErrorMsg('Solo imágenes (JPG, PNG, WebP) de máximo 2 MB.');
   }, []);
+
+  const onLogoAccepted = useCallback(async (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    setUploading(true);
+    setErrorMsg(null);
+    try {
+      const ext = file.name.split('.').pop() ?? 'webp';
+      const url = await uploadFile(file, `display/logo-${Date.now()}.${ext}`);
+      setCustomLogo(url);
+      await save('customerDisplayLogo', url, () => setCustomLogo(customLogo));
+    } catch (err) { setErrorMsg(parseError(err).description); }
+    finally { setUploading(false); }
+  }, [save, customLogo]);
+
+  const removeLogo = useCallback(() => {
+    const prev = customLogo;
+    setCustomLogo('');
+    save('customerDisplayLogo', '', () => setCustomLogo(prev));
+  }, [customLogo, save]);
 
   const onImageDrop = useCallback((_a: File[], rej: File[]) => {
     if (rej.length) setErrorMsg('Solo imágenes (JPG, PNG, WebP) de máximo 2 MB.');
@@ -621,6 +733,185 @@ export function CustomerDisplaySectionV4() {
       </Card>
 
       {/* ═══════════════════════════════════════════════════
+          CARD 6.1 — Logo personalizado
+          ═══════════════════════════════════════════════════ */}
+      <Card>
+        <BlockStack gap="400">
+          <InlineStack gap="200" blockAlign="center">
+            <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+              <Icon source={ImageIcon} tone="info" />
+            </Box>
+            <BlockStack gap="050">
+              <Text variant="headingMd" as="h3">Logo de pantalla</Text>
+              <Text variant="bodySm" as="p" tone="subdued">Logo que aparece en la pantalla de espera. Si no se configura, se usa el logo general.</Text>
+            </BlockStack>
+          </InlineStack>
+
+          {customLogo ? (
+            <InlineStack gap="400" blockAlign="center">
+              <Thumbnail source={customLogo} alt="Logo display" size="large" />
+              <Button icon={DeleteIcon} tone="critical" variant="plain" onClick={removeLogo}>Eliminar logo</Button>
+            </InlineStack>
+          ) : (
+            <DropZone accept="image/*" type="image" allowMultiple={false} onDrop={onLogoDrop} onDropAccepted={onLogoAccepted}>
+              {uploading ? (
+                <Box padding="400"><BlockStack gap="200" inlineAlign="center"><Spinner size="small" /><Text variant="bodySm" as="span" tone="subdued">Subiendo...</Text></BlockStack></Box>
+              ) : (
+                <DropZone.FileUpload actionHint="JPG, PNG o WebP · Recomendado: cuadrado 200×200px" />
+              )}
+            </DropZone>
+          )}
+        </BlockStack>
+      </Card>
+
+      {/* ═══════════════════════════════════════════════════
+          CARD 6.2 — Personalización avanzada
+          ═══════════════════════════════════════════════════ */}
+      <Card>
+        <BlockStack gap="500">
+          <InlineStack gap="200" blockAlign="center">
+            <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+              <Icon source={TextFontIcon} tone="info" />
+            </Box>
+            <BlockStack gap="050">
+              <Text variant="headingMd" as="h3">Personalización avanzada</Text>
+              <Text variant="bodySm" as="p" tone="subdued">Tipografía, colores y comportamiento.</Text>
+            </BlockStack>
+          </InlineStack>
+
+          <Divider />
+
+          <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+            {/* Font scale */}
+            <BlockStack gap="200">
+              <Text variant="bodySm" as="p" fontWeight="semibold">Tamaño de fuente</Text>
+              <RangeSlider
+                label={`${Number(fontScale).toFixed(1)}x`}
+                value={Number(fontScale) * 10}
+                min={7}
+                max={15}
+                step={1}
+                onChange={(v) => onFontScale((v as number) / 10)}
+                output
+              />
+              <Text variant="bodySm" as="p" tone="subdued">Escala del texto: 0.7x (pequeño) → 1.5x (grande).</Text>
+            </BlockStack>
+
+            {/* Auto return */}
+            <BlockStack gap="200">
+              <Text variant="bodySm" as="p" fontWeight="semibold">Tiempo auto-retorno</Text>
+              <RangeSlider
+                label={`${autoReturnSec} segundos`}
+                value={Number(autoReturnSec)}
+                min={3}
+                max={30}
+                step={1}
+                onChange={(v) => onAutoReturn(v as number)}
+                output
+              />
+              <Text variant="bodySm" as="p" tone="subdued">Segundos para volver a pantalla de espera después de una venta.</Text>
+            </BlockStack>
+          </InlineGrid>
+
+          <Divider />
+
+          <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+            {/* Accent color */}
+            <BlockStack gap="200">
+              <InlineStack gap="200" blockAlign="center">
+                <Icon source={ColorIcon} tone="subdued" />
+                <Text variant="bodySm" as="p" fontWeight="semibold">Color de acento personalizado</Text>
+              </InlineStack>
+              <InlineStack gap="300" blockAlign="center">
+                <Popover
+                  active={colorPickerOpen}
+                  onClose={() => setColorPickerOpen(false)}
+                  activator={
+                    <div
+                      style={{ width: 36, height: 36, borderRadius: 8, background: accentColor || THEME_META[theme].accent, border: '2px solid var(--p-color-border)', cursor: 'pointer' }}
+                      onClick={() => setColorPickerOpen(true)}
+                      role="button"
+                      tabIndex={0}
+                      title="Clic para elegir color"
+                    />
+                  }
+                >
+                  <Box padding="300">
+                    <ColorPicker
+                      color={hexToHsb(accentColor || THEME_META[theme].accent)}
+                      onChange={(hsb) => onAccentColor(hsbToHex(hsb))}
+                    />
+                  </Box>
+                </Popover>
+                <div style={{ flex: 1 }}>
+                  <TextField
+                    label=""
+                    labelHidden
+                    value={accentColor}
+                    onChange={onAccentColor}
+                    placeholder="#00d4aa"
+                    maxLength={9}
+                    autoComplete="off"
+                    helpText="Hex (ej. #FF6B00). Vacío = color del tema."
+                  />
+                </div>
+              </InlineStack>
+            </BlockStack>
+
+            {/* Sound */}
+            <BlockStack gap="200">
+              <InlineStack gap="200" blockAlign="center">
+                <Icon source={SoundIcon} tone="subdued" />
+                <Text variant="bodySm" as="p" fontWeight="semibold">Sonido de notificación</Text>
+              </InlineStack>
+              <Checkbox
+                label="Reproducir sonido al iniciar venta"
+                checked={soundEnabled}
+                onChange={onSoundEnabled}
+                helpText="Un beep corto cuando se agrega el primer producto."
+              />
+            </BlockStack>
+          </InlineGrid>
+        </BlockStack>
+      </Card>
+
+      {/* ═══════════════════════════════════════════════════
+          CARD 6.3 — Orientación de pantalla
+          ═══════════════════════════════════════════════════ */}
+      <Card>
+        <BlockStack gap="400">
+          <InlineStack gap="200" blockAlign="center">
+            <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+              <Icon source={MobileIcon} tone="info" />
+            </Box>
+            <BlockStack gap="050">
+              <Text variant="headingMd" as="h3">Orientación de pantalla</Text>
+              <Text variant="bodySm" as="p" tone="subdued">Selecciona según la posición de tu monitor o tablet.</Text>
+            </BlockStack>
+          </InlineStack>
+
+          <InlineStack gap="300" blockAlign="stretch">
+            {[
+              { value: 'landscape', label: 'Horizontal', desc: 'Monitor estándar', width: 64, height: 40 },
+              { value: 'portrait', label: 'Vertical', desc: 'Tablet o pantalla girada', width: 40, height: 64 },
+            ].map((opt) => {
+              const active = orientation === opt.value;
+              return (
+                <div key={opt.value} role="button" tabIndex={0} onClick={() => onOrientation(opt.value)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOrientation(opt.value); }} style={{ cursor: 'pointer', border: active ? '2px solid var(--p-color-border-emphasis)' : '2px solid transparent', borderRadius: 12, padding: 16, background: active ? 'var(--p-color-bg-surface-selected)' : 'var(--p-color-bg-surface-secondary)', minWidth: 140 }}>
+                  <BlockStack gap="200" inlineAlign="center">
+                    <div style={{ width: opt.width, height: opt.height, borderRadius: 6, border: '2px solid var(--p-color-border)', background: active ? 'var(--p-color-bg-fill-info)' : 'var(--p-color-bg-surface)' }} />
+                    <Text variant="bodySm" as="span" fontWeight={active ? 'bold' : undefined}>{opt.label}</Text>
+                    <Text variant="bodySm" as="span" tone="subdued">{opt.desc}</Text>
+                    {active && <Icon source={CheckIcon} tone="success" />}
+                  </BlockStack>
+                </div>
+              );
+            })}
+          </InlineStack>
+        </BlockStack>
+      </Card>
+
+      {/* ═══════════════════════════════════════════════════
           CARD 7 — Vista previa
           ═══════════════════════════════════════════════════ */}
       <PreviewCard
@@ -659,7 +950,7 @@ export function CustomerDisplaySectionV4() {
                 <Text variant="bodyMd" as="p" fontWeight="semibold">Auto-retorno a espera</Text>
                 <Text variant="bodySm" as="p" tone="subdued">Después de cada venta, la pantalla vuelve al modo espera automáticamente.</Text>
               </BlockStack>
-              <Badge tone="info">6 segundos</Badge>
+              <Badge tone="info">{autoReturnSec} segundos</Badge>
             </InlineStack>
             <Divider />
             <InlineStack align="space-between" blockAlign="center">

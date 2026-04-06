@@ -186,6 +186,12 @@ async function _fetchStoreConfig(): Promise<StoreConfig> {
       customerDisplayTheme: storeConfig.customerDisplayTheme,
       customerDisplayIdleCarousel: storeConfig.customerDisplayIdleCarousel,
       customerDisplayCarouselInterval: storeConfig.customerDisplayCarouselInterval,
+      customerDisplayLogo: storeConfig.customerDisplayLogo,
+      customerDisplayFontScale: storeConfig.customerDisplayFontScale,
+      customerDisplayAutoReturnSec: storeConfig.customerDisplayAutoReturnSec,
+      customerDisplayAccentColor: storeConfig.customerDisplayAccentColor,
+      customerDisplaySoundEnabled: storeConfig.customerDisplaySoundEnabled,
+      customerDisplayOrientation: storeConfig.customerDisplayOrientation,
     }).from(storeConfig).limit(1);
 
     if (rows.length === 0) {

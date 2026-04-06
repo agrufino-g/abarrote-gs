@@ -386,6 +386,12 @@ export const saveStoreConfigSchema = z.object({
   customerDisplayTheme: z.string().max(10).optional(),
   customerDisplayIdleCarousel: z.boolean().optional(),
   customerDisplayCarouselInterval: z.string().max(5).optional(),
+  customerDisplayLogo: z.string().max(2000).optional(),
+  customerDisplayFontScale: z.string().max(5).optional(),
+  customerDisplayAutoReturnSec: z.string().max(5).optional(),
+  customerDisplayAccentColor: z.string().max(20).optional(),
+  customerDisplaySoundEnabled: z.boolean().optional(),
+  customerDisplayOrientation: z.string().max(15).optional(),
 }).passthrough(); // Allow unknown fields to not break on new config additions
 
 // ══════════════════════════════════════════════════════
