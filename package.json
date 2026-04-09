@@ -65,6 +65,7 @@
     "postprocessing": "^6.38.3",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
+    "react-doctor": "^0.0.31",
     "react-dom": "19.2.3",
     "sileo": "^0.1.5",
     "stripe": "^21.0.1",

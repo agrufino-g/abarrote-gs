@@ -950,7 +950,7 @@ export function CustomerDisplaySectionV4() {
                 <Text variant="bodyMd" as="p" fontWeight="semibold">Auto-retorno a espera</Text>
                 <Text variant="bodySm" as="p" tone="subdued">Después de cada venta, la pantalla vuelve al modo espera automáticamente.</Text>
               </BlockStack>
-              <Badge tone="info">{autoReturnSec} segundos</Badge>
+              <Badge tone="info">{`${autoReturnSec} segundos`}</Badge>
             </InlineStack>
             <Divider />
             <InlineStack align="space-between" blockAlign="center">
