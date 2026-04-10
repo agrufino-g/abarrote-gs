@@ -1267,7 +1267,7 @@ function MessageSlotDesigner({
                     variant={SIZE_TO_POLARIS_VARIANT[style.textSize]}
                     as="p"
                     fontWeight={style.textWeight === 'regular' ? undefined : style.textWeight}
-                    alignment={style.textAlign}
+                    alignment={toPolarisAlign(style.textAlign)}
                   >
                     <span style={{
                       color: style.textColor || undefined,
@@ -1277,7 +1277,7 @@ function MessageSlotDesigner({
                     </span>
                   </Text>
                   {style.subtitle && (
-                    <Text variant="bodySm" as="p" tone="subdued" alignment={style.textAlign}>
+                    <Text variant="bodySm" as="p" tone="subdued" alignment={toPolarisAlign(style.textAlign)}>
                       {style.subtitle}
                     </Text>
                   )}
@@ -1289,6 +1289,12 @@ function MessageSlotDesigner({
       </Collapsible>
     </BlockStack>
   );
+}
+
+function toPolarisAlign(align: string | undefined): 'start' | 'center' | 'end' {
+  if (align === 'left') return 'start';
+  if (align === 'right') return 'end';
+  return 'center';
 }
 
 const SIZE_TO_POLARIS_VARIANT: Record<MessageTextSize, 'bodySm' | 'bodyMd' | 'bodyLg' | 'headingMd' | 'headingLg'> = {
