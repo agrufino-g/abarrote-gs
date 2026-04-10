@@ -327,6 +327,7 @@ export const gastos = pgTable('gastos', {
   fecha: timestamp('fecha').notNull().defaultNow(),
   notas: text('notas').notNull().default(''),
   comprobante: boolean('comprobante').notNull().default(false),
+  comprobanteUrl: text('comprobante_url'),
 }, (t) => [
   index('gastos_fecha_idx').on(t.fecha),
   index('gastos_categoria_idx').on(t.categoria),

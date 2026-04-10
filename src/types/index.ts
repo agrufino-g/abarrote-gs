@@ -626,6 +626,7 @@ export interface Gasto {
   fecha: string;
   notas: string;
   comprobante: boolean;
+  comprobanteUrl?: string | null;
 }
 
 // === Roles y Permisos ===

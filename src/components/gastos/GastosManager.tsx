@@ -19,6 +19,8 @@ import {
   Divider,
   Checkbox,
   Banner,
+  DropZone,
+  Spinner,
 } from '@shopify/polaris';
 import { PlusIcon, ExportIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -66,6 +68,20 @@ export function GastosManager() {
   const [i18n] = useI18n();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
+  const [uploadedComprobanteUrl, setUploadedComprobanteUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  const uploadComprobante = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('path', `receipts/gasto-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`);
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    if (!res.ok) throw new Error('Error al subir comprobante');
+    const data = await res.json();
+    return data.url;
+  };
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [filterCategoria, setFilterCategoria] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
@@ -87,24 +103,41 @@ export function GastosManager() {
       comprobante: useField(false),
     },
     onSubmit: async (f) => {
-      await registerGasto({
-        concepto: f.concepto.trim(),
-        categoria: f.categoria as GastoCategoria,
-        monto: parseFloat(f.monto),
-        fecha: f.fecha,
-        notas: f.notas,
-        comprobante: f.comprobante,
-      });
-      showSuccess(`Gasto "${f.concepto}" registrado`);
-      setAddOpen(false);
-      resetAddForm();
-      return { status: 'success' };
+      setIsUploading(true);
+      try {
+        let url = uploadedComprobanteUrl;
+        if (f.comprobante && comprobanteFile && !url) {
+          url = await uploadComprobante(comprobanteFile);
+        }
+        
+        await registerGasto({
+          concepto: f.concepto.trim(),
+          categoria: f.categoria as GastoCategoria,
+          monto: parseFloat(f.monto),
+          fecha: f.fecha,
+          notas: f.notas,
+          comprobante: f.comprobante,
+          comprobanteUrl: url,
+        });
+        showSuccess(`Gasto "${f.concepto}" registrado`);
+        setAddOpen(false);
+        resetAddForm();
+        setComprobanteFile(null);
+        setUploadedComprobanteUrl(null);
+        return { status: 'success' };
+      } catch (err) {
+        showError('Error al guardar gasto o subir comprobante');
+        return { status: 'fail', errors: [{ message: 'Error al subir', field: ['comprobante'] }] };
+      } finally {
+        setIsUploading(false);
+      }
     },
   });
 
   // ── Form State (Edit Gasto) ──
   const [editId, setEditId] = useState('');
   const [editOpen, setEditOpen] = useState(false);
+  const [editOriginalUrl, setEditOriginalUrl] = useState<string | null>(null);
   const {
     fields: editFields,
     reset: resetEditForm,
@@ -122,17 +155,35 @@ export function GastosManager() {
       comprobante: useField(false),
     },
     onSubmit: async (f) => {
-      await updateGasto(editId, {
-        concepto: f.concepto.trim(),
-        categoria: f.categoria as GastoCategoria,
-        monto: parseFloat(f.monto),
-        fecha: f.fecha,
-        notas: f.notas,
-        comprobante: f.comprobante,
-      });
-      showSuccess('Gasto actualizado');
-      setEditOpen(false);
-      return { status: 'success' };
+      setIsUploading(true);
+      try {
+        let url = uploadedComprobanteUrl || editOriginalUrl;
+        if (f.comprobante && comprobanteFile && !uploadedComprobanteUrl) {
+          url = await uploadComprobante(comprobanteFile);
+        } else if (!f.comprobante) {
+          url = null;
+        }
+        
+        await updateGasto(editId, {
+          concepto: f.concepto.trim(),
+          categoria: f.categoria as GastoCategoria,
+          monto: parseFloat(f.monto),
+          fecha: f.fecha,
+          notas: f.notas,
+          comprobante: f.comprobante,
+          comprobanteUrl: url,
+        });
+        showSuccess('Gasto actualizado');
+        setEditOpen(false);
+        setComprobanteFile(null);
+        setUploadedComprobanteUrl(null);
+        return { status: 'success' };
+      } catch (err) {
+        showError('Error al guardar gasto o subir comprobante');
+        return { status: 'fail', errors: [{ message: 'Error al subir', field: ['comprobante'] }] };
+      } finally {
+        setIsUploading(false);
+      }
     },
   });
 
@@ -177,9 +228,59 @@ export function GastosManager() {
     editFields.fecha.onChange(g.fecha);
     editFields.notas.onChange(g.notas || '');
     editFields.comprobante.onChange(g.comprobante);
+    setEditOriginalUrl(g.comprobanteUrl || null);
+    setComprobanteFile(null);
+    setUploadedComprobanteUrl(null);
     makeEditClean();
     setEditOpen(true);
   }, [editFields, makeEditClean]);
+
+  // ── AI Extraction ──
+  const analyzeReceipt = async (file: File, fields: any) => {
+    setIsAnalyzing(true);
+    showSuccess('Evaluando con IA...');
+    try {
+      const url = await uploadComprobante(file);
+      setUploadedComprobanteUrl(url);
+
+      const res = await fetch('/api/extract-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!res.ok) throw new Error('falló ext');
+      const { data } = await res.json();
+
+      if (data) {
+        if (data.concepto) fields.concepto.onChange(data.concepto);
+        if (data.monto) fields.monto.onChange(String(data.monto));
+        if (data.fecha) fields.fecha.onChange(data.fecha);
+        if (data.categoria) fields.categoria.onChange(data.categoria);
+        showSuccess('¡Datos extraídos con éxito!');
+      }
+    } catch (err) {
+      showError('Ocurrió un error al analizar con la IA. Por favor, rellena los campos manual.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleAddDropZoneDrop = useCallback((_dropFiles: File[], acceptedFiles: File[]) => {
+    if (acceptedFiles.length > 0) {
+      setComprobanteFile(acceptedFiles[0]);
+      setUploadedComprobanteUrl(null);
+      analyzeReceipt(acceptedFiles[0], addFields);
+    }
+  }, [addFields]);
+
+  const handleEditDropZoneDrop = useCallback((_dropFiles: File[], acceptedFiles: File[]) => {
+    if (acceptedFiles.length > 0) {
+      setComprobanteFile(acceptedFiles[0]);
+      setUploadedComprobanteUrl(null);
+      analyzeReceipt(acceptedFiles[0], editFields);
+    }
+  }, [editFields]);
 
   // edit logic moved to useForm onSubmit
 
@@ -246,7 +347,7 @@ export function GastosManager() {
           <BlockStack gap="300">
             <SectionHeader
               title="Registro de Gastos"
-              primaryAction={{ content: 'Nuevo Gasto', icon: PlusIcon, onAction: () => setAddOpen(true) }}
+              primaryAction={{ content: 'Nuevo Gasto', icon: PlusIcon, onAction: () => { setAddOpen(true); setComprobanteFile(null); setUploadedComprobanteUrl(null); resetAddForm(); } }}
               secondaryActions={[{ content: 'Exportar', icon: ExportIcon, onAction: () => setIsExportOpen(true) }]}
             />
 
@@ -307,9 +408,16 @@ export function GastosManager() {
                     <Text as="span" fontWeight="bold" tone="critical">{formatCurrency(gasto.monto)}</Text>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
-                    <Badge tone={gasto.comprobante ? 'success' : 'attention'}>
-                      {gasto.comprobante ? 'Sí' : 'No'}
-                    </Badge>
+                    <BlockStack gap="100">
+                      <Badge tone={gasto.comprobante ? 'success' : 'attention'}>
+                        {gasto.comprobante ? 'Sí' : 'No'}
+                      </Badge>
+                      {gasto.comprobanteUrl && (
+                        <Button variant="plain" size="micro" onClick={() => window.open(gasto.comprobanteUrl!, '_blank')}>
+                          Ver Ticket
+                        </Button>
+                      )}
+                    </BlockStack>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <InlineStack gap="100">
@@ -336,8 +444,8 @@ export function GastosManager() {
         title="Registrar Gasto"
         primaryAction={{ content: 'Guardar Gasto', onAction: () => {
           if (validateAdd().length === 0) submitAdd();
-        }, loading: addSubmitting }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => setAddOpen(false) }]}
+        }, loading: addSubmitting || isUploading || isAnalyzing }}
+        secondaryActions={[{ content: 'Cancelar', onAction: () => setAddOpen(false), disabled: isUploading || isAnalyzing }]}
       >
         <Modal.Section>
           <FormLayout>
@@ -383,6 +491,21 @@ export function GastosManager() {
               checked={addFields.comprobante.value}
               onChange={addFields.comprobante.onChange}
             />
+            {addFields.comprobante.value && (
+              <Box paddingBlockStart="200">
+                <Text as="p" variant="bodyMd" fontWeight="semibold">Subir archivo (Ticket/Factura)</Text>
+                <Box paddingBlockStart="100">
+                  <DropZone accept="image/*,application/pdf" type="file" allowMultiple={false} onDrop={handleAddDropZoneDrop}>
+                    <DropZone.FileUpload actionHint={isAnalyzing ? "Analizando con IA..." : (comprobanteFile ? comprobanteFile.name : "Archivos permitidos: JPG, PNG, PDF")} />
+                  </DropZone>
+                  {isAnalyzing && (
+                    <Box paddingBlockStart="200">
+                      <Banner tone="info">Analizando el ticket con IA, espere un momento para el autollenado...</Banner>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
           </FormLayout>
         </Modal.Section>
       </Modal>
@@ -394,8 +517,8 @@ export function GastosManager() {
         title="Editar Gasto"
         primaryAction={{ content: 'Guardar Cambios', onAction: () => {
           if (validateEdit().length === 0) submitEdit();
-        }, loading: editSubmitting }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => setEditOpen(false) }]}
+        }, loading: editSubmitting || isUploading || isAnalyzing }}
+        secondaryActions={[{ content: 'Cancelar', onAction: () => setEditOpen(false), disabled: isUploading || isAnalyzing }]}
       >
         <Modal.Section>
           <FormLayout>
@@ -411,6 +534,21 @@ export function GastosManager() {
             <TextField label="Fecha" type="date" value={editFields.fecha.value} onChange={editFields.fecha.onChange} autoComplete="off" />
             <TextField label="Notas (opcional)" value={editFields.notas.value} onChange={editFields.notas.onChange} autoComplete="off" multiline={2} />
             <Checkbox label="¿Tiene comprobante/factura?" checked={editFields.comprobante.value} onChange={editFields.comprobante.onChange} />
+            {editFields.comprobante.value && (
+              <Box paddingBlockStart="200">
+                <Text as="p" variant="bodyMd" fontWeight="semibold">Subir archivo nuevo (Opcional)</Text>
+                <Box paddingBlockStart="100">
+                  <DropZone accept="image/*,application/pdf" type="file" allowMultiple={false} onDrop={handleEditDropZoneDrop}>
+                    <DropZone.FileUpload actionHint={isAnalyzing ? "Analizando con IA..." : (comprobanteFile ? comprobanteFile.name : (editOriginalUrl ? "Ya tiene archivo. Sube otro para reemplazar y re-escanear." : "Archivos permitidos: JPG, PNG, PDF"))} />
+                  </DropZone>
+                  {isAnalyzing && (
+                    <Box paddingBlockStart="200">
+                      <Banner tone="info">Analizando el ticket con IA, espere un momento para el autollenado...</Banner>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
           </FormLayout>
         </Modal.Section>
       </Modal>

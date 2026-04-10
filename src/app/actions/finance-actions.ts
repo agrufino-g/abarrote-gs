@@ -24,6 +24,7 @@ async function _fetchGastos(): Promise<Gasto[]> {
     fecha: r.fecha.toISOString(),
     notas: r.notas,
     comprobante: r.comprobante,
+    comprobanteUrl: r.comprobanteUrl,
   }));
 }
 
@@ -40,6 +41,7 @@ async function _createGasto(data: Omit<Gasto, 'id'>): Promise<Gasto> {
     fecha: new Date(data.fecha),
     notas: data.notas,
     comprobante: data.comprobante,
+    comprobanteUrl: data.comprobanteUrl,
   });
 
   return { ...data, id };
@@ -56,6 +58,7 @@ async function _updateGasto(id: string, data: Partial<Gasto>): Promise<void> {
   if (data.fecha !== undefined) updateData.fecha = new Date(data.fecha);
   if (data.notas !== undefined) updateData.notas = data.notas;
   if (data.comprobante !== undefined) updateData.comprobante = data.comprobante;
+  if (data.comprobanteUrl !== undefined) updateData.comprobanteUrl = data.comprobanteUrl;
   if (Object.keys(updateData).length > 0) {
     await db.update(gastos).set(updateData).where(eq(gastos.id, id));
   }

@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validar tipo de archivo
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'application/pdf'];
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json({ error: 'Tipo de archivo no permitido. Solo imágenes.' }, { status: 400 });
     }

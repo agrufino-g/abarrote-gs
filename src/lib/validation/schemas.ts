@@ -125,6 +125,7 @@ export const createGastoSchema = z.object({
   fecha: z.coerce.date(),
   notas: z.string().max(2000).default(''),
   comprobante: z.boolean().default(false),
+  comprobanteUrl: z.string().url().max(2000).nullable().optional(),
 });
 
 export const updateGastoSchema = createGastoSchema.partial();
