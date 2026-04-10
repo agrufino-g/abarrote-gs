@@ -1,0 +1,1 @@
+ALTER TABLE "store_config" ADD COLUMN "ticket_design_proveedor" text;

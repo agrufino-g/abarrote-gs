@@ -1,6 +1,5 @@
 'use client';
 
-import JsBarcode from 'jsbarcode';
 import {
   Card,
   Text,
@@ -16,80 +15,7 @@ import { TicketTemplateSection, SAMPLE_VARS_VENTA, SAMPLE_VARS_PROVEEDOR } from 
 import { TicketDesignerSection } from './TicketDesignerSection';
 import type { SettingsSectionProps } from './types';
 
-// ─── Ticket preview helpers ──────────────────────────────────────────────────
-const TW = 40;
-
-function center(text: string) {
-  const t = text.trim();
-  if (t.length >= TW) return t;
-  const pad = TW - t.length;
-  return ' '.repeat(Math.floor(pad / 2)) + t;
-}
-
-function wrapCenter(text: string) {
-  const words = text.trim().split(/\s+/);
-  const lines: string[] = [];
-  let cur = '';
-  for (const w of words) {
-    const c = cur ? `${cur} ${w}` : w;
-    if (c.length > TW) { if (cur) lines.push(center(cur)); cur = w; }
-    else cur = c;
-  }
-  if (cur) lines.push(center(cur));
-  return lines.join('\n');
-}
-
-const dashes = '-'.repeat(TW);
-
-function fmtAmt(s: string) {
-  return ('$ ' + s).padStart(16);
-}
-
 export function PosSection({ config, updateField }: SettingsSectionProps) {
-  const footerPrev = (config.ticketFooter || '').split('\\n').map((l: string) => center(l)).join('\n');
-
-  const previewText = `
-${center(config.legalName || 'NOMBRE LEGAL')}
-${center(config.address || 'DIRECCIÓN OMITIDA')}
-${center(`C.P. ${config.postalCode || '00000'}, ${config.city || 'CIUDAD'}`)}
-${center(`RFC: ${config.rfc || 'XAXX010101000'}`)}
-${center(`TEL: ${config.phone || '000-000-0000'}`)}
-${center(`REGIMEN FISCAL - ${config.regimenFiscal || 'XXX'}`)}
-${wrapCenter(config.regimenDescription || 'DESCRIPCIÓN DEL REGIMEN')}
-${center('ESTE COMPROBANTE NO ES VALIDO PARA')}
-${center('EFECTOS FISCALES')}
-
-${center(`TDA#${config.storeNumber || '001'} OP#CAJERO 1     TR# V-000001`)}
-${center('01/01/2026              12:00:00')}
-${center('RFC: SIN R.F.C.')}
-${dashes}
-  PRODUCTO EJEMPLO
-    2 pza x $25.00    ${fmtAmt('50.00')}
-  REFRESCO COLA 600ML
-    1 pza x $18.00    ${fmtAmt('18.00')}
-${dashes}
-  SUBTOTAL            ${fmtAmt('68.00')}
-  TOTAL               ${fmtAmt('68.00')}
-  EFECTIVO            ${fmtAmt('68.00')}
-  CAMBIO              ${fmtAmt('0.00')}
-
-${dashes}
-  IVA    ${config.ivaRate || '0'}.0%  ${fmtAmt('58.62')}${fmtAmt('9.38')}
-${dashes}
-  TOTAL IVA           ${fmtAmt('9.38')}
-
-${center('ARTICULOS VENDIDOS    3')}
-`;
-
-  const previewTextAfter = `${dashes}
-
-${footerPrev}
-${center('Necesitas ayuda ahora?')}
-${center(config.ticketServicePhone || 'SIN TELÉFONO')}
-${dashes}
-${center(`Vigencia ${config.ticketVigencia || 'N/A'}`)}
-`;
-
   return (
     <BlockStack gap="500">
       <Layout.AnnotatedSection title="Comportamiento del checkout" description="Automatizaciones para agilizar el cobro en mostrador.">
@@ -159,30 +85,6 @@ ${center(`Vigencia ${config.ticketVigencia || 'N/A'}`)}
         </Card>
       </Layout.AnnotatedSection>
 
-      <Layout.AnnotatedSection title="Simulador de Ticket" description="Una vista previa realista de cómo los recibos saldrán de la impresora térmica con la configuración actual.">
-        <Card>
-          <div style={{ background: '#fcfcfc', padding: '12px', maxWidth: '380px', margin: '0 auto', border: '1px solid #e1e3e5', borderRadius: '4px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-            <pre style={{ fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.4', margin: 0, padding: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#111' }}>
-              {previewText}
-            </pre>
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0', width: '100%' }}>
-              <svg style={{ display: 'block', maxWidth: '100%' }} ref={(el) => {
-                if (el) {
-                  try {
-                    JsBarcode(el, 'V-00000112345678', {
-                      format: config.ticketBarcodeFormat || 'CODE128', width: 1.5, height: 40, displayValue: true, fontSize: 10, font: 'monospace', margin: 0,
-                    });
-                  } catch { }
-                }
-              }} />
-            </div>
-            <pre style={{ fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.4', margin: 0, padding: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#111' }}>
-              {previewTextAfter}
-            </pre>
-          </div>
-        </Card>
-      </Layout.AnnotatedSection>
-
       <TicketTemplateSection
         label="Plantilla de Ticket de Venta"
         description="Se usa al imprimir desde 'Registrar Venta' e 'Historial de Ventas'. Si no subes una plantilla, se usará el diseño POS por defecto."
@@ -202,7 +104,7 @@ ${center(`Vigencia ${config.ticketVigencia || 'N/A'}`)}
       />
 
       {/* ── Ticket Designer (self-managed, auto-saves) ── */}
-      <Layout.AnnotatedSection title="Diseñador de Tickets" description="Personaliza cada sección del ticket con controles visuales. Los cambios se guardan automáticamente y se reflejan en tiempo real en la vista previa.">
+      <Layout.AnnotatedSection title="Diseñador de Tickets" description="Personaliza cada sección del ticket con controles visuales y vista previa en tiempo real. Soporta tickets de venta, corte de caja y órdenes de proveedor.">
         <TicketDesignerSection />
       </Layout.AnnotatedSection>
     </BlockStack>

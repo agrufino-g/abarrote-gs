@@ -9,6 +9,9 @@ import type {
   CustomerDisplayPromoAnimation,
   TransitionSpeed,
   CustomerDisplayTheme,
+  MessageTextSize,
+  MessageTextWeight,
+  MessageStyle,
 } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -94,6 +97,35 @@ const THEMES: Record<CustomerDisplayTheme, ThemeConfig> = {
     decorLine: 'linear-gradient(90deg, transparent, #00d4aa, transparent)',
   },
 };
+
+// ═══════════════════════════════════════════════════════════
+// Message style → CSS/Polaris mappings
+// ═══════════════════════════════════════════════════════════
+
+const MSG_SIZE_TO_VARIANT: Record<MessageTextSize, 'bodySm' | 'bodyMd' | 'bodyLg' | 'headingLg' | 'heading2xl'> = {
+  sm: 'bodySm',
+  md: 'bodyMd',
+  lg: 'bodyLg',
+  xl: 'headingLg',
+  '2xl': 'heading2xl',
+};
+
+const MSG_SIZE_TO_SUBTITLE_VARIANT: Record<MessageTextSize, 'bodySm' | 'bodyMd' | 'bodyMd' | 'bodyLg' | 'bodyLg'> = {
+  sm: 'bodySm',
+  md: 'bodySm',
+  lg: 'bodyMd',
+  xl: 'bodyMd',
+  '2xl': 'bodyLg',
+};
+
+function msgTextStyle(ms: MessageStyle | undefined, fallbackColor?: string): React.CSSProperties {
+  if (!ms) return fallbackColor ? { color: fallbackColor } : {};
+  return {
+    color: ms.textColor || fallbackColor || undefined,
+    textTransform: ms.uppercase ? 'uppercase' : undefined,
+    fontWeight: ms.textWeight === 'bold' ? 700 : ms.textWeight === 'semibold' ? 600 : undefined,
+  };
+}
 
 /** Build inline animation style for a given config */
 function buildAnimStyle(
@@ -329,6 +361,12 @@ export default function CustomerDisplayPage() {
     ? { ...baseTheme, accent: customAccent }
     : baseTheme;
 
+  // Message styling
+  const msgStyle = storeConfig.customerDisplayMessageStyle;
+  const welcomeStyle = msgStyle?.welcome;
+  const farewellStyle = msgStyle?.farewell;
+  const promoStyle = msgStyle?.promo;
+
   // Carousel
   const carouselSlides = useMemo(() => {
     const slides: Array<string> = ['welcome'];
@@ -404,20 +442,22 @@ export default function CustomerDisplayPage() {
               <div style={buildAnimStyle(idleAnimation, speedMs, 100)}>
                 {activeSlide === 'welcome' && (
                   <BlockStack gap="200" inlineAlign="center">
-                    <Text variant="heading2xl" as="h1" alignment="center">
-                      <span style={{ color: themeConfig.text }}>{welcomeMsg}</span>
+                    <Text variant={MSG_SIZE_TO_VARIANT[welcomeStyle?.textSize ?? '2xl']} as="h1" alignment={welcomeStyle?.textAlign ?? 'center'}>
+                      <span style={msgTextStyle(welcomeStyle, themeConfig.text)}>{welcomeMsg}</span>
                     </Text>
-                    <Text variant="bodyMd" as="p" alignment="center">
-                      <span style={{ color: themeConfig.accent }}>Estamos a su servicio</span>
-                    </Text>
+                    {(welcomeStyle?.subtitle ?? 'Estamos a su servicio') && (
+                      <Text variant={MSG_SIZE_TO_SUBTITLE_VARIANT[welcomeStyle?.textSize ?? '2xl']} as="p" alignment={welcomeStyle?.textAlign ?? 'center'}>
+                        <span style={{ color: themeConfig.accent }}>{welcomeStyle?.subtitle ?? 'Estamos a su servicio'}</span>
+                      </Text>
+                    )}
                   </BlockStack>
                 )}
                 {activeSlide === 'promo-text' && (
                   <Box padding="400" borderRadius="200">
-                    <InlineStack gap="200" blockAlign="center" align="center">
-                      <Icon source={GiftCardIcon} tone="success" />
-                      <Text variant="bodyLg" as="p" alignment="center" tone="success">
-                        {promoText}
+                    <InlineStack gap="200" blockAlign="center" align={promoStyle?.textAlign ?? 'center'}>
+                      {(promoStyle?.showIcon !== false) && <Icon source={GiftCardIcon} tone="success" />}
+                      <Text variant={MSG_SIZE_TO_VARIANT[promoStyle?.textSize ?? 'lg']} as="p" alignment={promoStyle?.textAlign ?? 'center'} tone="success">
+                        <span style={msgTextStyle(promoStyle)}>{promoText}</span>
                       </Text>
                     </InlineStack>
                   </Box>
@@ -428,12 +468,14 @@ export default function CustomerDisplayPage() {
                 {/* Welcome text */}
                 <div style={buildAnimStyle(idleAnimation, speedMs, 100)}>
                   <BlockStack gap="200" inlineAlign="center">
-                    <Text variant="heading2xl" as="h1" alignment="center">
-                      <span style={{ color: themeConfig.text }}>{welcomeMsg}</span>
+                    <Text variant={MSG_SIZE_TO_VARIANT[welcomeStyle?.textSize ?? '2xl']} as="h1" alignment={welcomeStyle?.textAlign ?? 'center'}>
+                      <span style={msgTextStyle(welcomeStyle, themeConfig.text)}>{welcomeMsg}</span>
                     </Text>
-                    <Text variant="bodyMd" as="p" alignment="center">
-                      <span style={{ color: themeConfig.accent }}>Estamos a su servicio</span>
-                    </Text>
+                    {(welcomeStyle?.subtitle ?? 'Estamos a su servicio') && (
+                      <Text variant={MSG_SIZE_TO_SUBTITLE_VARIANT[welcomeStyle?.textSize ?? '2xl']} as="p" alignment={welcomeStyle?.textAlign ?? 'center'}>
+                        <span style={{ color: themeConfig.accent }}>{welcomeStyle?.subtitle ?? 'Estamos a su servicio'}</span>
+                      </Text>
+                    )}
                   </BlockStack>
                 </div>
 
@@ -441,10 +483,10 @@ export default function CustomerDisplayPage() {
                 {promoText && (
                   <div style={buildAnimStyle(idleAnimation, speedMs, 200)}>
                     <Box padding="400" borderRadius="200">
-                      <InlineStack gap="200" blockAlign="center" align="center">
-                        <Icon source={GiftCardIcon} tone="success" />
-                        <Text variant="bodyLg" as="p" alignment="center" tone="success">
-                          {promoText}
+                      <InlineStack gap="200" blockAlign="center" align={promoStyle?.textAlign ?? 'center'}>
+                        {(promoStyle?.showIcon !== false) && <Icon source={GiftCardIcon} tone="success" />}
+                        <Text variant={MSG_SIZE_TO_VARIANT[promoStyle?.textSize ?? 'lg']} as="p" alignment={promoStyle?.textAlign ?? 'center'} tone="success">
+                          <span style={msgTextStyle(promoStyle)}>{promoText}</span>
                         </Text>
                       </InlineStack>
                     </Box>
@@ -572,13 +614,20 @@ export default function CustomerDisplayPage() {
               </div>
 
               <div style={buildAnimStyle('fade', 600, 500)}>
-                <InlineStack gap="200" blockAlign="center" align="center">
-                  <Icon source={StarFilledIcon} tone="warning" />
-                  <Text variant="bodyMd" as="p" tone="subdued" alignment="center">
-                    {farewellMsg}
-                  </Text>
-                  <Icon source={StarFilledIcon} tone="warning" />
-                </InlineStack>
+                <BlockStack gap="100" inlineAlign="center">
+                  <InlineStack gap="200" blockAlign="center" align={farewellStyle?.textAlign ?? 'center'}>
+                    {(farewellStyle?.showIcon !== false) && <Icon source={StarFilledIcon} tone="warning" />}
+                    <Text variant={MSG_SIZE_TO_VARIANT[farewellStyle?.textSize ?? 'md']} as="p" alignment={farewellStyle?.textAlign ?? 'center'}>
+                      <span style={msgTextStyle(farewellStyle)}>{farewellMsg}</span>
+                    </Text>
+                    {(farewellStyle?.showIcon !== false) && <Icon source={StarFilledIcon} tone="warning" />}
+                  </InlineStack>
+                  {farewellStyle?.subtitle && (
+                    <Text variant="bodySm" as="p" tone="subdued" alignment={farewellStyle.textAlign ?? 'center'}>
+                      {farewellStyle.subtitle}
+                    </Text>
+                  )}
+                </BlockStack>
               </div>
             </BlockStack>
           </div>

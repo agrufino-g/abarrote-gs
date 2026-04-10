@@ -5,8 +5,8 @@ import { withLogging } from '@/lib/errors';
 import { db } from '@/db';
 import { storeConfig } from '@/db/schema';
 import { eq, getTableColumns } from 'drizzle-orm';
-import type { StoreConfig, TicketDesignConfig } from '@/types';
-import { DEFAULT_STORE_CONFIG, DEFAULT_TICKET_DESIGN } from '@/types';
+import type { StoreConfig, TicketDesignConfig, CustomerDisplayMessageStyle } from '@/types';
+import { DEFAULT_STORE_CONFIG, DEFAULT_TICKET_DESIGN, DEFAULT_TICKET_DESIGN_PROVEEDOR, DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE } from '@/types';
 import { numVal } from './_helpers';
 import { validateSchema, saveStoreConfigSchema } from '@/lib/validation/schemas';
 import { cache } from '@/infrastructure/redis';
@@ -53,6 +53,7 @@ const CORE_DB_COLUMNS = new Set([
   'customerDisplayTheme', 'customerDisplayIdleCarousel', 'customerDisplayCarouselInterval',
   'customerDisplayLogo', 'customerDisplayFontScale', 'customerDisplayAutoReturnSec',
   'customerDisplayAccentColor', 'customerDisplaySoundEnabled', 'customerDisplayOrientation',
+  'customerDisplayMessageStyle',
 ]);
 
 function parseTicketDesign(raw: string | null | undefined, defaults: TicketDesignConfig = DEFAULT_TICKET_DESIGN): TicketDesignConfig {
@@ -62,6 +63,21 @@ function parseTicketDesign(raw: string | null | undefined, defaults: TicketDesig
     return { ...defaults, ...parsed };
   } catch {
     return { ...defaults };
+  }
+}
+
+function parseMessageStyle(raw: string | null | undefined): CustomerDisplayMessageStyle {
+  const defaults = DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE;
+  if (!raw) return { ...defaults, welcome: { ...defaults.welcome }, farewell: { ...defaults.farewell }, promo: { ...defaults.promo } };
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      welcome: { ...defaults.welcome, ...(parsed.welcome ?? {}) },
+      farewell: { ...defaults.farewell, ...(parsed.farewell ?? {}) },
+      promo: { ...defaults.promo, ...(parsed.promo ?? {}) },
+    };
+  } catch {
+    return { ...defaults, welcome: { ...defaults.welcome }, farewell: { ...defaults.farewell }, promo: { ...defaults.promo } };
   }
 }
 
@@ -138,8 +154,10 @@ function mapStoreConfigRow(row: any): StoreConfig {
     customerDisplayAccentColor: row.customerDisplayAccentColor ?? DEFAULT_STORE_CONFIG.customerDisplayAccentColor,
     customerDisplaySoundEnabled: row.customerDisplaySoundEnabled ?? DEFAULT_STORE_CONFIG.customerDisplaySoundEnabled,
     customerDisplayOrientation: row.customerDisplayOrientation ?? DEFAULT_STORE_CONFIG.customerDisplayOrientation,
+    customerDisplayMessageStyle: parseMessageStyle(row.customerDisplayMessageStyle),
     ticketDesignVenta: parseTicketDesign(row.ticketDesignVenta),
     ticketDesignCorte: parseTicketDesign(row.ticketDesignCorte, { ...DEFAULT_TICKET_DESIGN, headerNote: 'CORTE DE CAJA', showItemCount: false, showDiscount: false, showUnitDetail: false }),
+    ticketDesignProveedor: parseTicketDesign(row.ticketDesignProveedor, DEFAULT_TICKET_DESIGN_PROVEEDOR),
   };
 }
 
@@ -224,12 +242,21 @@ async function _fetchStoreConfig(): Promise<StoreConfig> {
 
 async function _saveStoreConfig(data: Partial<StoreConfig>): Promise<StoreConfig> {
   const user = await requireOwner();
-  validateSchema(saveStoreConfigSchema, data, 'saveStoreConfig');
-
-  const { id: _id, ...fields } = data;
 
   /** Build a dbValues object containing only keys present in the given column set. */
-  const JSON_FIELDS = new Set(['ticketDesignVenta', 'ticketDesignCorte']);
+  const JSON_FIELDS = new Set(['ticketDesignVenta', 'ticketDesignCorte', 'ticketDesignProveedor', 'customerDisplayMessageStyle']);
+
+  // Pre-serialize JSON fields so Zod sees strings, not objects
+  const serialized: Record<string, unknown> = { ...data };
+  for (const key of JSON_FIELDS) {
+    if (key in serialized && typeof serialized[key] === 'object' && serialized[key] !== null) {
+      serialized[key] = JSON.stringify(serialized[key]);
+    }
+  }
+
+  validateSchema(saveStoreConfigSchema, serialized, 'saveStoreConfig');
+
+  const { id: _id, ...fields } = serialized;
   const buildDbValues = (allowedKeys: Set<string>): Record<string, unknown> => {
     const dbValues: Record<string, unknown> = { updatedAt: new Date() };
     for (const [key, value] of Object.entries(fields)) {

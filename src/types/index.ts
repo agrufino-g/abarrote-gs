@@ -48,6 +48,50 @@ export type CustomerDisplayTheme = (typeof CUSTOMER_DISPLAY_THEMES)[number];
 export const CUSTOMER_DISPLAY_ORIENTATIONS = ['landscape', 'portrait'] as const;
 export type CustomerDisplayOrientation = (typeof CUSTOMER_DISPLAY_ORIENTATIONS)[number];
 
+// === Customer Display Message Styling ===
+export const MESSAGE_TEXT_SIZES = ['sm', 'md', 'lg', 'xl', '2xl'] as const;
+export type MessageTextSize = (typeof MESSAGE_TEXT_SIZES)[number];
+
+export const MESSAGE_TEXT_WEIGHTS = ['regular', 'semibold', 'bold'] as const;
+export type MessageTextWeight = (typeof MESSAGE_TEXT_WEIGHTS)[number];
+
+export const MESSAGE_TEXT_ALIGNS = ['left', 'center', 'right'] as const;
+export type MessageTextAlign = (typeof MESSAGE_TEXT_ALIGNS)[number];
+
+/** Styling overrides for a single message on the customer display. */
+export interface MessageStyle {
+  subtitle: string;
+  textSize: MessageTextSize;
+  textWeight: MessageTextWeight;
+  textAlign: MessageTextAlign;
+  textColor: string; // hex, '' = use theme default
+  uppercase: boolean;
+  showIcon: boolean;
+}
+
+/** All message styles for the customer display, keyed by message slot. */
+export interface CustomerDisplayMessageStyle {
+  welcome: MessageStyle;
+  farewell: MessageStyle;
+  promo: MessageStyle;
+}
+
+export const DEFAULT_MESSAGE_STYLE: MessageStyle = {
+  subtitle: '',
+  textSize: 'lg',
+  textWeight: 'bold',
+  textAlign: 'center',
+  textColor: '',
+  uppercase: false,
+  showIcon: true,
+};
+
+export const DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE: CustomerDisplayMessageStyle = {
+  welcome: { ...DEFAULT_MESSAGE_STYLE, subtitle: 'Estamos a su servicio', textSize: '2xl' },
+  farewell: { ...DEFAULT_MESSAGE_STYLE, subtitle: '', textSize: 'xl' },
+  promo: { ...DEFAULT_MESSAGE_STYLE, textSize: 'lg', textWeight: 'semibold' },
+};
+
 // ═══════════════════════════════════════════════════════════
 // Ticket Designer
 // ═══════════════════════════════════════════════════════════
@@ -60,6 +104,9 @@ export type TicketSeparatorStyle = (typeof TICKET_SEPARATOR_STYLES)[number];
 export const TICKET_FONT_SIZES = ['small', 'medium', 'large'] as const;
 export type TicketFontSize = (typeof TICKET_FONT_SIZES)[number];
 
+export const TICKET_HEADER_ALIGNMENTS = ['left', 'center'] as const;
+export type TicketHeaderAlignment = (typeof TICKET_HEADER_ALIGNMENTS)[number];
+
 export interface TicketDesignConfig {
   // Header
   showLogo: boolean;
@@ -71,6 +118,7 @@ export interface TicketDesignConfig {
   showRfc: boolean;
   showRegimen: boolean;
   showStoreNumber: boolean;
+  headerAlignment: TicketHeaderAlignment;
   // Body (products)
   showSku: boolean;
   showBarcode: boolean;
@@ -83,6 +131,9 @@ export interface TicketDesignConfig {
   showChange: boolean;
   showItemCount: boolean;
   showPaymentMethod: boolean;
+  showDateTime: boolean;
+  showCashierInfo: boolean;
+  showCurrency: boolean;
   // Footer
   customFooterMessage: string;
   showServicePhone: boolean;
@@ -98,6 +149,15 @@ export interface TicketDesignConfig {
   // Extra
   copies: number;
   headerNote: string; // e.g. "COMPROBANTE DE VENTA"
+  // Proveedor-specific (only used when ticket type is 'proveedor')
+  showSupplierInfo: boolean;
+  showOrderFolio: boolean;
+  showDeliveryDate: boolean;
+  showPaymentTerms: boolean;
+  showOrderNotes: boolean;
+  showCostPrice: boolean;
+  showTotalPieces: boolean;
+  showDestination: boolean;
 }
 
 export const DEFAULT_TICKET_DESIGN: TicketDesignConfig = {
@@ -110,6 +170,7 @@ export const DEFAULT_TICKET_DESIGN: TicketDesignConfig = {
   showRfc: true,
   showRegimen: false,
   showStoreNumber: true,
+  headerAlignment: 'center',
   showSku: false,
   showBarcode: false,
   showUnitDetail: true,
@@ -120,6 +181,9 @@ export const DEFAULT_TICKET_DESIGN: TicketDesignConfig = {
   showChange: true,
   showItemCount: true,
   showPaymentMethod: true,
+  showDateTime: true,
+  showCashierInfo: true,
+  showCurrency: false,
   customFooterMessage: '',
   showServicePhone: true,
   showVigencia: true,
@@ -131,6 +195,36 @@ export const DEFAULT_TICKET_DESIGN: TicketDesignConfig = {
   separatorStyle: 'line',
   copies: 1,
   headerNote: 'COMPROBANTE DE VENTA',
+  showSupplierInfo: false,
+  showOrderFolio: false,
+  showDeliveryDate: false,
+  showPaymentTerms: false,
+  showOrderNotes: false,
+  showCostPrice: false,
+  showTotalPieces: false,
+  showDestination: false,
+};
+
+export const DEFAULT_TICKET_DESIGN_PROVEEDOR: TicketDesignConfig = {
+  ...DEFAULT_TICKET_DESIGN,
+  headerNote: 'ORDEN DE COMPRA',
+  showSku: true,
+  showUnitDetail: true,
+  showAmountPaid: false,
+  showChange: false,
+  showPaymentMethod: false,
+  showItemCount: false,
+  showVigencia: false,
+  showCashierInfo: false,
+  // Proveedor-specific
+  showSupplierInfo: true,
+  showOrderFolio: true,
+  showDeliveryDate: true,
+  showPaymentTerms: true,
+  showOrderNotes: true,
+  showCostPrice: true,
+  showTotalPieces: true,
+  showDestination: true,
 };
 
 // === Configuración de Tienda (Ticket) ===
@@ -182,6 +276,7 @@ export interface StoreConfig {
   // Ticket designer JSON config
   ticketDesignVenta: TicketDesignConfig;
   ticketDesignCorte: TicketDesignConfig;
+  ticketDesignProveedor: TicketDesignConfig;
   // Métodos de pago adicionales
   clabeNumber?: string;
   paypalUsername?: string;
@@ -225,6 +320,8 @@ export interface StoreConfig {
   customerDisplayAccentColor: string;
   customerDisplaySoundEnabled: boolean;
   customerDisplayOrientation: string;
+  // Customer Display - Message Styling (JSON)
+  customerDisplayMessageStyle: CustomerDisplayMessageStyle;
 }
 
 export const DEFAULT_STORE_CONFIG: StoreConfig = {
@@ -281,8 +378,10 @@ export const DEFAULT_STORE_CONFIG: StoreConfig = {
   customerDisplayAccentColor: '',
   customerDisplaySoundEnabled: false,
   customerDisplayOrientation: 'landscape',
+  customerDisplayMessageStyle: { ...DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE },
   ticketDesignVenta: { ...DEFAULT_TICKET_DESIGN },
   ticketDesignCorte: { ...DEFAULT_TICKET_DESIGN, headerNote: 'CORTE DE CAJA', showItemCount: false, showDiscount: false, showUnitDetail: false },
+  ticketDesignProveedor: { ...DEFAULT_TICKET_DESIGN_PROVEEDOR },
 };
 
 export interface ProductCategory {

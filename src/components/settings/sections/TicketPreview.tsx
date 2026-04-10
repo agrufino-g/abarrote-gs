@@ -24,6 +24,14 @@ const CORTE_ROWS = [
   { label: 'Fondo inicial', value: '$500.00' },
 ];
 
+const PROVEEDOR_ITEMS = [
+  { name: 'LECHE LALA ENTERA 1L', sku: 'LAC-001', barcode: '7501055300013', qty: 24, unit: 'pza', costPrice: 18.50, subtotal: 444.00 },
+  { name: 'COCA-COLA 600ML', sku: 'BEB-015', barcode: '7501055301234', qty: 48, unit: 'pza', costPrice: 12.00, subtotal: 576.00 },
+  { name: 'PAN BIMBO GRANDE', sku: 'PAN-003', barcode: '7501055305678', qty: 12, unit: 'pza', costPrice: 32.00, subtotal: 384.00 },
+  { name: 'ARROZ SAN PEDRO 1KG', sku: 'GRA-010', barcode: '7501055309999', qty: 20, unit: 'kilo', costPrice: 19.50, subtotal: 390.00 },
+  { name: 'FRIJOL NEGRO 1KG', sku: 'GRA-025', barcode: '7501055308888', qty: 15, unit: 'kilo', costPrice: 22.00, subtotal: 330.00 },
+];
+
 const FONT_MAP: Record<string, number> = { small: 10, medium: 12, large: 14 };
 const LOGO_MAP: Record<string, number> = { small: 44, medium: 64, large: 88 };
 const PAPER_PX: Record<string, number> = { '58mm': 220, '72mm': 272, '80mm': 302 };
@@ -38,18 +46,19 @@ const SEP_CHAR: Record<string, string> = {
 
 const st = {
   center: { textAlign: 'center' as const },
+  left: { textAlign: 'left' as const },
   row: { display: 'flex', justifyContent: 'space-between', padding: '1.5px 0' } as const,
-  storeName: (fs: number) => ({
-    textAlign: 'center' as const, fontWeight: 800,
+  storeName: (fs: number, align: string) => ({
+    textAlign: align as 'center' | 'left', fontWeight: 800,
     fontSize: `${fs + 3}px`, letterSpacing: '1.5px',
     textTransform: 'uppercase' as const, lineHeight: 1.2,
   }),
-  sub: (fs: number) => ({
-    textAlign: 'center' as const, fontSize: `${Math.max(fs - 3, 8)}px`,
+  sub: (fs: number, align: string) => ({
+    textAlign: align as 'center' | 'left', fontSize: `${Math.max(fs - 3, 8)}px`,
     color: '#666', lineHeight: 1.5,
   }),
-  headerNote: (fs: number) => ({
-    textAlign: 'center' as const, fontWeight: 700,
+  headerNote: (fs: number, align: string) => ({
+    textAlign: align as 'center' | 'left', fontWeight: 700,
     fontSize: `${fs - 1}px`, letterSpacing: '2.5px',
     textTransform: 'uppercase' as const, margin: '5px 0 2px', color: '#333',
   }),
@@ -67,7 +76,7 @@ const st = {
 interface TicketPreviewProps {
   design: TicketDesignConfig;
   config: StoreConfig;
-  type: 'venta' | 'corte';
+  type: 'venta' | 'corte' | 'proveedor';
 }
 
 export function TicketPreview({ design, config, type }: TicketPreviewProps) {
@@ -78,28 +87,42 @@ export function TicketPreview({ design, config, type }: TicketPreviewProps) {
   const logoH = LOGO_MAP[design.logoSize] || 64;
   const sepChar = SEP_CHAR[design.separatorStyle] || '';
   const sepLen = Math.floor(pw / (fs * 0.6));
+  const align = design.headerAlignment || 'center';
 
-  const subtotal = SAMPLE_ITEMS.reduce((a, i) => a + i.subtotal, 0);
+  // Venta calculations
+  const ventaSubtotal = SAMPLE_ITEMS.reduce((a, i) => a + i.subtotal, 0);
   const ivaRate = parseFloat(config.ivaRate || '16') / 100;
-  const iva = +(subtotal * ivaRate).toFixed(2);
-  const total = +(subtotal + iva).toFixed(2);
+  const ventaIva = +(ventaSubtotal * ivaRate).toFixed(2);
+  const ventaTotal = +(ventaSubtotal + ventaIva).toFixed(2);
   const paid = 200;
-  const change = +(paid - total).toFixed(2);
+  const change = +(paid - ventaTotal).toFixed(2);
   const itemCount = SAMPLE_ITEMS.reduce((a, i) => a + i.qty, 0);
+
+  // Proveedor calculations
+  const provSubtotal = PROVEEDOR_ITEMS.reduce((a, i) => a + i.subtotal, 0);
+  const provIva = +(provSubtotal * ivaRate).toFixed(2);
+  const provTotal = +(provSubtotal + provIva).toFixed(2);
+  const provPieces = PROVEEDOR_ITEMS.reduce((a, i) => a + i.qty, 0);
+
+  // Select values based on type
+  const subtotal = type === 'proveedor' ? provSubtotal : ventaSubtotal;
+  const iva = type === 'proveedor' ? provIva : ventaIva;
+  const total = type === 'proveedor' ? provTotal : ventaTotal;
 
   useEffect(() => {
     if (!design.showTicketBarcode || design.barcodeFormat === 'QR' || !barcodeRef.current) return;
+    const barcodeValue = type === 'proveedor' ? 'OC-000054321' : 'V-000123456789';
     import('jsbarcode').then((JsBarcode) => {
       if (!barcodeRef.current) return;
       try {
-        JsBarcode.default(barcodeRef.current, 'V-000123456789', {
+        JsBarcode.default(barcodeRef.current, barcodeValue, {
           format: design.barcodeFormat === 'CODE39' ? 'CODE39' : 'CODE128',
           width: 1.2, height: 32, displayValue: true, fontSize: 9,
           font: "'Helvetica Neue',Helvetica,sans-serif", margin: 0, textMargin: 2,
         });
       } catch { /* non-critical */ }
     });
-  }, [design.showTicketBarcode, design.barcodeFormat]);
+  }, [design.showTicketBarcode, design.barcodeFormat, type]);
 
   const Sep = () =>
     sepChar ? (
@@ -121,26 +144,74 @@ export function TicketPreview({ design, config, type }: TicketPreviewProps) {
     }}>
       {/* ═══ HEADER ═══ */}
       {design.showLogo && config.logoUrl && (
-        <div style={{ ...st.center, marginBottom: 4 }}>
-          <img src={config.logoUrl} alt="" style={{ maxWidth: logoH * 1.6, maxHeight: logoH, objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+        <div style={{ textAlign: align, marginBottom: 4 }}>
+          <img src={config.logoUrl} alt="" style={{ maxWidth: logoH * 1.6, maxHeight: logoH, objectFit: 'contain', display: align === 'center' ? 'block' : 'inline-block', margin: align === 'center' ? '0 auto' : '0' }} />
         </div>
       )}
-      {design.showStoreName && <div style={st.storeName(fs)}>{config.storeName || 'MI TIENDA'}</div>}
-      {design.showLegalName && <div style={st.sub(fs)}>{config.legalName || 'RAZÓN SOCIAL'}</div>}
-      {design.showAddress && <div style={st.sub(fs)}>{config.address || 'DIRECCIÓN'}, C.P. {config.postalCode || '00000'}, {config.city || 'CIUDAD'}</div>}
-      {design.showPhone && <div style={st.sub(fs)}>TEL: {config.phone || '(000) 000-0000'}</div>}
-      {design.showRfc && <div style={st.sub(fs)}>RFC: {config.rfc || 'XAXX010101000'}</div>}
-      {design.showRegimen && <div style={{ ...st.sub(fs), fontSize: `${Math.max(fs - 4, 7)}px`, color: '#888' }}>{config.regimenDescription || 'REGIMEN FISCAL'}</div>}
+      {design.showStoreName && <div style={st.storeName(fs, align)}>{config.storeName || 'MI TIENDA'}</div>}
+      {design.showLegalName && <div style={st.sub(fs, align)}>{config.legalName || 'RAZÓN SOCIAL'}</div>}
+      {design.showAddress && <div style={st.sub(fs, align)}>{config.address || 'DIRECCIÓN'}, C.P. {config.postalCode || '00000'}, {config.city || 'CIUDAD'}</div>}
+      {design.showPhone && <div style={st.sub(fs, align)}>TEL: {config.phone || '(000) 000-0000'}</div>}
+      {design.showRfc && <div style={st.sub(fs, align)}>RFC: {config.rfc || 'XAXX010101000'}</div>}
+      {design.showRegimen && <div style={{ ...st.sub(fs, align), fontSize: `${Math.max(fs - 4, 7)}px`, color: '#888' }}>{config.regimenDescription || 'REGIMEN FISCAL'}</div>}
 
       <Sep />
 
-      {design.headerNote && <div style={st.headerNote(fs)}>{design.headerNote}</div>}
-      {design.showStoreNumber && (
-        <div style={{ ...st.sub(fs), marginTop: 1 }}>TDA#{config.storeNumber || '001'} &middot; OP#CAJERO 1 &middot; TR# V-000123</div>
+      {design.headerNote && <div style={st.headerNote(fs, align)}>{design.headerNote}</div>}
+      {design.showStoreNumber && design.showCashierInfo && (
+        <div style={{ ...st.sub(fs, align), marginTop: 1 }}>TDA#{config.storeNumber || '001'} &middot; OP#CAJERO 1 &middot; TR# {type === 'proveedor' ? 'OC-000054' : 'V-000123'}</div>
       )}
-      <div style={{ ...st.center, fontSize: `${fs - 2}px`, color: '#999', marginBottom: 2 }}>07/04/2026 &nbsp;&nbsp; 14:35:22</div>
+      {design.showStoreNumber && !design.showCashierInfo && (
+        <div style={{ ...st.sub(fs, align), marginTop: 1 }}>TDA#{config.storeNumber || '001'} &middot; TR# {type === 'proveedor' ? 'OC-000054' : 'V-000123'}</div>
+      )}
+      {design.showDateTime && (
+        <div style={{ textAlign: align, fontSize: `${fs - 2}px`, color: '#999', marginBottom: 2 }}>07/04/2026 &nbsp;&nbsp; 14:35:22</div>
+      )}
 
       <Sep />
+
+      {/* ═══ SUPPLIER INFO (proveedor only) ═══ */}
+      {type === 'proveedor' && (
+        <>
+          {design.showSupplierInfo && (
+            <div style={{ ...st.row, fontSize: `${fs}px`, fontWeight: 600 }}>
+              <span style={{ color: '#555' }}>PROVEEDOR:</span>
+              <span>DISTRIBUIDORA DEL CENTRO SA</span>
+            </div>
+          )}
+          {design.showOrderFolio && (
+            <div style={{ ...st.row, fontSize: `${fs}px` }}>
+              <span style={{ color: '#555' }}>FOLIO:</span>
+              <span style={{ fontWeight: 600 }}>OC-000054</span>
+            </div>
+          )}
+          {design.showDeliveryDate && (
+            <div style={{ ...st.row, fontSize: `${fs}px` }}>
+              <span style={{ color: '#555' }}>ENTREGA EST.:</span>
+              <span>10/04/2026</span>
+            </div>
+          )}
+          {design.showPaymentTerms && (
+            <div style={{ ...st.row, fontSize: `${fs}px` }}>
+              <span style={{ color: '#555' }}>CONDICIONES:</span>
+              <span>Crédito 30 días</span>
+            </div>
+          )}
+          {design.showDestination && (
+            <div style={{ ...st.row, fontSize: `${fs - 1}px`, color: '#555' }}>
+              <span>DESTINO:</span>
+              <span style={{ textAlign: 'right', maxWidth: '60%' }}>{config.storeName || 'MI TIENDA'} - {config.address || 'DIRECCIÓN'}</span>
+            </div>
+          )}
+          {design.showCurrency && (
+            <div style={{ ...st.row, fontSize: `${fs - 1}px`, color: '#555' }}>
+              <span>MONEDA:</span>
+              <span>{config.currency || 'MXN'}</span>
+            </div>
+          )}
+          <Sep />
+        </>
+      )}
 
       {/* ═══ ITEMS (venta) ═══ */}
       {type === 'venta' && SAMPLE_ITEMS.map((item, i) => (
@@ -165,16 +236,40 @@ export function TicketPreview({ design, config, type }: TicketPreviewProps) {
         </div>
       ))}
 
+      {/* ═══ ITEMS (proveedor) ═══ */}
+      {type === 'proveedor' && PROVEEDOR_ITEMS.map((item, i) => (
+        <div key={i} style={{ paddingBottom: 4, marginBottom: 2, borderBottom: '1px dotted #eee' }}>
+          <div style={{ fontWeight: 600, fontSize: `${fs}px`, letterSpacing: '.2px' }}>
+            {item.name}
+            {design.showSku && <span style={{ color: '#aaa', fontSize: `${fs - 3}px`, marginLeft: 4, fontWeight: 400 }}>[{item.sku}]</span>}
+          </div>
+          {design.showBarcode && <div style={{ fontSize: `${fs - 4}px`, color: '#bbb', fontFamily: 'monospace' }}>{item.barcode}</div>}
+          <div style={{ ...st.row, fontSize: `${fs - 1}px`, color: '#555' }}>
+            {design.showUnitDetail
+              ? <span>{item.qty} {item.unit} × {design.showCostPrice ? `$${item.costPrice.toFixed(2)} (costo)` : `$${item.costPrice.toFixed(2)}`}</span>
+              : <span>×{item.qty}</span>
+            }
+            <span style={{ fontWeight: 600, color: '#111' }}>{fmtMoney(item.subtotal)}</span>
+          </div>
+        </div>
+      ))}
+      {type === 'proveedor' && design.showTotalPieces && (
+        <div style={{ ...st.center, fontSize: `${fs - 2}px`, color: '#888', marginTop: 4, fontWeight: 600 }}>
+          TOTAL DE PIEZAS: {provPieces}
+        </div>
+      )}
+
       <Sep />
 
       {/* ═══ TOTALS ═══ */}
       {design.showSubtotal && <div style={{ ...st.row, fontSize: `${fs}px` }}><span>SUBTOTAL</span><span>{fmtMoney(subtotal)}</span></div>}
       {design.showIva && <div style={{ ...st.row, fontSize: `${fs}px` }}><span>IVA ({config.ivaRate || '16'}%)</span><span>{fmtMoney(iva)}</span></div>}
-      {design.showDiscount && <div style={{ ...st.row, fontSize: `${fs}px`, color: '#c00' }}><span>DESCUENTO</span><span>-$0.00</span></div>}
+      {design.showDiscount && type !== 'proveedor' && <div style={{ ...st.row, fontSize: `${fs}px`, color: '#c00' }}><span>DESCUENTO</span><span>-$0.00</span></div>}
+      {design.showCurrency && <div style={{ ...st.row, fontSize: `${fs - 1}px`, color: '#888' }}><span>MONEDA</span><span>{config.currency || 'MXN'}</span></div>}
       <div style={st.total}><span>TOTAL</span><span>{fmtMoney(total)}</span></div>
-      {design.showPaymentMethod && <div style={{ ...st.center, fontSize: `${fs - 2}px`, fontWeight: 700, letterSpacing: '2px', color: '#555', margin: '5px 0', textTransform: 'uppercase' }}>EFECTIVO</div>}
-      {design.showAmountPaid && <div style={{ ...st.row, fontSize: `${fs}px` }}><span>RECIBIDO</span><span>{fmtMoney(paid)}</span></div>}
-      {design.showChange && <div style={{ ...st.row, fontSize: `${fs}px`, fontWeight: 700 }}><span>CAMBIO</span><span>{fmtMoney(change)}</span></div>}
+      {design.showPaymentMethod && type !== 'proveedor' && <div style={{ ...st.center, fontSize: `${fs - 2}px`, fontWeight: 700, letterSpacing: '2px', color: '#555', margin: '5px 0', textTransform: 'uppercase' }}>EFECTIVO</div>}
+      {design.showAmountPaid && type !== 'proveedor' && <div style={{ ...st.row, fontSize: `${fs}px` }}><span>RECIBIDO</span><span>{fmtMoney(paid)}</span></div>}
+      {design.showChange && type !== 'proveedor' && <div style={{ ...st.row, fontSize: `${fs}px`, fontWeight: 700 }}><span>CAMBIO</span><span>{fmtMoney(change)}</span></div>}
       {design.showItemCount && type === 'venta' && <div style={{ ...st.center, fontSize: `${fs - 2}px`, color: '#888', marginTop: 4 }}>ARTÍCULOS VENDIDOS: {itemCount}</div>}
 
       <Sep />
@@ -191,6 +286,17 @@ export function TicketPreview({ design, config, type }: TicketPreviewProps) {
         </div>
       )}
 
+      {/* ═══ ORDER NOTES (proveedor) ═══ */}
+      {type === 'proveedor' && design.showOrderNotes && (
+        <>
+          <Sep />
+          <div style={{ fontSize: `${fs - 2}px`, color: '#555', fontStyle: 'italic', padding: '2px 0' }}>
+            <span style={{ fontWeight: 600, fontStyle: 'normal' }}>NOTAS: </span>
+            Favor de entregar en horario de 9:00 a 14:00 hrs. Producto dañado no se recibe.
+          </div>
+        </>
+      )}
+
       <Sep />
 
       {/* ═══ FOOTER ═══ */}
@@ -200,7 +306,7 @@ export function TicketPreview({ design, config, type }: TicketPreviewProps) {
         </div>
       )}
       {design.showServicePhone && <div style={{ ...st.center, fontSize: `${fs - 3}px`, color: '#999' }}>Ayuda: {config.ticketServicePhone || '800-000-0000'}</div>}
-      {design.showVigencia && <div style={{ ...st.center, fontSize: `${fs - 3}px`, color: '#999' }}>Vigencia: {config.ticketVigencia || '30 días'}</div>}
+      {design.showVigencia && type !== 'proveedor' && <div style={{ ...st.center, fontSize: `${fs - 3}px`, color: '#999' }}>Vigencia: {config.ticketVigencia || '30 días'}</div>}
       {design.showPoweredBy && <div style={{ ...st.center, fontSize: '7px', letterSpacing: '2.5px', color: '#d0d0d0', marginTop: 8, textTransform: 'uppercase', fontWeight: 600 }}>POWERED BY OPENDEX KIOSKO</div>}
       {design.copies > 1 && <div style={{ ...st.center, fontSize: '7px', color: '#ccc', marginTop: 3, fontWeight: 700 }}>COPIA (×{design.copies})</div>}
     </div>

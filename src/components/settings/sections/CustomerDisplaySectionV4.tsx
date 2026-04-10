@@ -25,6 +25,7 @@ import {
   Popover,
   OptionList,
   ColorPicker,
+  Collapsible,
 } from '@shopify/polaris';
 import {
   DesktopIcon,
@@ -50,6 +51,9 @@ import {
   SoundIcon,
   MobileIcon,
   ColorIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  TextIcon,
 } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { uploadFile } from '@/lib/storage';
@@ -59,12 +63,21 @@ import type {
   CustomerDisplayPromoAnimation,
   TransitionSpeed,
   CustomerDisplayTheme,
+  CustomerDisplayMessageStyle,
+  MessageStyle,
+  MessageTextSize,
+  MessageTextWeight,
+  MessageTextAlign,
 } from '@/types';
 import {
   CUSTOMER_DISPLAY_ANIMATIONS,
   CUSTOMER_DISPLAY_PROMO_ANIMATIONS,
   TRANSITION_SPEEDS,
   CUSTOMER_DISPLAY_THEMES,
+  MESSAGE_TEXT_SIZES,
+  MESSAGE_TEXT_WEIGHTS,
+  MESSAGE_TEXT_ALIGNS,
+  DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE,
 } from '@/types';
 
 // ═══════════════════════════════════════════════════════════
@@ -192,6 +205,11 @@ export function CustomerDisplaySectionV4() {
   const [accentColor, setAccentColor] = useState(storeConfig.customerDisplayAccentColor ?? '');
   const [soundEnabled, setSoundEnabled] = useState(storeConfig.customerDisplaySoundEnabled ?? false);
   const [orientation, setOrientation] = useState(storeConfig.customerDisplayOrientation ?? 'landscape');
+  // Message styling
+  const [msgStyle, setMsgStyle] = useState<CustomerDisplayMessageStyle>(
+    storeConfig.customerDisplayMessageStyle ?? { ...DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE },
+  );
+  const [msgExpandedSlot, setMsgExpandedSlot] = useState<'welcome' | 'farewell' | 'promo' | null>(null);
 
   // Sync ALL local state when store hydrates (initial load or external update)
   useEffect(() => {
@@ -213,6 +231,7 @@ export function CustomerDisplaySectionV4() {
     setAccentColor(storeConfig.customerDisplayAccentColor ?? '');
     setSoundEnabled(storeConfig.customerDisplaySoundEnabled ?? false);
     setOrientation(storeConfig.customerDisplayOrientation ?? 'landscape');
+    setMsgStyle(storeConfig.customerDisplayMessageStyle ?? { ...DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeConfig]);
 
@@ -336,6 +355,28 @@ export function CustomerDisplaySectionV4() {
     setOrientation(v);
     save('customerDisplayOrientation', v, () => setOrientation(prev));
   }, [orientation, save]);
+
+  /** Update a single message slot's style property and auto-save the full object. */
+  const updateMsgSlot = useCallback(<K extends keyof MessageStyle>(
+    slot: 'welcome' | 'farewell' | 'promo',
+    prop: K,
+    value: MessageStyle[K],
+  ) => {
+    setMsgStyle((prev) => {
+      const next: CustomerDisplayMessageStyle = {
+        ...prev,
+        [slot]: { ...prev[slot], [prop]: value },
+      };
+      // debounce save for text fields, immediate for selects
+      if (prop === 'subtitle' || prop === 'textColor') {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => save('customerDisplayMessageStyle', next), 800);
+      } else {
+        save('customerDisplayMessageStyle', next);
+      }
+      return next;
+    });
+  }, [save]);
 
   const copyUrl = useCallback(async () => {
     try { await navigator.clipboard.writeText(displayUrl); setUrlCopied(true); setTimeout(() => setUrlCopied(false), 2500); } catch { /* noop */ }
@@ -475,21 +516,72 @@ export function CustomerDisplaySectionV4() {
       </Card>
 
       {/* ═══════════════════════════════════════════════════
-          CARD 2 — Mensajes
+          CARD 2 — Mensajes personalizados (diseñador)
           ═══════════════════════════════════════════════════ */}
       <Card>
         <BlockStack gap="400">
           <InlineStack gap="200" blockAlign="center">
-            <Text variant="headingMd" as="h3">Mensajes personalizados</Text>
-            <Badge tone="info">Auto-guardado</Badge>
+            <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+              <Icon source={TextIcon} tone="info" />
+            </Box>
+            <BlockStack gap="050">
+              <InlineStack gap="200" blockAlign="center">
+                <Text variant="headingMd" as="h3">Mensajes personalizados</Text>
+                <Badge tone="info">Auto-guardado</Badge>
+              </InlineStack>
+              <Text variant="bodySm" as="p" tone="subdued">Configura el contenido y estilo de cada mensaje.</Text>
+            </BlockStack>
           </InlineStack>
-          <FormLayout>
-            <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-              <TextField label="Mensaje de bienvenida" placeholder="Ej: ¡Bienvenido!" value={welcome} onChange={onWelcome} maxLength={120} showCharacterCount helpText="Se muestra en pantalla de espera." autoComplete="off" />
-              <TextField label="Mensaje de despedida" placeholder="Ej: ¡Gracias por su compra!" value={farewell} onChange={onFarewell} maxLength={120} showCharacterCount helpText="Se muestra al finalizar la venta." autoComplete="off" />
-            </InlineGrid>
-            <TextField label="Texto promocional" placeholder="Ej: 2x1 en refrescos · Solo hoy" value={promoText} onChange={onPromo} maxLength={200} showCharacterCount multiline={2} helpText="Aparece con ícono de regalo en pantalla de espera." autoComplete="off" />
-          </FormLayout>
+
+          {/* ─── Welcome Message ─── */}
+          <MessageSlotDesigner
+            label="Mensaje de bienvenida"
+            description="Se muestra en la pantalla de espera."
+            icon={StoreIcon}
+            textValue={welcome}
+            onTextChange={onWelcome}
+            textPlaceholder="Ej: ¡Bienvenido a nuestra tienda!"
+            maxLength={120}
+            style={msgStyle.welcome}
+            onStyleChange={(prop, value) => updateMsgSlot('welcome', prop, value)}
+            expanded={msgExpandedSlot === 'welcome'}
+            onToggle={() => setMsgExpandedSlot((p) => p === 'welcome' ? null : 'welcome')}
+          />
+
+          <Divider />
+
+          {/* ─── Farewell Message ─── */}
+          <MessageSlotDesigner
+            label="Mensaje de despedida"
+            description="Se muestra al finalizar una venta."
+            icon={StarFilledIcon}
+            textValue={farewell}
+            onTextChange={onFarewell}
+            textPlaceholder="Ej: ¡Gracias por su compra!"
+            maxLength={120}
+            style={msgStyle.farewell}
+            onStyleChange={(prop, value) => updateMsgSlot('farewell', prop, value)}
+            expanded={msgExpandedSlot === 'farewell'}
+            onToggle={() => setMsgExpandedSlot((p) => p === 'farewell' ? null : 'farewell')}
+          />
+
+          <Divider />
+
+          {/* ─── Promo Message ─── */}
+          <MessageSlotDesigner
+            label="Texto promocional"
+            description="Aparece con ícono de regalo en pantalla de espera."
+            icon={GiftCardIcon}
+            textValue={promoText}
+            onTextChange={onPromo}
+            textPlaceholder="Ej: 2×1 en refrescos · Solo hoy"
+            maxLength={200}
+            multiline
+            style={msgStyle.promo}
+            onStyleChange={(prop, value) => updateMsgSlot('promo', prop, value)}
+            expanded={msgExpandedSlot === 'promo'}
+            onToggle={() => setMsgExpandedSlot((p) => p === 'promo' ? null : 'promo')}
+          />
         </BlockStack>
       </Card>
 
@@ -922,6 +1014,13 @@ export function CustomerDisplaySectionV4() {
         promoImages={promoImages}
         showClock={showClock}
         storeName={storeConfig.storeName ?? 'Tu Tienda'}
+        logoUrl={customLogo || storeConfig.logoUrl || ''}
+        accentColor={accentColor}
+        fontScale={fontScale}
+        orientation={orientation}
+        msgStyle={msgStyle}
+        phone={storeConfig.phone ?? ''}
+        address={storeConfig.address ?? ''}
       />
 
       {/* ═══════════════════════════════════════════════════
@@ -968,8 +1067,274 @@ export function CustomerDisplaySectionV4() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Preview sub-component (keeps main component clean)
+// Message Slot Designer sub-component
 // ═══════════════════════════════════════════════════════════
+
+const SIZE_LABELS: Record<MessageTextSize, string> = {
+  sm: 'Pequeño',
+  md: 'Mediano',
+  lg: 'Grande',
+  xl: 'Extra grande',
+  '2xl': 'Máximo',
+};
+
+const WEIGHT_LABELS: Record<MessageTextWeight, string> = {
+  regular: 'Normal',
+  semibold: 'Semi-negrita',
+  bold: 'Negrita',
+};
+
+const ALIGN_LABELS: Record<MessageTextAlign, string> = {
+  left: '← Izquierda',
+  center: 'Centro',
+  right: 'Derecha →',
+};
+
+interface MessageSlotDesignerProps {
+  label: string;
+  description: string;
+  icon: typeof StoreIcon;
+  textValue: string;
+  onTextChange: (v: string) => void;
+  textPlaceholder: string;
+  maxLength: number;
+  multiline?: boolean;
+  style: MessageStyle;
+  onStyleChange: <K extends keyof MessageStyle>(prop: K, value: MessageStyle[K]) => void;
+  expanded: boolean;
+  onToggle: () => void;
+}
+
+function MessageSlotDesigner({
+  label, description, icon, textValue, onTextChange, textPlaceholder,
+  maxLength, multiline, style, onStyleChange, expanded, onToggle,
+}: MessageSlotDesignerProps) {
+  const [colorPop, setColorPop] = useState(false);
+
+  return (
+    <BlockStack gap="300">
+      {/* Header row — text field + expand button */}
+      <InlineStack gap="300" blockAlign="start" wrap={false}>
+        <Box padding="200" background="bg-surface-secondary" borderRadius="200" minWidth="36px">
+          <Icon source={icon} tone="info" />
+        </Box>
+        <div style={{ flex: 1 }}>
+          <TextField
+            label={label}
+            placeholder={textPlaceholder}
+            value={textValue}
+            onChange={onTextChange}
+            maxLength={maxLength}
+            showCharacterCount
+            multiline={multiline ? 2 : undefined}
+            helpText={description}
+            autoComplete="off"
+          />
+        </div>
+        <div style={{ paddingTop: 24 }}>
+          <Tooltip content={expanded ? 'Ocultar opciones de estilo' : 'Personalizar estilo'}>
+            <Button
+              icon={expanded ? ChevronUpIcon : ChevronDownIcon}
+              size="slim"
+              variant={expanded ? 'primary' : 'tertiary'}
+              onClick={onToggle}
+              accessibilityLabel="Personalizar estilo"
+            />
+          </Tooltip>
+        </div>
+      </InlineStack>
+
+      {/* Collapsible styling panel */}
+      <Collapsible open={expanded} id={`msg-style-${label}`} transition={{ duration: '200ms', timingFunction: 'ease-in-out' }}>
+        <Box background="bg-surface-secondary" borderRadius="200" padding="400">
+          <BlockStack gap="400">
+            {/* Subtitle */}
+            <TextField
+              label="Subtítulo"
+              placeholder="Ej: Estamos a su servicio"
+              value={style.subtitle}
+              onChange={(v) => onStyleChange('subtitle', v)}
+              maxLength={120}
+              showCharacterCount
+              helpText="Texto secundario que aparece debajo del mensaje principal."
+              autoComplete="off"
+            />
+
+            {/* Text size + weight */}
+            <InlineGrid columns={{ xs: 1, md: 2 }} gap="300">
+              <BlockStack gap="200">
+                <Text variant="bodySm" as="p" fontWeight="semibold">Tamaño de texto</Text>
+                <ButtonGroup variant="segmented">
+                  {MESSAGE_TEXT_SIZES.map((s) => (
+                    <Button key={s} pressed={style.textSize === s} onClick={() => onStyleChange('textSize', s)} size="slim">
+                      {SIZE_LABELS[s]}
+                    </Button>
+                  ))}
+                </ButtonGroup>
+              </BlockStack>
+
+              <BlockStack gap="200">
+                <Text variant="bodySm" as="p" fontWeight="semibold">Peso de fuente</Text>
+                <ButtonGroup variant="segmented">
+                  {MESSAGE_TEXT_WEIGHTS.map((w) => (
+                    <Button key={w} pressed={style.textWeight === w} onClick={() => onStyleChange('textWeight', w)} size="slim">
+                      {WEIGHT_LABELS[w]}
+                    </Button>
+                  ))}
+                </ButtonGroup>
+              </BlockStack>
+            </InlineGrid>
+
+            {/* Alignment */}
+            <BlockStack gap="200">
+              <Text variant="bodySm" as="p" fontWeight="semibold">Alineación</Text>
+              <ButtonGroup variant="segmented">
+                {MESSAGE_TEXT_ALIGNS.map((a) => (
+                  <Button key={a} pressed={style.textAlign === a} onClick={() => onStyleChange('textAlign', a)} size="slim">
+                    {ALIGN_LABELS[a]}
+                  </Button>
+                ))}
+              </ButtonGroup>
+            </BlockStack>
+
+            {/* Color + toggles */}
+            <InlineGrid columns={{ xs: 1, md: 2 }} gap="300">
+              <BlockStack gap="200">
+                <Text variant="bodySm" as="p" fontWeight="semibold">Color del texto</Text>
+                <InlineStack gap="200" blockAlign="center">
+                  <Popover
+                    active={colorPop}
+                    onClose={() => setColorPop(false)}
+                    activator={
+                      <div
+                        style={{
+                          width: 32, height: 32, borderRadius: 6,
+                          background: style.textColor || 'var(--p-color-text)',
+                          border: '2px solid var(--p-color-border)',
+                          cursor: 'pointer',
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setColorPop(true)}
+                        title="Elegir color de texto"
+                      />
+                    }
+                  >
+                    <Box padding="300">
+                      <ColorPicker
+                        color={hexToHsb(style.textColor || '#1a1a1a')}
+                        onChange={(hsb) => onStyleChange('textColor', hsbToHex(hsb))}
+                      />
+                    </Box>
+                  </Popover>
+                  <div style={{ flex: 1 }}>
+                    <TextField
+                      label=""
+                      labelHidden
+                      value={style.textColor}
+                      onChange={(v) => onStyleChange('textColor', v)}
+                      placeholder="Vacío = color del tema"
+                      maxLength={9}
+                      autoComplete="off"
+                    />
+                  </div>
+                </InlineStack>
+              </BlockStack>
+
+              <BlockStack gap="300">
+                <Checkbox
+                  label="Texto en mayúsculas"
+                  checked={style.uppercase}
+                  onChange={(v) => onStyleChange('uppercase', v)}
+                  helpText="Convierte el texto a MAYÚSCULAS."
+                />
+                <Checkbox
+                  label="Mostrar ícono"
+                  checked={style.showIcon}
+                  onChange={(v) => onStyleChange('showIcon', v)}
+                  helpText="Muestra el ícono junto al mensaje."
+                />
+              </BlockStack>
+            </InlineGrid>
+
+            {/* Live mini-preview */}
+            <Divider />
+            <BlockStack gap="100">
+              <Text variant="bodySm" as="p" tone="subdued" fontWeight="semibold">Vista previa del estilo</Text>
+              <Box background="bg-surface" borderRadius="200" padding="300">
+                <div style={{ textAlign: style.textAlign }}>
+                  <Text
+                    variant={SIZE_TO_POLARIS_VARIANT[style.textSize]}
+                    as="p"
+                    fontWeight={style.textWeight === 'regular' ? undefined : style.textWeight}
+                    alignment={style.textAlign}
+                  >
+                    <span style={{
+                      color: style.textColor || undefined,
+                      textTransform: style.uppercase ? 'uppercase' : undefined,
+                    }}>
+                      {textValue || textPlaceholder}
+                    </span>
+                  </Text>
+                  {style.subtitle && (
+                    <Text variant="bodySm" as="p" tone="subdued" alignment={style.textAlign}>
+                      {style.subtitle}
+                    </Text>
+                  )}
+                </div>
+              </Box>
+            </BlockStack>
+          </BlockStack>
+        </Box>
+      </Collapsible>
+    </BlockStack>
+  );
+}
+
+const SIZE_TO_POLARIS_VARIANT: Record<MessageTextSize, 'bodySm' | 'bodyMd' | 'bodyLg' | 'headingMd' | 'headingLg'> = {
+  sm: 'bodySm',
+  md: 'bodyMd',
+  lg: 'bodyLg',
+  xl: 'headingMd',
+  '2xl': 'headingLg',
+};
+
+// ═══════════════════════════════════════════════════════════
+// Advanced Preview — faithful replica of /display page
+// ═══════════════════════════════════════════════════════════
+
+/** Full theme config matching the actual display page */
+const DISPLAY_THEMES: Record<CustomerDisplayTheme, {
+  bg: string; bgGradient: string; text: string; textMuted: string;
+  accent: string; promoBg: string; border: string; decorLine: string;
+}> = {
+  light: {
+    bg: '#ffffff', bgGradient: 'radial-gradient(ellipse at 50% 0%, #f0fdf4 0%, #ffffff 50%, #f8fafc 100%)',
+    text: '#1a1a1a', textMuted: '#6d7175', accent: '#008060',
+    promoBg: 'rgba(0, 128, 96, 0.08)', border: '#e1e3e5',
+    decorLine: 'linear-gradient(90deg, transparent, #008060, transparent)',
+  },
+  dark: {
+    bg: '#0f1114', bgGradient: 'radial-gradient(ellipse at 50% 0%, #1e293b 0%, #0f1114 50%, #0a0c0e 100%)',
+    text: '#f1f1f1', textMuted: '#9a9da0', accent: '#36d399',
+    promoBg: 'rgba(54, 211, 153, 0.12)', border: '#2a2d31',
+    decorLine: 'linear-gradient(90deg, transparent, #36d399, transparent)',
+  },
+  brand: {
+    bg: '#0a2540', bgGradient: 'radial-gradient(ellipse at 50% 0%, #1e4d7a 0%, #0a2540 50%, #061b2e 100%)',
+    text: '#ffffff', textMuted: '#b0c4de', accent: '#00d4aa',
+    promoBg: 'rgba(0, 212, 170, 0.12)', border: '#1e4d7a',
+    decorLine: 'linear-gradient(90deg, transparent, #00d4aa, transparent)',
+  },
+};
+
+const PREVIEW_TEXT_SIZE: Record<MessageTextSize, { main: string; sub: string }> = {
+  sm: { main: '0.7em', sub: '0.6em' },
+  md: { main: '0.85em', sub: '0.65em' },
+  lg: { main: '1em', sub: '0.75em' },
+  xl: { main: '1.25em', sub: '0.85em' },
+  '2xl': { main: '1.6em', sub: '0.9em' },
+};
 
 interface PreviewProps {
   theme: CustomerDisplayTheme;
@@ -979,144 +1344,350 @@ interface PreviewProps {
   promoImages: string[];
   showClock: boolean;
   storeName: string;
+  logoUrl: string;
+  accentColor: string;
+  fontScale: string;
+  orientation: string;
+  msgStyle: CustomerDisplayMessageStyle;
+  phone: string;
+  address: string;
 }
 
-function PreviewCard({ theme, welcome, farewell, promoText, promoImages, showClock, storeName }: PreviewProps) {
-  const [previewMode, setPreviewMode] = useState<'idle' | 'sale' | 'done'>('idle');
+/** Sample sale data for preview */
+const SAMPLE_ITEMS = [
+  { name: 'Coca-Cola 600ml', qty: 2, price: 15.00, sub: 30.00 },
+  { name: 'Pan Bimbo Grande', qty: 1, price: 52.00, sub: 52.00 },
+  { name: 'Sabritas Original', qty: 3, price: 18.50, sub: 55.50 },
+];
+const SAMPLE_TOTAL = 137.50;
+const SAMPLE_IVA = 19.03;
+
+function PreviewCard({
+  theme, welcome, farewell, promoText, promoImages, showClock,
+  storeName, logoUrl, accentColor, fontScale, orientation, msgStyle, phone, address,
+}: PreviewProps) {
+  const [mode, setMode] = useState<'idle' | 'sale' | 'done'>('idle');
   const [key, setKey] = useState(0);
-  const [previewImgIdx, setPreviewImgIdx] = useState(0);
   const replay = useCallback(() => setKey((k) => k + 1), []);
-  const m = THEME_META[theme];
-  const previewImg = promoImages[previewImgIdx % promoImages.length] ?? '';
+
+  const t = DISPLAY_THEMES[theme];
+  const accent = accentColor || t.accent;
+  const scale = Number(fontScale) || 1;
+  const isPortrait = orientation === 'portrait';
+  const aspectRatio = isPortrait ? '9 / 16' : '16 / 9';
+  const now = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+  const ws = msgStyle.welcome;
+  const fs = msgStyle.farewell;
+  const ps = msgStyle.promo;
+
+  const welcomeText = welcome || `¡Bienvenido a ${storeName}!`;
+  const farewellText = farewell || 'Gracias por su preferencia';
 
   return (
     <Card>
       <BlockStack gap="400">
+        {/* Controls */}
         <InlineStack align="space-between" blockAlign="center">
           <InlineStack gap="200" blockAlign="center">
             <Box padding="200" background="bg-surface-secondary" borderRadius="200">
               <Icon source={ViewIcon} tone="info" />
             </Box>
             <BlockStack gap="050">
-              <Text variant="headingMd" as="h3">Vista previa</Text>
-              <Text variant="bodySm" as="p" tone="subdued">Así se verá cada estado de la pantalla.</Text>
+              <Text variant="headingMd" as="h3">Vista previa avanzada</Text>
+              <Text variant="bodySm" as="p" tone="subdued">Réplica exacta de la pantalla del cliente.</Text>
             </BlockStack>
           </InlineStack>
           <ButtonGroup>
-            <Button size="slim" pressed={previewMode === 'idle'}  onClick={() => { setPreviewMode('idle');  replay(); }}>Espera</Button>
-            <Button size="slim" pressed={previewMode === 'sale'}  onClick={() => { setPreviewMode('sale');  replay(); }}>Venta</Button>
-            <Button size="slim" pressed={previewMode === 'done'}  onClick={() => { setPreviewMode('done');  replay(); }}>Finalizada</Button>
+            <Button size="slim" pressed={mode === 'idle'} onClick={() => { setMode('idle'); replay(); }}>Espera</Button>
+            <Button size="slim" pressed={mode === 'sale'} onClick={() => { setMode('sale'); replay(); }}>Venta</Button>
+            <Button size="slim" pressed={mode === 'done'} onClick={() => { setMode('done'); replay(); }}>Finalizada</Button>
             <Tooltip content="Reproducir animación">
               <Button icon={RefreshIcon} size="slim" onClick={replay} />
             </Tooltip>
           </ButtonGroup>
         </InlineStack>
 
-        <div style={{ borderRadius: 12, border: '1px solid var(--p-color-border)', overflow: 'hidden' }}>
-          <div key={key} style={{ background: previewMode === 'idle' ? m.bg : undefined, minHeight: 250, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 }}>
+        {/* Preview frame — exact aspect ratio + scale */}
+        <div style={{
+          borderRadius: 12,
+          border: '2px solid var(--p-color-border)',
+          overflow: 'hidden',
+          position: 'relative',
+          aspectRatio,
+          maxHeight: 480,
+        }}>
+          <div key={key} style={{
+            position: 'absolute', inset: 0,
+            fontSize: `${scale * 0.55}rem`,
+            overflow: 'hidden',
+          }}>
+            {/* ══════════════ IDLE ══════════════ */}
+            {mode === 'idle' && (
+              <div style={{
+                background: t.bgGradient,
+                width: '100%', height: '100%',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                gap: '1.2em', padding: '2em 1.5em',
+                position: 'relative',
+              }}>
+                {/* Decorative line */}
+                <div style={{ position: 'absolute', top: 0, left: '10%', right: '10%', height: 2, background: t.decorLine }} />
 
-            {previewMode === 'idle' && (
-              <>
-                <Box padding="300" borderRadius="300" background="bg-fill-success">
-                  <div style={{ color: '#fff' }}><Icon source={StoreIcon} /></div>
-                </Box>
-                <Text variant="headingLg" as="p" alignment="center">
-                  <span style={{ color: m.text }}>{welcome || '¡Bienvenido!'}</span>
-                </Text>
-                <Text variant="bodySm" as="p" alignment="center">
-                  <span style={{ color: m.accent }}>Estamos a su servicio</span>
-                </Text>
+                {/* Logo */}
+                {logoUrl ? (
+                  <img src={logoUrl} alt={storeName} style={{ width: '3.5em', height: '3.5em', borderRadius: '0.6em', objectFit: 'contain' }} />
+                ) : (
+                  <div style={{
+                    width: '3.5em', height: '3.5em', borderRadius: '0.8em',
+                    background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontSize: '1.6em', fontWeight: 700,
+                  }}>
+                    {storeName.charAt(0)}
+                  </div>
+                )}
+
+                {/* Welcome message */}
+                <div style={{ width: '100%', textAlign: ws.textAlign }}>
+                  <div style={{
+                    fontSize: PREVIEW_TEXT_SIZE[ws.textSize].main,
+                    fontWeight: ws.textWeight === 'bold' ? 700 : ws.textWeight === 'semibold' ? 600 : 400,
+                    color: ws.textColor || t.text,
+                    textTransform: ws.uppercase ? 'uppercase' : undefined,
+                    lineHeight: 1.3,
+                  }}>
+                    {welcomeText}
+                  </div>
+                  {ws.subtitle && (
+                    <div style={{
+                      fontSize: PREVIEW_TEXT_SIZE[ws.textSize].sub,
+                      color: accent, marginTop: '0.3em',
+                    }}>
+                      {ws.subtitle}
+                    </div>
+                  )}
+                </div>
+
+                {/* Promo text */}
                 {promoText && (
-                  <Box padding="200" borderRadius="200">
-                    <InlineStack gap="100" blockAlign="center" align="center">
-                      <Icon source={GiftCardIcon} tone="success" />
-                      <Text variant="bodySm" as="span" tone="success">{promoText}</Text>
-                    </InlineStack>
-                  </Box>
+                  <div style={{
+                    background: t.promoBg, borderRadius: '0.5em', padding: '0.5em 1em',
+                    display: 'flex', alignItems: 'center', gap: '0.4em',
+                    justifyContent: ps.textAlign === 'center' ? 'center' : ps.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                    width: '100%',
+                  }}>
+                    {ps.showIcon && <span style={{ fontSize: '1em' }}>🎁</span>}
+                    <span style={{
+                      fontSize: PREVIEW_TEXT_SIZE[ps.textSize].main,
+                      fontWeight: ps.textWeight === 'bold' ? 700 : ps.textWeight === 'semibold' ? 600 : 400,
+                      color: ps.textColor || accent,
+                      textTransform: ps.uppercase ? 'uppercase' : undefined,
+                    }}>
+                      {promoText}
+                    </span>
+                  </div>
                 )}
-                {previewImg && (
-                  <BlockStack gap="100" inlineAlign="center">
-                    <Thumbnail source={previewImg} alt="Promo" size="large" />
-                    {promoImages.length > 1 && (
-                      <InlineStack gap="200" blockAlign="center" align="center">
-                        <Button size="slim" variant="plain" icon={ChevronLeftIcon} onClick={() => setPreviewImgIdx((i) => (i - 1 + promoImages.length) % promoImages.length)} accessibilityLabel="Anterior" />
-                        <Text variant="bodySm" as="span" tone="subdued">{(previewImgIdx % promoImages.length) + 1}/{promoImages.length}</Text>
-                        <Button size="slim" variant="plain" icon={ChevronRightIcon} onClick={() => setPreviewImgIdx((i) => (i + 1) % promoImages.length)} accessibilityLabel="Siguiente" />
-                      </InlineStack>
-                    )}
-                  </BlockStack>
+
+                {/* Promo image */}
+                {promoImages.length > 0 && promoImages[0] && (
+                  <img src={promoImages[0]} alt="Promo" style={{
+                    maxWidth: '80%', maxHeight: '6em', borderRadius: '0.5em', objectFit: 'cover',
+                  }} />
                 )}
+
+                {/* Clock */}
                 {showClock && (
-                  <InlineStack gap="100" blockAlign="center">
-                    <Icon source={ClockIcon} tone="subdued" />
-                    <Text variant="headingSm" as="span" tone="subdued">
-                      {new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                  </InlineStack>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3em', color: t.textMuted, fontSize: '1.1em' }}>
+                    🕐 {now}
+                  </div>
                 )}
-              </>
+
+                {/* Bottom contact */}
+                {(phone || address) && (
+                  <div style={{
+                    position: 'absolute', bottom: '0.8em', left: 0, right: 0,
+                    textAlign: 'center', color: t.textMuted, fontSize: '0.6em',
+                  }}>
+                    {phone && `Tel. ${phone}`}{phone && address && ' · '}{address}
+                  </div>
+                )}
+
+                {/* Bottom decorative line */}
+                <div style={{ position: 'absolute', bottom: 0, left: '10%', right: '10%', height: 2, background: t.decorLine }} />
+              </div>
             )}
 
-            {previewMode === 'sale' && (
-              <Box width="100%">
-                <BlockStack gap="300">
-                  <Box padding="200" background="bg-surface" borderRadius="200">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Box padding="100" background="bg-fill-success" borderRadius="100"><div style={{ color: '#fff' }}><Icon source={StoreIcon} /></div></Box>
-                        <Text variant="bodySm" as="span" fontWeight="bold">{storeName}</Text>
-                      </InlineStack>
-                      <Badge tone="success">3 artículos</Badge>
-                    </InlineStack>
-                  </Box>
-                  <InlineGrid columns={2} gap="300">
-                    <Card>
-                      <BlockStack gap="100">
-                        <InlineStack align="space-between"><InlineStack gap="100"><Badge tone="success" size="small">2</Badge><Text variant="bodySm" as="span">Coca-Cola 600ml</Text></InlineStack><Text variant="bodySm" as="span" fontWeight="bold">$30.00</Text></InlineStack>
-                        <InlineStack align="space-between"><InlineStack gap="100"><Badge tone="success" size="small">1</Badge><Text variant="bodySm" as="span">Pan Bimbo</Text></InlineStack><Text variant="bodySm" as="span" fontWeight="bold">$52.00</Text></InlineStack>
-                      </BlockStack>
-                    </Card>
-                    <Card>
-                      <BlockStack gap="200">
-                        <InlineStack align="space-between"><Text variant="bodySm" as="span" tone="subdued">Subtotal</Text><Text variant="bodySm" as="span">$82.00</Text></InlineStack>
-                        <Divider />
-                        <InlineStack align="space-between"><Text variant="headingSm" as="span">TOTAL</Text><Text variant="headingMd" as="span" fontWeight="bold">$82.00</Text></InlineStack>
-                        <Divider />
-                        <InlineStack gap="100" blockAlign="center" align="center"><Icon source={CashDollarIcon} tone="subdued" /><Text variant="bodySm" as="span" fontWeight="bold">Efectivo</Text></InlineStack>
-                      </BlockStack>
-                    </Card>
-                  </InlineGrid>
-                </BlockStack>
-              </Box>
+            {/* ══════════════ SALE ══════════════ */}
+            {mode === 'sale' && (
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#f6f6f7' }}>
+                {/* Header bar */}
+                <div style={{
+                  padding: '0.6em 1em', background: '#fff',
+                  borderBottom: '1px solid #e1e3e5',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em' }}>
+                    {logoUrl ? (
+                      <img src={logoUrl} alt="" style={{ width: '1.6em', height: '1.6em', borderRadius: 4, objectFit: 'contain' }} />
+                    ) : (
+                      <div style={{ width: '1.6em', height: '1.6em', borderRadius: 4, background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.8em', fontWeight: 700 }}>
+                        {storeName.charAt(0)}
+                      </div>
+                    )}
+                    <strong style={{ fontSize: '0.85em' }}>{storeName}</strong>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6em' }}>
+                    <span style={{ fontSize: '0.65em', color: '#6d7175' }}>🕐 {now}</span>
+                    <span style={{ fontSize: '0.6em', background: '#e4f5e9', color: '#0d7a47', padding: '0.15em 0.5em', borderRadius: 10, fontWeight: 600 }}>
+                      {SAMPLE_ITEMS.reduce((s, i) => s + i.qty, 0)} artículos
+                    </span>
+                  </div>
+                </div>
+
+                {/* Body split */}
+                <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+                  {/* Left — items table */}
+                  <div style={{ flex: 1.6, padding: '0.8em', overflowY: 'auto' }}>
+                    <div style={{ fontSize: '0.65em', color: '#6d7175', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.6em', letterSpacing: '0.05em' }}>
+                      📋 Su compra
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7em' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #e1e3e5' }}>
+                          <th style={{ textAlign: 'left', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>Cant.</th>
+                          <th style={{ textAlign: 'left', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>Producto</th>
+                          <th style={{ textAlign: 'right', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>P.Unit.</th>
+                          <th style={{ textAlign: 'right', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {SAMPLE_ITEMS.map((item) => (
+                          <tr key={item.name} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <td style={{ padding: '0.4em' }}>
+                              <span style={{ background: '#e4f5e9', color: '#0d7a47', padding: '0.1em 0.4em', borderRadius: 6, fontWeight: 600, fontSize: '0.85em' }}>{item.qty}</span>
+                            </td>
+                            <td style={{ padding: '0.4em', fontWeight: 600 }}>{item.name}</td>
+                            <td style={{ padding: '0.4em', textAlign: 'right', color: '#6d7175' }}>${item.price.toFixed(2)}</td>
+                            <td style={{ padding: '0.4em', textAlign: 'right', fontWeight: 600 }}>${item.sub.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Right — totals */}
+                  <div style={{ flex: 1, padding: '0.8em', display: 'flex', flexDirection: 'column', gap: '0.6em' }}>
+                    <div style={{ background: '#fff', borderRadius: 8, padding: '0.8em', border: '1px solid #e1e3e5' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', marginBottom: '0.3em' }}>
+                        <span>Subtotal</span><span>${SAMPLE_TOTAL.toFixed(2)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6em', color: '#6d7175', marginBottom: '0.5em' }}>
+                        <span>IVA (16%)</span><span>${SAMPLE_IVA.toFixed(2)}</span>
+                      </div>
+                      <div style={{ borderTop: '1px solid #e1e3e5', paddingTop: '0.5em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.9em', fontWeight: 700 }}>TOTAL</span>
+                        <span style={{ fontSize: '1.3em', fontWeight: 800 }}>${SAMPLE_TOTAL.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#fff', borderRadius: 8, padding: '0.6em', border: '1px solid #e1e3e5', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.6em', color: '#6d7175' }}>Método de pago</div>
+                      <div style={{ fontSize: '0.8em', fontWeight: 700, marginTop: '0.2em' }}>💵 Efectivo</div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', fontSize: '0.6em', color: '#6d7175', marginTop: 'auto' }}>
+                      Gracias por su preferencia
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
-            {previewMode === 'done' && (
-              <>
-                <Box padding="300" background="bg-fill-success-secondary" borderRadius="full"><Icon source={CheckIcon} tone="success" /></Box>
-                <Text variant="headingLg" as="p" alignment="center" tone="success">¡Gracias por su compra!</Text>
-                <Box maxWidth="280px" width="100%">
-                  <Card>
-                    <BlockStack gap="200">
-                      <InlineStack align="space-between"><Text variant="bodySm" as="span" tone="subdued">Total</Text><Text variant="headingSm" as="span" fontWeight="bold">$82.00</Text></InlineStack>
-                      <Divider />
-                      <InlineStack align="space-between"><Text variant="bodySm" as="span" tone="subdued">Método</Text><Badge>Efectivo</Badge></InlineStack>
-                      <InlineStack align="space-between"><Text variant="bodySm" as="span" tone="subdued">Cambio</Text><Text variant="bodySm" as="span" tone="caution" fontWeight="bold">$18.00</Text></InlineStack>
-                    </BlockStack>
-                  </Card>
-                </Box>
-                <InlineStack gap="100" blockAlign="center">
-                  <Icon source={StarFilledIcon} tone="warning" />
-                  <Text variant="bodySm" as="p" tone="subdued">{farewell || 'Gracias por su preferencia'}</Text>
-                  <Icon source={StarFilledIcon} tone="warning" />
-                </InlineStack>
-              </>
+            {/* ══════════════ FINISHED ══════════════ */}
+            {mode === 'done' && (
+              <div style={{
+                width: '100%', height: '100%', background: '#fff',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                gap: '1em', padding: '2em 1.5em',
+              }}>
+                {/* Check icon */}
+                <div style={{
+                  width: '3em', height: '3em', borderRadius: '50%',
+                  background: '#e4f5e9', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1.5em',
+                }}>
+                  ✓
+                </div>
+
+                {/* Thanks heading */}
+                <div style={{ fontSize: '1.4em', fontWeight: 700, color: '#0d7a47', textAlign: 'center' }}>
+                  ¡Gracias por su compra!
+                </div>
+
+                {/* Receipt card */}
+                <div style={{
+                  background: '#fff', borderRadius: 8, padding: '1em',
+                  border: '1px solid #e1e3e5', minWidth: '50%', maxWidth: '75%',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8em', marginBottom: '0.4em' }}>
+                    <span style={{ color: '#6d7175' }}>Total pagado</span>
+                    <span style={{ fontWeight: 800, fontSize: '1.1em' }}>${SAMPLE_TOTAL.toFixed(2)}</span>
+                  </div>
+                  <div style={{ borderTop: '1px solid #e1e3e5', paddingTop: '0.4em', display: 'flex', justifyContent: 'space-between', fontSize: '0.7em' }}>
+                    <span style={{ color: '#6d7175' }}>Método</span>
+                    <span style={{ background: '#f0f0f0', padding: '0.1em 0.5em', borderRadius: 6, fontWeight: 500 }}>Efectivo</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7em', marginTop: '0.3em' }}>
+                    <span style={{ color: '#6d7175' }}>Folio</span>
+                    <span style={{ fontWeight: 600 }}>V-00042</span>
+                  </div>
+                  <div style={{ borderTop: '1px solid #e1e3e5', paddingTop: '0.4em', display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', marginTop: '0.3em' }}>
+                    <span style={{ color: '#6d7175' }}>Su cambio</span>
+                    <span style={{ fontWeight: 700, color: '#b98900' }}>${(200 - SAMPLE_TOTAL).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Farewell message — uses actual styling */}
+                <div style={{
+                  textAlign: fs.textAlign, width: '100%',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3em', justifyContent: fs.textAlign === 'center' ? 'center' : fs.textAlign === 'right' ? 'flex-end' : 'flex-start' }}>
+                    {fs.showIcon && <span>⭐</span>}
+                    <span style={{
+                      fontSize: PREVIEW_TEXT_SIZE[fs.textSize].main,
+                      fontWeight: fs.textWeight === 'bold' ? 700 : fs.textWeight === 'semibold' ? 600 : 400,
+                      color: fs.textColor || '#6d7175',
+                      textTransform: fs.uppercase ? 'uppercase' : undefined,
+                    }}>
+                      {farewellText}
+                    </span>
+                    {fs.showIcon && <span>⭐</span>}
+                  </div>
+                  {fs.subtitle && (
+                    <div style={{ fontSize: PREVIEW_TEXT_SIZE[fs.textSize].sub, color: '#6d7175', marginTop: '0.2em' }}>
+                      {fs.subtitle}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
+          </div>
+
+          {/* Orientation badge overlay */}
+          <div style={{
+            position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)',
+            color: '#fff', fontSize: 10, padding: '2px 8px', borderRadius: 4,
+          }}>
+            {isPortrait ? '📱 Vertical' : '🖥️ Horizontal'} · {`${scale}x`}
           </div>
         </div>
 
+        {/* Mode label */}
         <InlineStack align="center">
           <Badge tone="info">
-            {previewMode === 'idle' ? 'Pantalla de espera' : previewMode === 'sale' ? 'Venta activa' : 'Venta finalizada'}
+            {mode === 'idle' ? 'Pantalla de espera' : mode === 'sale' ? 'Venta activa' : 'Venta finalizada'}
           </Badge>
         </InlineStack>
       </BlockStack>

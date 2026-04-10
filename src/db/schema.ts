@@ -49,6 +49,7 @@ export const storeConfig = pgTable('store_config', {
   // Ticket designer JSON (per-ticket-type design config)
   ticketDesignVenta: text('ticket_design_venta'),
   ticketDesignCorte: text('ticket_design_corte'),
+  ticketDesignProveedor: text('ticket_design_proveedor'),
   // Métodos de pago adicionales
   clabeNumber: text('clabe_number'),
   paypalUsername: text('paypal_username'),
@@ -88,6 +89,7 @@ export const storeConfig = pgTable('store_config', {
   customerDisplayAccentColor: text('customer_display_accent_color'),
   customerDisplaySoundEnabled: boolean('customer_display_sound_enabled').notNull().default(false),
   customerDisplayOrientation: text('customer_display_orientation').notNull().default('landscape'),
+  customerDisplayMessageStyle: text('customer_display_message_style'),
   inventoryGeneralColumns: text('inventory_general_columns').notNull().default('["title","sku","available","onHand"]'),
   defaultMargin: text('default_margin').notNull().default('30'),
   defaultStartingFund: numeric('default_starting_fund', { precision: 10, scale: 2 }).notNull().default('500'),
