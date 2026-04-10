@@ -332,7 +332,7 @@ export function TicketDesignerSection() {
                 </InlineStack>
                 <InlineStack gap="200" blockAlign="center">
                   {isBusy && <Badge tone="attention">Guardando…</Badge>}
-                  <Badge>{enabledCount} campos activos</Badge>
+                  <Badge>{`${enabledCount} campos activos`}</Badge>
                 </InlineStack>
               </InlineStack>
               <Tooltip content={`${enabledCount} de ${maxFields} campos habilitados (${completionPct}%)`}>
