@@ -16,7 +16,7 @@ import { eq, sql } from 'drizzle-orm';
 export async function adjustStock(
   productId: string,
   delta: number,
-  opts?: { tx?: typeof db; now?: Date },
+  opts?: { tx?: Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db; now?: Date },
 ) {
   const executor = opts?.tx ?? db;
   const now = opts?.now ?? new Date();
@@ -24,9 +24,7 @@ export async function adjustStock(
   const [updated] = await executor
     .update(products)
     .set({
-      currentStock: delta >= 0
-        ? sql`current_stock + ${delta}`
-        : sql`greatest(0, current_stock + ${delta})`,
+      currentStock: delta >= 0 ? sql`current_stock + ${delta}` : sql`greatest(0, current_stock + ${delta})`,
       updatedAt: now,
     })
     .where(eq(products.id, productId))

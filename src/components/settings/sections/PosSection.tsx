@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  Card,
-  Text,
-  TextField,
-  FormLayout,
-  BlockStack,
-  Checkbox,
-  Box,
-  Layout,
-} from '@shopify/polaris';
+import { Card, TextField, FormLayout, BlockStack, Checkbox, Box, Layout } from '@shopify/polaris';
 import { FormSelect } from '@/components/ui/FormSelect';
 import { TicketDesignerSection } from './TicketDesignerSection';
 import type { SettingsSectionProps } from './types';
@@ -17,13 +8,24 @@ import type { SettingsSectionProps } from './types';
 export function PosSection({ config, updateField }: SettingsSectionProps) {
   return (
     <BlockStack gap="500">
-      <Layout.AnnotatedSection title="Comportamiento del checkout" description="Automatizaciones para agilizar el cobro en mostrador.">
+      <Layout.AnnotatedSection
+        title="Comportamiento del checkout"
+        description="Automatizaciones para agilizar el cobro en mostrador."
+      >
         <Card background="bg-surface">
-          <Checkbox label="Imprimir ticket automáticamente al cobrar" helpText="Elimina el paso de confirmación y despacha el recibo hacia la impresora térmica de inmediato." checked={config.printReceipts} onChange={(v) => updateField('printReceipts', v)} />
+          <Checkbox
+            label="Imprimir ticket automáticamente al cobrar"
+            helpText="Elimina el paso de confirmación y despacha el recibo hacia la impresora térmica de inmediato."
+            checked={config.printReceipts}
+            onChange={(v) => updateField('printReceipts', v)}
+          />
         </Card>
       </Layout.AnnotatedSection>
 
-      <Layout.AnnotatedSection title="Horarios y Operación de Caja" description="Configura el cierre automático del sistema y la base de efectivo predeterminada para el cambio.">
+      <Layout.AnnotatedSection
+        title="Horarios y Operación de Caja"
+        description="Configura el cierre automático del sistema y la base de efectivo predeterminada para el cambio."
+      >
         <Card>
           <FormLayout>
             <FormLayout.Group>
@@ -59,13 +61,34 @@ export function PosSection({ config, updateField }: SettingsSectionProps) {
         </Card>
       </Layout.AnnotatedSection>
 
-      <Layout.AnnotatedSection title="Formatos de Ticket" description="Mensajes de pie de página y estándar tecnológico para el código de barras.">
+      <Layout.AnnotatedSection
+        title="Formatos de Ticket"
+        description="Mensajes de pie de página y estándar tecnológico para el código de barras."
+      >
         <Card>
           <FormLayout>
-            <TextField label="Mensaje del pie del ticket" value={config.ticketFooter} onChange={(v) => updateField('ticketFooter', v)} autoComplete="off" multiline={3} helpText="Agrega políticas de devolución o agradecimientos. Usa \n para saltos de línea." />
+            <TextField
+              label="Mensaje del pie del ticket"
+              value={config.ticketFooter}
+              onChange={(v) => updateField('ticketFooter', v)}
+              autoComplete="off"
+              multiline={3}
+              helpText="Agrega políticas de devolución o agradecimientos. Usa \n para saltos de línea."
+            />
             <FormLayout.Group>
-              <TextField label="Teléfono de soporte/reclamaciones" value={config.ticketServicePhone} onChange={(v) => updateField('ticketServicePhone', v)} autoComplete="off" />
-              <TextField label="Límite de vigencia" value={config.ticketVigencia} onChange={(v) => updateField('ticketVigencia', v)} autoComplete="off" helpText="Ej: 30 Días / Fin de mes" />
+              <TextField
+                label="Teléfono de soporte/reclamaciones"
+                value={config.ticketServicePhone}
+                onChange={(v) => updateField('ticketServicePhone', v)}
+                autoComplete="off"
+              />
+              <TextField
+                label="Límite de vigencia"
+                value={config.ticketVigencia}
+                onChange={(v) => updateField('ticketVigencia', v)}
+                autoComplete="off"
+                helpText="Ej: 30 Días / Fin de mes"
+              />
             </FormLayout.Group>
             <Box paddingBlockStart="200">
               <FormSelect
@@ -85,7 +108,10 @@ export function PosSection({ config, updateField }: SettingsSectionProps) {
       </Layout.AnnotatedSection>
 
       {/* ── Ticket Designer (self-managed, auto-saves) ── */}
-      <Layout.AnnotatedSection title="Diseñador de Tickets" description="Personaliza cada sección del ticket con controles visuales y vista previa en tiempo real. Soporta tickets de venta, corte de caja y órdenes de proveedor.">
+      <Layout.AnnotatedSection
+        title="Diseñador de Tickets"
+        description="Personaliza cada sección del ticket con controles visuales y vista previa en tiempo real. Soporta tickets de venta, corte de caja y órdenes de proveedor."
+      >
         <TicketDesignerSection />
       </Layout.AnnotatedSection>
     </BlockStack>

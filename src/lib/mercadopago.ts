@@ -35,7 +35,7 @@ const MP_BACKEND_URL = '/api/mercadopago';
  */
 export async function createPaymentIntent(
   config: MercadoPagoConfig,
-  request: PaymentIntentRequest
+  request: PaymentIntentRequest,
 ): Promise<PaymentIntent> {
   const response = await fetch(MP_BACKEND_URL, {
     method: 'POST',
@@ -63,7 +63,7 @@ export async function createPaymentIntent(
  */
 export async function getPaymentIntentStatus(
   config: MercadoPagoConfig,
-  paymentIntentId: string
+  paymentIntentId: string,
 ): Promise<PaymentIntent> {
   const response = await fetch(MP_BACKEND_URL, {
     method: 'POST',
@@ -84,10 +84,7 @@ export async function getPaymentIntentStatus(
 /**
  * Cancela un intento de cobro pendiente en la terminal
  */
-export async function cancelPaymentIntent(
-  config: MercadoPagoConfig,
-  deviceId: string
-): Promise<void> {
+export async function cancelPaymentIntent(config: MercadoPagoConfig, deviceId: string): Promise<void> {
   const response = await fetch(MP_BACKEND_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -166,11 +163,14 @@ export function getMPConfigFromStore(storeConfig: {
  */
 export function saveMPConfig(config: MercadoPagoConfig): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('mp_config', JSON.stringify({
-    deviceId: config.deviceId,
-    publicKey: config.publicKey,
-    enabled: config.enabled,
-  }));
+  localStorage.setItem(
+    'mp_config',
+    JSON.stringify({
+      deviceId: config.deviceId,
+      publicKey: config.publicKey,
+      enabled: config.enabled,
+    }),
+  );
 }
 
 /**

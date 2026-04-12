@@ -59,10 +59,7 @@ const RELEASE_SCRIPT = `
  * }
  * ```
  */
-export async function acquireLock(
-  resource: string,
-  options?: LockOptions,
-): Promise<Lock | null> {
+export async function acquireLock(resource: string, options?: LockOptions): Promise<Lock | null> {
   const redis = getRedisClient();
   const ttlMs = options?.ttlMs ?? DEFAULT_TTL_MS;
 
@@ -70,7 +67,9 @@ export async function acquireLock(
   if (!redis) {
     return {
       resource,
-      release: async () => { /* no-op */ },
+      release: async () => {
+        /* no-op */
+      },
     };
   }
 
@@ -130,11 +129,7 @@ export async function acquireLock(
  *
  * @throws Error if lock cannot be acquired.
  */
-export async function withLock<T>(
-  resource: string,
-  fn: () => Promise<T>,
-  options?: LockOptions,
-): Promise<T> {
+export async function withLock<T>(resource: string, fn: () => Promise<T>, options?: LockOptions): Promise<T> {
   const lock = await acquireLock(resource, options);
   if (!lock) {
     throw new Error(`No se pudo adquirir lock para: ${resource}`);

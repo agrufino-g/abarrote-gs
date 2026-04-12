@@ -1,6 +1,6 @@
 /**
  * Feature Flags System
- * 
+ *
  * Enterprise-grade feature flag management with:
  * - Database-backed flags (persistent, admin-controlled)
  * - In-memory cache for sub-ms reads
@@ -8,28 +8,28 @@
  * - User/role targeting
  * - Scheduled activation/deactivation
  * - Audit trail of changes
- * 
+ *
  * Architecture:
  *   DB (source of truth) → Cache (fast reads) → Evaluation (logic)
- * 
+ *
  * @example
  * // Check a flag
  * if (await isFeatureEnabled('new_checkout_flow')) {
  *   // New code path
  * }
- * 
+ *
  * // Check with user targeting
  * if (await isFeatureEnabled('beta_feature', { userId: 'u-123', roleId: 'admin' })) {
  *   // Beta code path for targeted users
  * }
- * 
+ *
  * // In server actions
  * const createSale = withFeatureFlag('sales_v2', _createSaleV2, _createSaleV1);
  */
 
 import { db } from '@/db';
 import { featureFlags } from '@/db/schema';
-import { eq, and, lte, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 
 // ══════════════════════════════════════════════════════════════
@@ -79,8 +79,8 @@ interface CacheEntry {
 
 const FLAG_CACHE = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 30_000; // 30 seconds
-let allFlagsLastFetchAt = 0;
-const ALL_FLAGS_TTL_MS = 60_000; // 1 minute
+let _allFlagsLastFetchAt = 0;
+const _ALL_FLAGS_TTL_MS = 60_000; // 1 minute
 
 /**
  * Invalidate a specific flag from cache
@@ -94,7 +94,7 @@ export function invalidateFlagCache(flagId: string): void {
  */
 export function invalidateAllFlagsCache(): void {
   FLAG_CACHE.clear();
-  allFlagsLastFetchAt = 0;
+  _allFlagsLastFetchAt = 0;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -114,7 +114,7 @@ async function getFlag(flagId: string): Promise<FeatureFlag | null> {
   // Fetch from DB
   try {
     const rows = await db.select().from(featureFlags).where(eq(featureFlags.id, flagId)).limit(1);
-    
+
     if (rows.length === 0) return null;
 
     const row = rows[0];
@@ -152,7 +152,7 @@ async function getFlag(flagId: string): Promise<FeatureFlag | null> {
 export async function getAllFlags(): Promise<FeatureFlag[]> {
   try {
     const rows = await db.select().from(featureFlags);
-    
+
     return rows.map((row) => ({
       id: row.id,
       description: row.description,
@@ -188,7 +188,7 @@ function hashForRollout(flagId: string, userId: string): number {
   let hash = 0;
   for (let i = 0; i < input.length; i++) {
     const char = input.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash % 100);
@@ -199,21 +199,21 @@ function hashForRollout(flagId: string, userId: string): number {
  */
 function isWithinSchedule(flag: FeatureFlag): boolean {
   const now = new Date();
-  
+
   if (flag.activateAt && now < flag.activateAt) {
     return false; // Not yet activated
   }
-  
+
   if (flag.deactivateAt && now > flag.deactivateAt) {
     return false; // Already deactivated
   }
-  
+
   return true;
 }
 
 /**
  * Evaluate whether a feature flag is enabled for a given context.
- * 
+ *
  * Evaluation order:
  * 1. Flag exists? No → false
  * 2. Flag.enabled? No → false
@@ -258,17 +258,20 @@ export function evaluateFlag(flag: FeatureFlag, context: EvaluationContext = {})
 
 /**
  * Check if a feature flag is enabled.
- * 
- * Returns false for unknown flags (fail-safe).
+ *
+ * Returns false for unknown flags (fail-safe) and logs a warning for telemetry.
  */
-export async function isFeatureEnabled(
-  flagId: string,
-  context: EvaluationContext = {},
-): Promise<boolean> {
+export async function isFeatureEnabled(flagId: string, context: EvaluationContext = {}): Promise<boolean> {
   const flag = await getFlag(flagId);
-  
+
   if (!flag) {
     // Unknown flags are disabled by default (fail-safe)
+    logger.warn('Unknown feature flag requested', {
+      action: 'feature_flag_unknown',
+      flagId,
+      userId: context.userId,
+      roleId: context.roleId,
+    });
     return false;
   }
 
@@ -301,9 +304,9 @@ export async function getFeatureValue<T>(
 
 /**
  * Higher-order function for feature-flagged server actions.
- * 
+ *
  * Routes to different implementations based on flag state.
- * 
+ *
  * @example
  * export const createSale = withFeatureFlag(
  *   'sales_v2',

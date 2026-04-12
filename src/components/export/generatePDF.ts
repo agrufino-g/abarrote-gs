@@ -1,11 +1,7 @@
 // Archivo separado para evitar que jspdf/fflate rompa SSR en Next.js 16.2+
 // jsPDF y jspdf-autotable se importan dinámicamente solo en cliente.
 
-export async function generatePDF(
-  title: string,
-  data: Record<string, unknown>[],
-  filename: string
-): Promise<void> {
+export async function generatePDF(title: string, data: Record<string, unknown>[], filename: string): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
   const doc = new jsPDF({ orientation: 'landscape' });
@@ -50,8 +46,8 @@ export async function generatePDF(
 
   if (data.length > 0) {
     const headers = Object.keys(data[0]);
-    const tableHeaders = headers.map(h =>
-      (h.charAt(0).toUpperCase() + h.slice(1).replace(/([A-Z])/g, ' $1')).toUpperCase()
+    const tableHeaders = headers.map((h) =>
+      (h.charAt(0).toUpperCase() + h.slice(1).replace(/([A-Z])/g, ' $1')).toUpperCase(),
     );
 
     const body = data.map((item) =>
@@ -59,7 +55,7 @@ export async function generatePDF(
         const val = item[h];
         if (typeof val === 'object' && val !== null) return JSON.stringify(val);
         return String(val ?? '');
-      })
+      }),
     );
 
     autoTable(doc, {
@@ -80,7 +76,7 @@ export async function generatePDF(
         textColor: [0, 68, 148],
         fontStyle: 'bold',
         lineColor: [228, 229, 231],
-        lineWidth: { bottom: 0.5 }
+        lineWidth: { bottom: 0.5 },
       },
       alternateRowStyles: {
         fillColor: [252, 252, 252],

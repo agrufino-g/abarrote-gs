@@ -9,11 +9,7 @@ export default function PagosMPPage() {
 
   if (!mpEnabled) {
     return (
-      <Page
-        fullWidth
-        title="MercadoPago"
-        backAction={{ content: 'Ventas', url: '/dashboard/sales' }}
-      >
+      <Page fullWidth title="MercadoPago" backAction={{ content: 'Ventas', url: '/dashboard/sales' }}>
         <BlockStack gap="400">
           <EmptyState
             heading="Conecta tu cuenta de MercadoPago"
@@ -24,9 +20,8 @@ export default function PagosMPPage() {
             }}
           >
             <p>
-              Para acceder a pagos, reembolsos, QR y links de cobro, primero
-              vincula tu cuenta de MercadoPago desde la sección de pagos en
-              Configuración.
+              Para acceder a pagos, reembolsos, QR y links de cobro, primero vincula tu cuenta de MercadoPago desde la
+              sección de pagos en Configuración.
             </p>
           </EmptyState>
         </BlockStack>

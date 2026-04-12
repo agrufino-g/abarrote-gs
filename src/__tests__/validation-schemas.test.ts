@@ -56,17 +56,21 @@ describe('Validation Schemas', () => {
     });
 
     it('rejects negative prices', () => {
-      expect(() => createProductSchema.parse({
-        ...validProduct,
-        costPrice: -10,
-      })).toThrow();
+      expect(() =>
+        createProductSchema.parse({
+          ...validProduct,
+          costPrice: -10,
+        }),
+      ).toThrow();
     });
 
     it('rejects negative stock', () => {
-      expect(() => createProductSchema.parse({
-        ...validProduct,
-        currentStock: -5,
-      })).toThrow();
+      expect(() =>
+        createProductSchema.parse({
+          ...validProduct,
+          currentStock: -5,
+        }),
+      ).toThrow();
     });
 
     it('accepts optional imageUrl', () => {
@@ -78,10 +82,12 @@ describe('Validation Schemas', () => {
     });
 
     it('rejects invalid imageUrl', () => {
-      expect(() => createProductSchema.parse({
-        ...validProduct,
-        imageUrl: 'not-a-url',
-      })).toThrow();
+      expect(() =>
+        createProductSchema.parse({
+          ...validProduct,
+          imageUrl: 'not-a-url',
+        }),
+      ).toThrow();
     });
   });
 
@@ -115,10 +121,12 @@ describe('Validation Schemas', () => {
     });
 
     it('rejects invalid email', () => {
-      expect(() => createClienteSchema.parse({
-        name: 'Test',
-        email: 'invalid-email',
-      })).toThrow();
+      expect(() =>
+        createClienteSchema.parse({
+          name: 'Test',
+          email: 'invalid-email',
+        }),
+      ).toThrow();
     });
 
     it('accepts empty string as email', () => {
@@ -132,14 +140,16 @@ describe('Validation Schemas', () => {
 
   describe('createSaleSchema', () => {
     const validSale = {
-      items: [{
-        productId: 'p-123',
-        productName: 'Product 1',
-        sku: 'SKU001',
-        quantity: 2,
-        unitPrice: 50,
-        subtotal: 100,
-      }],
+      items: [
+        {
+          productId: 'p-123',
+          productName: 'Product 1',
+          sku: 'SKU001',
+          quantity: 2,
+          unitPrice: 50,
+          subtotal: 100,
+        },
+      ],
       subtotal: 100,
       iva: 16,
       total: 116,
@@ -161,34 +171,42 @@ describe('Validation Schemas', () => {
     });
 
     it('rejects empty items array', () => {
-      expect(() => createSaleSchema.parse({
-        ...validSale,
-        items: [],
-      })).toThrow();
+      expect(() =>
+        createSaleSchema.parse({
+          ...validSale,
+          items: [],
+        }),
+      ).toThrow();
     });
 
     it('rejects invalid payment method', () => {
-      expect(() => createSaleSchema.parse({
-        ...validSale,
-        paymentMethod: 'bitcoin',
-      })).toThrow();
+      expect(() =>
+        createSaleSchema.parse({
+          ...validSale,
+          paymentMethod: 'bitcoin',
+        }),
+      ).toThrow();
     });
 
     it('accepts all valid payment methods', () => {
       const methods = ['efectivo', 'tarjeta', 'tarjeta_web', 'transferencia', 'fiado', 'spei', 'tarjeta_clip'];
       for (const method of methods) {
-        expect(() => createSaleSchema.parse({
-          ...validSale,
-          paymentMethod: method,
-        })).not.toThrow();
+        expect(() =>
+          createSaleSchema.parse({
+            ...validSale,
+            paymentMethod: method,
+          }),
+        ).not.toThrow();
       }
     });
 
     it('rejects negative total', () => {
-      expect(() => createSaleSchema.parse({
-        ...validSale,
-        total: -100,
-      })).toThrow();
+      expect(() =>
+        createSaleSchema.parse({
+          ...validSale,
+          total: -100,
+        }),
+      ).toThrow();
     });
   });
 
@@ -233,17 +251,21 @@ describe('Validation Schemas', () => {
     });
 
     it('rejects invalid category', () => {
-      expect(() => createGastoSchema.parse({
-        ...validGasto,
-        categoria: 'invalid',
-      })).toThrow();
+      expect(() =>
+        createGastoSchema.parse({
+          ...validGasto,
+          categoria: 'invalid',
+        }),
+      ).toThrow();
     });
 
     it('rejects zero amount', () => {
-      expect(() => createGastoSchema.parse({
-        ...validGasto,
-        monto: 0,
-      })).toThrow();
+      expect(() =>
+        createGastoSchema.parse({
+          ...validGasto,
+          monto: 0,
+        }),
+      ).toThrow();
     });
   });
 
@@ -266,10 +288,12 @@ describe('Validation Schemas', () => {
     });
 
     it('rejects zero amount', () => {
-      expect(() => createAbonoSchema.parse({
-        clienteId: 'cli-123',
-        amount: 0,
-      })).toThrow();
+      expect(() =>
+        createAbonoSchema.parse({
+          clienteId: 'cli-123',
+          amount: 0,
+        }),
+      ).toThrow();
     });
   });
 });

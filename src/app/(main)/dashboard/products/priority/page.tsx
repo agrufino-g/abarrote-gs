@@ -15,7 +15,7 @@ export default function InventoryPriorityPage() {
     useDashboardStore.getState().openProductDetail(product);
   }, []);
 
-  const fancyTitle = (
+  const _fancyTitle = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <Icon source={ProductFilledIcon} tone="base" />
       <span>Inventario Prioritario</span>
@@ -23,7 +23,7 @@ export default function InventoryPriorityPage() {
   );
 
   return (
-    <Page fullWidth title={fancyTitle as any}>
+    <Page fullWidth title="Inventario Prioritario">
       <BlockStack gap="400">
         <InventoryTable alerts={inventoryAlerts} onProductClick={handleProductClick} />
       </BlockStack>

@@ -1,12 +1,12 @@
 /**
  * Action Factory - Enterprise Pattern
- * 
+ *
  * Creates server actions with built-in:
  * - Structured logging (start, success, error)
  * - Timing metrics
  * - Error normalization
  * - Optional safe return (no throw)
- * 
+ *
  * @example
  * // Basic usage - logs but still throws on error
  * export const createProduct = createAction(
@@ -16,7 +16,7 @@
  *     return db.insert(products).values(data);
  *   }
  * );
- * 
+ *
  * // Safe mode - returns ActionResult instead of throwing
  * export const createProductSafe = createAction(
  *   'createProduct',
@@ -25,7 +25,7 @@
  * );
  */
 
-import { logger, withRequestContext, extractRequestId } from '@/lib/logger';
+import { logger, withRequestContext } from '@/lib/logger';
 import { parseError, AppError } from './index';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -64,31 +64,31 @@ type ActionFn<TArgs extends unknown[], TReturn> = (...args: TArgs) => Promise<TR
 
 /**
  * Create a wrapped server action with logging and error handling.
- * 
+ *
  * Default behavior:
  * - Logs errors automatically
  * - Re-throws errors (backward compatible)
  * - Measures execution time
- * 
+ *
  * With { safe: true }:
  * - Returns { success, data, error, meta } instead of throwing
  */
 export function createAction<TArgs extends unknown[], TReturn>(
   actionName: string,
   actionFn: ActionFn<TArgs, TReturn>,
-  options: ActionOptions & { safe: true }
+  options: ActionOptions & { safe: true },
 ): (...args: TArgs) => Promise<ActionResult<TReturn>>;
 
 export function createAction<TArgs extends unknown[], TReturn>(
   actionName: string,
   actionFn: ActionFn<TArgs, TReturn>,
-  options?: ActionOptions & { safe?: false }
+  options?: ActionOptions & { safe?: false },
 ): (...args: TArgs) => Promise<TReturn>;
 
 export function createAction<TArgs extends unknown[], TReturn>(
   actionName: string,
   actionFn: ActionFn<TArgs, TReturn>,
-  options: ActionOptions = {}
+  options: ActionOptions = {},
 ): (...args: TArgs) => Promise<TReturn | ActionResult<TReturn>> {
   const { safe = false, logSuccess = false, tags = [] } = options;
 
@@ -107,62 +107,62 @@ export function createAction<TArgs extends unknown[], TReturn>(
     }
 
     const execute = async (): Promise<TReturn | ActionResult<TReturn>> => {
-    const buildMeta = () => ({
-      action: actionName,
-      durationMs: Math.round(performance.now() - startTime),
-      timestamp,
-    });
-
-    try {
-      const result = await actionFn(...args);
-      const meta = buildMeta();
-
-      if (logSuccess) {
-        logger.info(`Action Success: [${actionName}]`, {
-          action: actionName,
-          durationMs: meta.durationMs,
-          tags,
-        });
-      }
-
-      if (safe) {
-        return {
-          success: true,
-          data: result,
-          meta,
-        } as ActionResult<TReturn>;
-      }
-
-      return result;
-    } catch (error) {
-      const meta = buildMeta();
-      const parsed = parseError(error);
-
-      // Always log errors
-      logger.error(`Action Failed: [${actionName}]`, {
+      const buildMeta = () => ({
         action: actionName,
-        title: parsed.title,
-        description: parsed.description,
-        durationMs: meta.durationMs,
-        tags,
-        code: error instanceof AppError ? error.code : undefined,
-        stack: error instanceof Error ? error.stack : undefined,
+        durationMs: Math.round(performance.now() - startTime),
+        timestamp,
       });
 
-      if (safe) {
-        return {
-          success: false,
-          error: {
-            ...parsed,
-            code: error instanceof AppError ? error.code : 'UNKNOWN_ERROR',
-          },
-          meta,
-        } as ActionResult<TReturn>;
-      }
+      try {
+        const result = await actionFn(...args);
+        const meta = buildMeta();
 
-      // Re-throw for backward compatibility
-      throw error;
-    }
+        if (logSuccess) {
+          logger.info(`Action Success: [${actionName}]`, {
+            action: actionName,
+            durationMs: meta.durationMs,
+            tags,
+          });
+        }
+
+        if (safe) {
+          return {
+            success: true,
+            data: result,
+            meta,
+          } as ActionResult<TReturn>;
+        }
+
+        return result;
+      } catch (error) {
+        const meta = buildMeta();
+        const parsed = parseError(error);
+
+        // Always log errors
+        logger.error(`Action Failed: [${actionName}]`, {
+          action: actionName,
+          title: parsed.title,
+          description: parsed.description,
+          durationMs: meta.durationMs,
+          tags,
+          code: error instanceof AppError ? error.code : undefined,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+
+        if (safe) {
+          return {
+            success: false,
+            error: {
+              ...parsed,
+              code: error instanceof AppError ? error.code : 'UNKNOWN_ERROR',
+            },
+            meta,
+          } as ActionResult<TReturn>;
+        }
+
+        // Re-throw for backward compatibility
+        throw error;
+      }
     };
 
     // Wrap in request context for automatic correlation ID propagation
@@ -180,7 +180,7 @@ export function createAction<TArgs extends unknown[], TReturn>(
 /**
  * Wrap multiple action functions at once.
  * Useful for wrapping an entire actions module.
- * 
+ *
  * @example
  * const rawActions = {
  *   createProduct: async (data) => { ... },
@@ -188,17 +188,20 @@ export function createAction<TArgs extends unknown[], TReturn>(
  * };
  * export const actions = wrapActions('product', rawActions);
  */
-export function wrapActions<T extends Record<string, ActionFn<unknown[], unknown>>>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function wrapActions<T extends Record<string, ActionFn<any[], any>>>(
   prefix: string,
   actions: T,
-  options: ActionOptions = {}
+  options: ActionOptions = {},
 ): T {
-  const wrapped: Record<string, ActionFn<unknown[], unknown>> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wrapped: Record<string, ActionFn<any[], any>> = {};
   const safeOptions = { ...options, safe: false as const };
 
   for (const [name, fn] of Object.entries(actions)) {
     const actionName = `${prefix}.${name}`;
-    wrapped[name] = createAction(actionName, fn as ActionFn<unknown[], unknown>, safeOptions);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    wrapped[name] = createAction(actionName, fn as ActionFn<any[], any>, safeOptions);
   }
 
   return wrapped as T;
@@ -211,12 +214,12 @@ export function wrapActions<T extends Record<string, ActionFn<unknown[], unknown
 /**
  * Simple logging wrapper for existing actions.
  * Does NOT change behavior - just adds logging.
- * 
+ *
  * Use this for gradual migration without breaking existing code.
  */
 export function withLogging<TArgs extends unknown[], TReturn>(
   actionName: string,
-  actionFn: ActionFn<TArgs, TReturn>
+  actionFn: ActionFn<TArgs, TReturn>,
 ): ActionFn<TArgs, TReturn> {
   return createAction(actionName, actionFn, { safe: false }) as ActionFn<TArgs, TReturn>;
 }

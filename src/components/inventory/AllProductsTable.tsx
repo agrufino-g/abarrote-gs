@@ -9,7 +9,6 @@ import {
   BlockStack,
   InlineStack,
   Button,
-  Scrollable,
   IndexFilters,
   useSetIndexFiltersMode,
   IndexFiltersMode,
@@ -18,9 +17,9 @@ import {
 } from '@shopify/polaris';
 import { Product } from '@/types';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { ProductExportModal, ProductImportModal } from './ShopifyModals';
-import { generateCSV, downloadFile } from '@/components/export/ExportModal';
+import { generateCSV, downloadFile, generateXLSX } from '@/components/export/ExportModal';
 import { generatePDF } from '@/components/export/generatePDF';
 
 interface AllProductsTableProps {
@@ -125,7 +124,7 @@ export function AllProductsTable({
           p.name.toLowerCase().includes(q) ||
           p.sku.toLowerCase().includes(q) ||
           p.barcode.includes(q) ||
-          p.category.toLowerCase().includes(q)
+          p.category.toLowerCase().includes(q),
       );
     }
 
@@ -144,8 +143,9 @@ export function AllProductsTable({
 
   // --- Resource selection ---
   const resourceName = { singular: 'producto', plural: 'productos' };
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(filteredProducts as any);
+  const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(
+    filteredProducts as { id: string }[],
+  );
 
   // --- Promoted bulk actions ---
   const selectedProducts = filteredProducts.filter((p) => selectedResources.includes(p.id));
@@ -195,21 +195,17 @@ export function AllProductsTable({
       const filename = `Todos_Los_Productos_${new Date().toISOString().split('T')[0]}`;
 
       if (format === 'pdf') {
-        generatePDF(
-          'Catálogo Completo de Productos',
-          exportData as Record<string, unknown>[],
-          `${filename}.pdf`
-        );
+        generatePDF('Catálogo Completo de Productos', exportData as Record<string, unknown>[], `${filename}.pdf`);
+      } else if (format === 'excel') {
+        generateXLSX(exportData as Record<string, unknown>[], 'Productos').then((blob) => {
+          downloadFile(blob, `${filename}.xlsx`);
+        });
       } else {
         const csvContent = generateCSV(exportData as Record<string, unknown>[], true);
-        const mime =
-          format === 'csv'
-            ? 'text/csv;charset=utf-8;'
-            : 'application/vnd.ms-excel;charset=utf-8;';
-        downloadFile(csvContent, `${filename}.csv`, mime);
+        downloadFile(csvContent, `${filename}.csv`, 'text/csv;charset=utf-8;');
       }
     },
-    [products]
+    [products],
   );
 
   // --- Row markup ---
@@ -275,24 +271,17 @@ export function AllProductsTable({
           onClearAll={() => {}}
         />
 
-        <Scrollable style={{ height: 'calc(100vh - 200px)' }}>
-          <IndexTable
+        <IndexTable
           resourceName={resourceName}
           itemCount={filteredProducts.length}
           selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
           onSelectionChange={handleSelectionChange}
-          headings={[
-            { title: 'Producto' },
-            { title: 'Estado' },
-            { title: 'Inventario' },
-            { title: 'Categoría' },
-          ]}
+          headings={[{ title: 'Producto' }, { title: 'Estado' }, { title: 'Inventario' }, { title: 'Categoría' }]}
           promotedBulkActions={promotedBulkActions}
           bulkActions={bulkActions}
         >
           {rowMarkup}
         </IndexTable>
-        </Scrollable>
       </Card>
 
       <InlineStack align="center">
@@ -300,18 +289,10 @@ export function AllProductsTable({
       </InlineStack>
 
       {/* Export modal — controlled from parent */}
-      <ProductExportModal
-        open={exportOpen}
-        onClose={onExportClose}
-        onExport={handleExport}
-      />
+      <ProductExportModal open={exportOpen} onClose={onExportClose} onExport={handleExport} />
 
       {/* Import modal — controlled from parent */}
-      <ProductImportModal
-        open={importOpen}
-        onClose={onImportClose}
-        onImportSuccess={onImportSuccess}
-      />
+      <ProductImportModal open={importOpen} onClose={onImportClose} onImportSuccess={onImportSuccess} />
     </BlockStack>
   );
 }

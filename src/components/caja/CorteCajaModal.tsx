@@ -50,42 +50,84 @@ export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
   const [movementType, setMovementType] = useState<'entrada' | 'salida'>('salida');
   const [movementMonto, setMovementMonto] = useState('');
   const [movementNotas, setMovementNotas] = useState('');
-  const [movementConcepto, setMovementConcepto] = useState<'retiro_parcial' | 'deposito' | 'gasto' | 'ajuste' | 'otro'>('retiro_parcial');
+  const [movementConcepto, setMovementConcepto] = useState<'retiro_parcial' | 'deposito' | 'gasto' | 'ajuste' | 'otro'>(
+    'retiro_parcial',
+  );
   const [savingMovement, setSavingMovement] = useState(false);
   const [showMovementForm, setShowMovementForm] = useState(false);
 
   // Obtener fecha actual en formato YYYY-MM-DD (Hora de México)
   const todayStr = useMemo(() => {
-    return new Intl.DateTimeFormat('en-CA', { 
+    return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Mexico_City',
       year: 'numeric',
       month: '2-digit',
-      day: '2-digit'
+      day: '2-digit',
     }).format(new Date());
   }, []);
 
   // Función auxiliar para comparar fechas locales
-  const isFromToday = useCallback((dateStr: string) => {
-    try {
-      if (!dateStr) return false;
-      const localDate = new Intl.DateTimeFormat('en-CA', { 
-        timeZone: 'America/Mexico_City',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).format(new Date(dateStr));
-      return localDate === todayStr;
-    } catch { return false; }
-  }, [todayStr]);
+  const isFromToday = useCallback(
+    (dateStr: string) => {
+      try {
+        if (!dateStr) return false;
+        const localDate = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Mexico_City',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(new Date(dateStr));
+        return localDate === todayStr;
+      } catch {
+        return false;
+      }
+    },
+    [todayStr],
+  );
 
   // Today's summaries for preview
   const todaySales = useMemo(() => saleRecords.filter((s) => isFromToday(s.date)), [saleRecords, isFromToday]);
-  const todayEfectivo = useMemo(() => todaySales.filter((s) => s.paymentMethod === 'efectivo').reduce((sum, s) => sum + s.total, 0), [todaySales]);
-  const todayTarjeta = useMemo(() => todaySales.filter((s) => ['tarjeta', 'tarjeta_web', 'tarjeta_manual', 'oxxo_conekta', 'oxxo_stripe', 'tarjeta_clip', 'clip_terminal'].includes(s.paymentMethod)).reduce((sum, s) => sum + s.total, 0), [todaySales]);
-  const todayTransferencia = useMemo(() => todaySales.filter((s) => ['transferencia', 'spei', 'spei_conekta', 'spei_stripe', 'paypal', 'qr_cobro', 'puntos'].includes(s.paymentMethod)).reduce((sum, s) => sum + s.total, 0), [todaySales]);
-  const todayFiado = useMemo(() => todaySales.filter((s) => s.paymentMethod === 'fiado').reduce((sum, s) => sum + s.total, 0), [todaySales]);
+  const todayEfectivo = useMemo(
+    () => todaySales.filter((s) => s.paymentMethod === 'efectivo').reduce((sum, s) => sum + s.total, 0),
+    [todaySales],
+  );
+  const todayTarjeta = useMemo(
+    () =>
+      todaySales
+        .filter((s) =>
+          [
+            'tarjeta',
+            'tarjeta_web',
+            'tarjeta_manual',
+            'oxxo_conekta',
+            'oxxo_stripe',
+            'tarjeta_clip',
+            'clip_terminal',
+          ].includes(s.paymentMethod),
+        )
+        .reduce((sum, s) => sum + s.total, 0),
+    [todaySales],
+  );
+  const todayTransferencia = useMemo(
+    () =>
+      todaySales
+        .filter((s) =>
+          ['transferencia', 'spei', 'spei_conekta', 'spei_stripe', 'paypal', 'qr_cobro', 'puntos'].includes(
+            s.paymentMethod,
+          ),
+        )
+        .reduce((sum, s) => sum + s.total, 0),
+    [todaySales],
+  );
+  const todayFiado = useMemo(
+    () => todaySales.filter((s) => s.paymentMethod === 'fiado').reduce((sum, s) => sum + s.total, 0),
+    [todaySales],
+  );
   const todayTotal = todayEfectivo + todayTarjeta + todayTransferencia + todayFiado;
-  const todayGastos = useMemo(() => gastos.filter((g) => isFromToday(g.fecha)).reduce((sum, g) => sum + g.monto, 0), [gastos, isFromToday]);
+  const todayGastos = useMemo(
+    () => gastos.filter((g) => isFromToday(g.fecha)).reduce((sum, g) => sum + g.monto, 0),
+    [gastos, isFromToday],
+  );
 
   // Today's cash movements
   const todayMovements = useMemo(() => cashMovements.filter((m) => isFromToday(m.fecha)), [cashMovements, isFromToday]);
@@ -93,9 +135,9 @@ export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
   // AUTO-SET fondoInicial from Apertura
   useEffect(() => {
     if (open && !completedCorte) {
-      const apertura = todayMovements.find(m => m.concepto === 'fondo_inicial');
+      const apertura = todayMovements.find((m) => m.concepto === 'fondo_inicial');
       if (apertura) {
-        setFondoInicial(String(apertura.monto));
+        setFondoInicial(String(apertura.monto)); // eslint-disable-line react-hooks/set-state-in-effect -- prop-derived initialization
       } else {
         setFondoInicial(String(storeConfig.defaultStartingFund || '500'));
       }
@@ -103,11 +145,14 @@ export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
   }, [open, todayMovements, storeConfig.defaultStartingFund, completedCorte]);
 
   const efectivoEsperado = parseFloat(fondoInicial || '0') + todayEfectivo - todayGastos;
-  const diferencia = (parseFloat(efectivoContado || '0')) - efectivoEsperado;
+  const diferencia = parseFloat(efectivoContado || '0') - efectivoEsperado;
 
   const handleSaveMovement = useCallback(async () => {
     const monto = parseFloat(movementMonto);
-    if (!monto || monto <= 0) { showError('Ingresa un monto válido'); return; }
+    if (!monto || monto <= 0) {
+      showError('Ingresa un monto válido');
+      return;
+    }
     setSavingMovement(true);
     try {
       await addCashMovement({
@@ -125,7 +170,17 @@ export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
       showError('Error al registrar el movimiento');
     }
     setSavingMovement(false);
-  }, [movementMonto, movementType, movementConcepto, movementNotas, cajero, defaultCajero, addCashMovement, showSuccess, showError]);
+  }, [
+    movementMonto,
+    movementType,
+    movementConcepto,
+    movementNotas,
+    cajero,
+    defaultCajero,
+    addCashMovement,
+    showSuccess,
+    showError,
+  ]);
 
   const resetForm = useCallback(() => {
     setCajero(defaultCajero);
@@ -159,6 +214,7 @@ export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
     }
   }, [cajero, efectivoContado, fondoInicial, notas, createCorteCaja, showSuccess, showError]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- React Compiler limitation with complex print callback
   const handlePrint = useCallback(() => {
     if (!completedCorte) return;
     const d = new Date(completedCorte.fecha);
@@ -166,11 +222,12 @@ export function CorteCajaModal({ open, onClose }: CorteCajaModalProps) {
     const timeStr = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const diffSign = completedCorte.diferencia >= 0 ? '+' : '';
 
-    const statusMsg = Math.abs(completedCorte.diferencia) <= 10
-      ? '— CAJA CUADRADA —'
-      : completedCorte.diferencia < 0
-        ? '— FALTANTE EN CAJA —'
-        : '— SOBRANTE EN CAJA —';
+    const statusMsg =
+      Math.abs(completedCorte.diferencia) <= 10
+        ? '— CAJA CUADRADA —'
+        : completedCorte.diferencia < 0
+          ? '— FALTANTE EN CAJA —'
+          : '— SOBRANTE EN CAJA —';
 
     const logoHtml = storeConfig.logoUrl
       ? `<div class="logo-area"><img src="${storeConfig.logoUrl}" alt="${storeConfig.storeName}"/></div>`
@@ -256,38 +313,92 @@ ${completedCorte.notas ? `<div class="dots"></div><div class="data-row"><span cl
         <Modal.Section>
           <BlockStack gap="400">
             <Banner tone={completedCorte.diferencia >= -10 && completedCorte.diferencia <= 10 ? 'success' : 'warning'}>
-              <p>{completedCorte.diferencia >= -10 && completedCorte.diferencia <= 10
-                ? 'Caja cuadrada — Todo en orden.'
-                : `Diferencia de ${formatCurrency(Math.abs(completedCorte.diferencia))} detectada. Revisa movimientos.`}
+              <p>
+                {completedCorte.diferencia >= -10 && completedCorte.diferencia <= 10
+                  ? 'Caja cuadrada — Todo en orden.'
+                  : `Diferencia de ${formatCurrency(Math.abs(completedCorte.diferencia))} detectada. Revisa movimientos.`}
               </p>
             </Banner>
 
             <Card>
               <BlockStack gap="200">
-                <Text as="h3" variant="headingSm">Resumen de Ventas</Text>
-                <InlineStack align="space-between"><Text as="span">Transacciones:</Text><Text as="span" fontWeight="bold">{completedCorte.totalTransacciones}</Text></InlineStack>
-                <InlineStack align="space-between"><Text as="span">Efectivo:</Text><Text as="span">{formatCurrency(completedCorte.ventasEfectivo)}</Text></InlineStack>
-                <InlineStack align="space-between"><Text as="span">Tarjeta:</Text><Text as="span">{formatCurrency(completedCorte.ventasTarjeta)}</Text></InlineStack>
-                <InlineStack align="space-between"><Text as="span">Transferencia:</Text><Text as="span">{formatCurrency(completedCorte.ventasTransferencia)}</Text></InlineStack>
-                <InlineStack align="space-between"><Text as="span">Fiado:</Text><Text as="span" tone="caution">{formatCurrency(completedCorte.ventasFiado)}</Text></InlineStack>
+                <Text as="h3" variant="headingSm">
+                  Resumen de Ventas
+                </Text>
+                <InlineStack align="space-between">
+                  <Text as="span">Transacciones:</Text>
+                  <Text as="span" fontWeight="bold">
+                    {completedCorte.totalTransacciones}
+                  </Text>
+                </InlineStack>
+                <InlineStack align="space-between">
+                  <Text as="span">Efectivo:</Text>
+                  <Text as="span">{formatCurrency(completedCorte.ventasEfectivo)}</Text>
+                </InlineStack>
+                <InlineStack align="space-between">
+                  <Text as="span">Tarjeta:</Text>
+                  <Text as="span">{formatCurrency(completedCorte.ventasTarjeta)}</Text>
+                </InlineStack>
+                <InlineStack align="space-between">
+                  <Text as="span">Transferencia:</Text>
+                  <Text as="span">{formatCurrency(completedCorte.ventasTransferencia)}</Text>
+                </InlineStack>
+                <InlineStack align="space-between">
+                  <Text as="span">Fiado:</Text>
+                  <Text as="span" tone="caution">
+                    {formatCurrency(completedCorte.ventasFiado)}
+                  </Text>
+                </InlineStack>
                 <Divider />
-                <InlineStack align="space-between"><Text as="span" variant="headingSm">Total Ventas:</Text><Text as="span" variant="headingSm" fontWeight="bold">{formatCurrency(completedCorte.totalVentas)}</Text></InlineStack>
+                <InlineStack align="space-between">
+                  <Text as="span" variant="headingSm">
+                    Total Ventas:
+                  </Text>
+                  <Text as="span" variant="headingSm" fontWeight="bold">
+                    {formatCurrency(completedCorte.totalVentas)}
+                  </Text>
+                </InlineStack>
               </BlockStack>
             </Card>
 
             <Card>
               <BlockStack gap="200">
-                <Text as="h3" variant="headingSm">Arqueo de Caja</Text>
-                <InlineStack align="space-between"><Text as="span">Fondo Inicial:</Text><Text as="span">{formatCurrency(completedCorte.fondoInicial)}</Text></InlineStack>
-                <InlineStack align="space-between"><Text as="span">+ Ventas Efectivo:</Text><Text as="span">{formatCurrency(completedCorte.ventasEfectivo)}</Text></InlineStack>
-                <InlineStack align="space-between"><Text as="span">- Gastos del Día:</Text><Text as="span">{formatCurrency(completedCorte.gastosDelDia)}</Text></InlineStack>
-                <Divider />
-                <InlineStack align="space-between"><Text as="span">Esperado:</Text><Text as="span" fontWeight="bold">{formatCurrency(completedCorte.efectivoEsperado)}</Text></InlineStack>
-                <InlineStack align="space-between"><Text as="span">Contado:</Text><Text as="span" fontWeight="bold">{formatCurrency(completedCorte.efectivoContado)}</Text></InlineStack>
+                <Text as="h3" variant="headingSm">
+                  Arqueo de Caja
+                </Text>
+                <InlineStack align="space-between">
+                  <Text as="span">Fondo Inicial:</Text>
+                  <Text as="span">{formatCurrency(completedCorte.fondoInicial)}</Text>
+                </InlineStack>
+                <InlineStack align="space-between">
+                  <Text as="span">+ Ventas Efectivo:</Text>
+                  <Text as="span">{formatCurrency(completedCorte.ventasEfectivo)}</Text>
+                </InlineStack>
+                <InlineStack align="space-between">
+                  <Text as="span">- Gastos del Día:</Text>
+                  <Text as="span">{formatCurrency(completedCorte.gastosDelDia)}</Text>
+                </InlineStack>
                 <Divider />
                 <InlineStack align="space-between">
-                  <Text as="span" variant="headingSm">Diferencia:</Text>
-                  <Badge tone={completedCorte.diferencia >= 0 ? 'success' : 'critical'}>{`${completedCorte.diferencia >= 0 ? '+' : ''}${formatCurrency(completedCorte.diferencia)}`}</Badge>
+                  <Text as="span">Esperado:</Text>
+                  <Text as="span" fontWeight="bold">
+                    {formatCurrency(completedCorte.efectivoEsperado)}
+                  </Text>
+                </InlineStack>
+                <InlineStack align="space-between">
+                  <Text as="span">Contado:</Text>
+                  <Text as="span" fontWeight="bold">
+                    {formatCurrency(completedCorte.efectivoContado)}
+                  </Text>
+                </InlineStack>
+                <Divider />
+                <InlineStack align="space-between">
+                  <Text as="span" variant="headingSm">
+                    Diferencia:
+                  </Text>
+                  <Badge
+                    tone={completedCorte.diferencia >= 0 ? 'success' : 'critical'}
+                  >{`${completedCorte.diferencia >= 0 ? '+' : ''}${formatCurrency(completedCorte.diferencia)}`}</Badge>
                 </InlineStack>
               </BlockStack>
             </Card>
@@ -313,20 +424,53 @@ ${completedCorte.notas ? `<div class="dots"></div><div class="data-row"><span cl
       <Modal.Section>
         <BlockStack gap="400">
           <Banner tone="info">
-            <p>Resumen del día: <strong>{todaySales.length} ventas</strong> por un total de <strong>{formatCurrency(todayTotal)}</strong></p>
+            <p>
+              Resumen del día: <strong>{todaySales.length} ventas</strong> por un total de{' '}
+              <strong>{formatCurrency(todayTotal)}</strong>
+            </p>
           </Banner>
 
           {/* Today Preview */}
           <Card>
             <BlockStack gap="200">
-              <Text as="h3" variant="headingSm">Ventas del Día</Text>
-              <InlineStack align="space-between"><Text as="span">Efectivo:</Text><Text as="span">{formatCurrency(todayEfectivo)}</Text></InlineStack>
-              <InlineStack align="space-between"><Text as="span">Tarjeta:</Text><Text as="span">{formatCurrency(todayTarjeta)}</Text></InlineStack>
-              <InlineStack align="space-between"><Text as="span">Transferencia:</Text><Text as="span">{formatCurrency(todayTransferencia)}</Text></InlineStack>
-              <InlineStack align="space-between"><Text as="span">Fiado:</Text><Text as="span" tone="caution">{formatCurrency(todayFiado)}</Text></InlineStack>
+              <Text as="h3" variant="headingSm">
+                Ventas del Día
+              </Text>
+              <InlineStack align="space-between">
+                <Text as="span">Efectivo:</Text>
+                <Text as="span">{formatCurrency(todayEfectivo)}</Text>
+              </InlineStack>
+              <InlineStack align="space-between">
+                <Text as="span">Tarjeta:</Text>
+                <Text as="span">{formatCurrency(todayTarjeta)}</Text>
+              </InlineStack>
+              <InlineStack align="space-between">
+                <Text as="span">Transferencia:</Text>
+                <Text as="span">{formatCurrency(todayTransferencia)}</Text>
+              </InlineStack>
+              <InlineStack align="space-between">
+                <Text as="span">Fiado:</Text>
+                <Text as="span" tone="caution">
+                  {formatCurrency(todayFiado)}
+                </Text>
+              </InlineStack>
               <Divider />
-              <InlineStack align="space-between"><Text as="span" fontWeight="bold">Total:</Text><Text as="span" fontWeight="bold">{formatCurrency(todayTotal)}</Text></InlineStack>
-              <InlineStack align="space-between"><Text as="span" tone="critical">Gastos del día:</Text><Text as="span" tone="critical">-{formatCurrency(todayGastos)}</Text></InlineStack>
+              <InlineStack align="space-between">
+                <Text as="span" fontWeight="bold">
+                  Total:
+                </Text>
+                <Text as="span" fontWeight="bold">
+                  {formatCurrency(todayTotal)}
+                </Text>
+              </InlineStack>
+              <InlineStack align="space-between">
+                <Text as="span" tone="critical">
+                  Gastos del día:
+                </Text>
+                <Text as="span" tone="critical">
+                  -{formatCurrency(todayGastos)}
+                </Text>
+              </InlineStack>
             </BlockStack>
           </Card>
 
@@ -334,20 +478,30 @@ ${completedCorte.notas ? `<div class="dots"></div><div class="data-row"><span cl
           <Card>
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center">
-                <Text as="h3" variant="headingSm">Movimientos de Caja</Text>
+                <Text as="h3" variant="headingSm">
+                  Movimientos de Caja
+                </Text>
                 <InlineStack gap="200">
                   <Button
                     icon={MinusIcon}
                     tone="critical"
                     size="slim"
-                    onClick={() => { setMovementType('salida'); setMovementConcepto('retiro_parcial'); setShowMovementForm(true); }}
+                    onClick={() => {
+                      setMovementType('salida');
+                      setMovementConcepto('retiro_parcial');
+                      setShowMovementForm(true);
+                    }}
                   >
                     Retiro
                   </Button>
                   <Button
                     icon={PlusIcon}
                     size="slim"
-                    onClick={() => { setMovementType('entrada'); setMovementConcepto('deposito'); setShowMovementForm(true); }}
+                    onClick={() => {
+                      setMovementType('entrada');
+                      setMovementConcepto('deposito');
+                      setShowMovementForm(true);
+                    }}
                   >
                     Entrada
                   </Button>
@@ -367,16 +521,20 @@ ${completedCorte.notas ? `<div class="dots"></div><div class="data-row"><span cl
                       <div style={{ flex: 1 }}>
                         <Select
                           label="Concepto"
-                          options={movementType === 'salida' ? [
-                            { label: 'Retiro parcial', value: 'retiro_parcial' },
-                            { label: 'Gasto', value: 'gasto' },
-                            { label: 'Ajuste', value: 'ajuste' },
-                            { label: 'Otro', value: 'otro' },
-                          ] : [
-                            { label: 'Depósito', value: 'deposito' },
-                            { label: 'Ajuste', value: 'ajuste' },
-                            { label: 'Otro', value: 'otro' },
-                          ]}
+                          options={
+                            movementType === 'salida'
+                              ? [
+                                  { label: 'Retiro parcial', value: 'retiro_parcial' },
+                                  { label: 'Gasto', value: 'gasto' },
+                                  { label: 'Ajuste', value: 'ajuste' },
+                                  { label: 'Otro', value: 'otro' },
+                                ]
+                              : [
+                                  { label: 'Depósito', value: 'deposito' },
+                                  { label: 'Ajuste', value: 'ajuste' },
+                                  { label: 'Otro', value: 'otro' },
+                                ]
+                          }
                           value={movementConcepto}
                           onChange={(v) => setMovementConcepto(v as typeof movementConcepto)}
                         />
@@ -422,7 +580,11 @@ ${completedCorte.notas ? `<div class="dots"></div><div class="data-row"><span cl
                         <Text as="span" variant="bodySm" fontWeight="semibold">
                           {m.concepto.replace('_', ' ')}
                         </Text>
-                        {m.notas && <Text as="span" variant="bodySm" tone="subdued">{m.notas}</Text>}
+                        {m.notas && (
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {m.notas}
+                          </Text>
+                        )}
                       </BlockStack>
                       <Badge tone={m.tipo === 'entrada' ? 'success' : 'critical'}>
                         {`${m.tipo === 'entrada' ? '+' : '-'}${formatCurrency(m.monto)}`}
@@ -431,7 +593,9 @@ ${completedCorte.notas ? `<div class="dots"></div><div class="data-row"><span cl
                   ))}
                 </BlockStack>
               ) : (
-                <Text as="p" variant="bodySm" tone="subdued">Sin movimientos registrados hoy.</Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Sin movimientos registrados hoy.
+                </Text>
               )}
             </BlockStack>
           </Card>
@@ -451,9 +615,11 @@ ${completedCorte.notas ? `<div class="dots"></div><div class="data-row"><span cl
               onChange={setFondoInicial}
               autoComplete="off"
               prefix="$"
-              helpText={todayMovements.some(m => m.concepto === 'fondo_inicial') 
-                ? "Detectado automáticamente de la apertura de hoy" 
-                : "Cantidad con la que se inició la caja (no se detectó apertura manual)"}
+              helpText={
+                todayMovements.some((m) => m.concepto === 'fondo_inicial')
+                  ? 'Detectado automáticamente de la apertura de hoy'
+                  : 'Cantidad con la que se inició la caja (no se detectó apertura manual)'
+              }
             />
             <TextField
               label="Efectivo contado en caja"
@@ -469,9 +635,12 @@ ${completedCorte.notas ? `<div class="dots"></div><div class="data-row"><span cl
             {efectivoContado && (
               <Banner tone={Math.abs(diferencia) <= 10 ? 'success' : diferencia < 0 ? 'critical' : 'warning'}>
                 <InlineStack align="space-between">
-                  <Text as="span" fontWeight="bold">Diferencia:</Text>
                   <Text as="span" fontWeight="bold">
-                    {diferencia >= 0 ? '+' : ''}{formatCurrency(diferencia)}
+                    Diferencia:
+                  </Text>
+                  <Text as="span" fontWeight="bold">
+                    {diferencia >= 0 ? '+' : ''}
+                    {formatCurrency(diferencia)}
                     {Math.abs(diferencia) <= 10 ? ' OK' : diferencia < 0 ? ' - Faltante' : ' - Sobrante'}
                   </Text>
                 </InlineStack>
@@ -492,5 +661,3 @@ ${completedCorte.notas ? `<div class="dots"></div><div class="data-row"><span cl
     </Modal>
   );
 }
-
-

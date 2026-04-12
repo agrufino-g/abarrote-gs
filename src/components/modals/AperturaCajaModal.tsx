@@ -1,15 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import {
-  Modal,
-  FormLayout,
-  TextField,
-  Banner,
-  Text,
-  BlockStack,
-  Box,
-} from '@shopify/polaris';
+import { Modal, FormLayout, TextField, Banner, Text, BlockStack, Box } from '@shopify/polaris';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { createCashMovement } from '@/app/actions/cash-movement-actions';
@@ -31,9 +23,7 @@ export function AperturaCajaModal({ open, onClose }: AperturaCajaModalProps) {
 
   // Check if caja was already opened today
   const today = new Date().toISOString().split('T')[0];
-  const isAlreadyOpened = cashMovements.some(
-    (m) => m.concepto === 'fondo_inicial' && m.fecha.startsWith(today)
-  );
+  const isAlreadyOpened = cashMovements.some((m) => m.concepto === 'fondo_inicial' && m.fecha.startsWith(today));
 
   useEffect(() => {
     if (open) {
@@ -61,7 +51,7 @@ export function AperturaCajaModal({ open, onClose }: AperturaCajaModalProps) {
       toast.showSuccess(`Caja abierta con ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}`);
       await fetchDashboardData();
       onClose();
-    } catch (error) {
+    } catch (_error) {
       toast.showError('Error al abrir la caja');
     } finally {
       setIsSubmitting(false);
@@ -77,7 +67,7 @@ export function AperturaCajaModal({ open, onClose }: AperturaCajaModalProps) {
         content: 'Abrir Caja',
         onAction: handleOpenCaja,
         loading: isSubmitting,
-        disabled: isAlreadyOpened
+        disabled: isAlreadyOpened,
       }}
       secondaryActions={[{ content: 'Cancelar', onAction: onClose }]}
     >
@@ -89,7 +79,10 @@ export function AperturaCajaModal({ open, onClose }: AperturaCajaModalProps) {
             </Banner>
           ) : (
             <Banner tone="warning">
-              <p>Al abrir la caja, registras el efectivo con el que inicias para dar cambio. Esto se restará del total al final del día.</p>
+              <p>
+                Al abrir la caja, registras el efectivo con el que inicias para dar cambio. Esto se restará del total al
+                final del día.
+              </p>
             </Banner>
           )}
 
@@ -115,12 +108,12 @@ export function AperturaCajaModal({ open, onClose }: AperturaCajaModalProps) {
           </FormLayout>
 
           {!isAlreadyOpened && (
-             <Box padding="200" background="bg-surface-secondary" borderRadius="200">
-                <Text as="p" variant="bodySm" tone="subdued">
-                   Fondo predeterminado configurado: <strong>${storeConfig.defaultStartingFund}</strong>. 
-                   Puedes cambiar esto en la sección de configuración.
-                </Text>
-             </Box>
+            <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+              <Text as="p" variant="bodySm" tone="subdued">
+                Fondo predeterminado configurado: <strong>${storeConfig.defaultStartingFund}</strong>. Puedes cambiar
+                esto en la sección de configuración.
+              </Text>
+            </Box>
           )}
         </BlockStack>
       </Modal.Section>

@@ -54,7 +54,7 @@ export function useSyncEngine(enabled: boolean = true) {
   useEffect(() => {
     // Don't initialize until enabled (user is authenticated)
     if (!enabled) return;
-    
+
     const engine = new SyncEngine({
       pollingIntervalMs: 30_000,
       staleThresholdMs: 45_000,
@@ -65,6 +65,7 @@ export function useSyncEngine(enabled: boolean = true) {
     });
 
     const queue = new OfflineQueue();
+    let pendingInterval: ReturnType<typeof setInterval> | null = null;
 
     engineRef.current = engine;
     queueRef.current = queue;
@@ -81,18 +82,32 @@ export function useSyncEngine(enabled: boolean = true) {
 
       // Sync any pending offline operations immediately
       if (navigator.onLine) {
-        queue.sync();
+        queue.sync().then(({ remaining }) => {
+          setSyncStatus((prev) => ({ ...prev, pendingOfflineOps: remaining }));
+        });
       }
+
+      // Periodically update pending ops count
+      pendingInterval = setInterval(async () => {
+        const count = await queue.getPendingCount();
+        setSyncStatus((prev) => {
+          if (prev.pendingOfflineOps === count) return prev;
+          return { ...prev, pendingOfflineOps: count };
+        });
+      }, 5_000);
     });
 
     // Online listener to trigger queue sync
     const handleOnline = () => {
-      queue.sync();
+      queue.sync().then(({ remaining }) => {
+        setSyncStatus((prev) => ({ ...prev, pendingOfflineOps: remaining }));
+      });
     };
     window.addEventListener('online', handleOnline);
 
     return () => {
       window.removeEventListener('online', handleOnline);
+      if (pendingInterval) clearInterval(pendingInterval);
       engine.stop();
       queue.destroy();
       engineRef.current = null;
@@ -109,21 +124,15 @@ export function useSyncEngine(enabled: boolean = true) {
   }, []);
 
   /** Enqueue an operation for offline sync (when offline) */
-  const enqueueOffline = useCallback(
-    async (action: string, payload: unknown): Promise<string | null> => {
-      if (!queueRef.current) return null;
-      return queueRef.current.enqueue(action, payload);
-    },
-    [],
-  );
+  const enqueueOffline = useCallback(async (action: string, payload: unknown): Promise<string | null> => {
+    if (!queueRef.current) return null;
+    return queueRef.current.enqueue(action, payload);
+  }, []);
 
   /** Force immediate data refresh */
-  const forceRefresh = useCallback(
-    async (domain: SyncDomain = 'all') => {
-      await engineRef.current?.forceRefresh(domain);
-    },
-    [],
-  );
+  const forceRefresh = useCallback(async (domain: SyncDomain = 'all') => {
+    await engineRef.current?.forceRefresh(domain);
+  }, []);
 
   return {
     syncStatus,

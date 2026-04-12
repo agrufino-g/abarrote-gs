@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
-import { Modal, Text, Box, BlockStack, InlineStack, Icon, Badge } from '@shopify/polaris';
+import { Modal, Text, Box, BlockStack, InlineStack, Icon } from '@shopify/polaris';
 import { PrintIcon, CheckCircleIcon, ExportIcon } from '@shopify/polaris-icons';
 import JsBarcode from 'jsbarcode';
 import type { SaleRecord, Cliente, StoreConfig } from '@/types';
@@ -30,9 +30,9 @@ export function TicketPreview({
 }: TicketPreviewProps) {
   const barcodeRef = useRef<SVGSVGElement>(null);
   const sc = storeConfig;
-  
+
   const isOffline = completedSale.folio.startsWith('OFF-');
-  const cliente = clientes.find(c => c.id === clienteId);
+  const cliente = clientes.find((c) => c.id === clienteId);
 
   useEffect(() => {
     if (barcodeRef.current && completedSale.folio) {
@@ -58,7 +58,9 @@ export function TicketPreview({
       title={
         <InlineStack gap="200" blockAlign="center">
           <Icon source={CheckCircleIcon} tone="success" />
-          <Text as="h2" variant="headingMd">Venta Completada</Text>
+          <Text as="h2" variant="headingMd">
+            Venta Completada
+          </Text>
         </InlineStack>
       }
       primaryAction={{
@@ -74,9 +76,7 @@ export function TicketPreview({
       <Modal.Section>
         <Box padding="400" background="bg-surface-secondary">
           <BlockStack gap="400" align="center">
-            
             <div className={`ticket-paper ${isOffline ? 'ticket-offline' : ''}`}>
-
               {/* ── Logo / Store Identity ── */}
               <div className="header-area">
                 {sc.logoUrl ? (
@@ -86,18 +86,19 @@ export function TicketPreview({
                 )}
                 <div className="store-name">{sc.storeName.toUpperCase()}</div>
                 <div className="store-meta">
-                  {sc.legalName}<br/>
-                  {sc.address}<br/>
-                  C.P. {sc.postalCode}, {sc.city}<br/>
+                  {sc.legalName}
+                  <br />
+                  {sc.address}
+                  <br />
+                  C.P. {sc.postalCode}, {sc.city}
+                  <br />
                   RFC: {sc.rfc} · TEL: {sc.phone}
                 </div>
               </div>
 
               <div className="sep-line" />
 
-              {isOffline && (
-                <div className="offline-strip">MODO OFFLINE — COMPROBANTE DE EMERGENCIA</div>
-              )}
+              {isOffline && <div className="offline-strip">MODO OFFLINE — COMPROBANTE DE EMERGENCIA</div>}
 
               {/* ── Document type ── */}
               <div className="doc-label">Ticket de Venta</div>
@@ -110,11 +111,19 @@ export function TicketPreview({
                 </div>
                 <div className="meta-item">
                   <span className="meta-key">Fecha</span>
-                  <span className="meta-val">{new Date(completedSale.date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                  <span className="meta-val">
+                    {new Date(completedSale.date).toLocaleDateString('es-MX', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </span>
                 </div>
                 <div className="meta-item">
                   <span className="meta-key">Hora</span>
-                  <span className="meta-val">{new Date(completedSale.date).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="meta-val">
+                    {new Date(completedSale.date).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
                 <div className="meta-item">
                   <span className="meta-key">Cajero</span>
@@ -130,7 +139,9 @@ export function TicketPreview({
                   <div key={idx} className="item-row">
                     <div className="item-left">
                       <span className="item-name">{item.productName}</span>
-                      <span className="item-detail">{item.quantity} × {formatCurrency(item.unitPrice)}</span>
+                      <span className="item-detail">
+                        {item.quantity} × {formatCurrency(item.unitPrice)}
+                      </span>
                     </div>
                     <span className="item-amount">{formatCurrency(item.subtotal)}</span>
                   </div>
@@ -164,9 +175,7 @@ export function TicketPreview({
                 <span>{formatCurrency(completedSale.total)}</span>
               </div>
 
-              <div className="payment-label">
-                {completedSale.paymentMethod.toUpperCase().replace('_', ' ')}
-              </div>
+              <div className="payment-label">{completedSale.paymentMethod.toUpperCase().replace('_', ' ')}</div>
 
               {completedSale.paymentMethod === 'efectivo' && (
                 <div className="cash-area">
@@ -200,12 +209,11 @@ export function TicketPreview({
               <div className="footer-area">
                 <p className="footer-msg">{sc.ticketFooter}</p>
                 <div className="barcode-wrap">
-                   <svg ref={barcodeRef}></svg>
+                  <svg ref={barcodeRef}></svg>
                 </div>
                 <div className="powered-label">OPENDEX POS</div>
               </div>
             </div>
-
           </BlockStack>
         </Box>
 

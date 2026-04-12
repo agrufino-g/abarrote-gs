@@ -1,34 +1,25 @@
 'use client';
 
-import {
-  Text,
-  Badge,
-  BlockStack,
-  InlineStack,
-  Divider,
-  Modal,
-  Banner,
-  Button,
-} from '@shopify/polaris';
-import { PrintIcon, DeleteIcon, ReturnIcon } from '@shopify/polaris-icons';
+import { Text, Badge, BlockStack, InlineStack, Divider, Modal, Banner, Button } from '@shopify/polaris';
 import { useState } from 'react';
 import { formatCurrency } from '@/lib/utils';
 import type { SaleRecord } from '@/types';
 
 function paymentBadge(method: string) {
-  const styles: Record<string, { tone: any, label: string }> = {
-    efectivo:      { tone: 'success',   label: 'Efectivo' },
-    tarjeta:       { tone: 'info',      label: 'Tarjeta' },
-    tarjeta_web:   { tone: 'info',      label: 'MP Web' },
-    tarjeta_manual:{ tone: 'info',      label: 'T. Manual' },
+  const styles: Record<
+    string,
+    { tone: 'success' | 'info' | 'attention' | 'warning' | 'critical' | 'magic' | 'new' | undefined; label: string }
+  > = {
+    efectivo: { tone: 'success', label: 'Efectivo' },
+    tarjeta: { tone: 'info', label: 'Tarjeta' },
+    tarjeta_web: { tone: 'info', label: 'MP Web' },
+    tarjeta_manual: { tone: 'info', label: 'T. Manual' },
     transferencia: { tone: 'attention', label: 'Transfer' },
-    fiado:         { tone: 'warning',   label: 'Fiado' },
-    puntos:        { tone: 'magic',    label: 'Puntos' },
+    fiado: { tone: 'warning', label: 'Fiado' },
+    puntos: { tone: 'magic', label: 'Puntos' },
   };
   const s = styles[method] || { tone: 'subdued', label: method };
-  return (
-    <Badge tone={s.tone}>{s.label}</Badge>
-  );
+  return <Badge tone={s.tone}>{s.label}</Badge>;
 }
 
 export interface SaleDetailModalProps {
@@ -40,14 +31,7 @@ export interface SaleDetailModalProps {
   onPrint: () => void;
 }
 
-export function SaleDetailModal({
-  open,
-  sale,
-  onClose,
-  onCancel,
-  onReturn,
-  onPrint,
-}: SaleDetailModalProps) {
+export function SaleDetailModal({ open, sale, onClose, onCancel, onReturn, onPrint }: SaleDetailModalProps) {
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -80,17 +64,27 @@ export function SaleDetailModal({
       <Modal.Section>
         <BlockStack gap="300">
           <InlineStack align="space-between">
-            <Text as="span" variant="bodySm" tone="subdued">{new Date(sale.date).toLocaleString('es-MX')}</Text>
-            <Text as="span" variant="bodySm" tone="subdued">Cajero: {sale.cajero}</Text>
+            <Text as="span" variant="bodySm" tone="subdued">
+              {new Date(sale.date).toLocaleString('es-MX')}
+            </Text>
+            <Text as="span" variant="bodySm" tone="subdued">
+              Cajero: {sale.cajero}
+            </Text>
           </InlineStack>
           <Divider />
           {sale.items.map((item, i) => (
             <InlineStack key={i} align="space-between">
               <BlockStack gap="050">
-                <Text as="span" fontWeight="semibold">{item.productName}</Text>
-                <Text as="span" variant="bodySm" tone="subdued">{item.quantity} x {formatCurrency(item.unitPrice)}</Text>
+                <Text as="span" fontWeight="semibold">
+                  {item.productName}
+                </Text>
+                <Text as="span" variant="bodySm" tone="subdued">
+                  {item.quantity} x {formatCurrency(item.unitPrice)}
+                </Text>
               </BlockStack>
-              <Text as="span" fontWeight="semibold">{formatCurrency(item.subtotal)}</Text>
+              <Text as="span" fontWeight="semibold">
+                {formatCurrency(item.subtotal)}
+              </Text>
             </InlineStack>
           ))}
           <Divider />
@@ -103,8 +97,12 @@ export function SaleDetailModal({
             <Text as="span">{formatCurrency(sale.iva)}</Text>
           </InlineStack>
           <InlineStack align="space-between">
-            <Text as="span" variant="headingMd" fontWeight="bold">TOTAL:</Text>
-            <Text as="span" variant="headingMd" fontWeight="bold">{formatCurrency(sale.total)}</Text>
+            <Text as="span" variant="headingMd" fontWeight="bold">
+              TOTAL:
+            </Text>
+            <Text as="span" variant="headingMd" fontWeight="bold">
+              {formatCurrency(sale.total)}
+            </Text>
           </InlineStack>
           <Divider />
           <InlineStack align="space-between">
@@ -118,26 +116,32 @@ export function SaleDetailModal({
                 <Text as="span">{formatCurrency(sale.amountPaid)}</Text>
               </InlineStack>
               <InlineStack align="space-between">
-                <Text as="span" fontWeight="bold">Cambio:</Text>
-                <Text as="span" fontWeight="bold">{formatCurrency(sale.change)}</Text>
+                <Text as="span" fontWeight="bold">
+                  Cambio:
+                </Text>
+                <Text as="span" fontWeight="bold">
+                  {formatCurrency(sale.change)}
+                </Text>
               </InlineStack>
             </>
           )}
           <Divider />
           {cancelConfirm ? (
             <Banner tone="critical" title="¿Cancelar esta venta?" onDismiss={() => setCancelConfirm(false)}>
-              <p style={{ marginBottom: 8 }}>Se revertirá el inventario y se eliminará la venta <strong>{sale.folio}</strong>. Esta acción no se puede deshacer.</p>
+              <p style={{ marginBottom: 8 }}>
+                Se revertirá el inventario y se eliminará la venta <strong>{sale.folio}</strong>. Esta acción no se
+                puede deshacer.
+              </p>
               <InlineStack gap="200">
-                <Button variant="primary" tone="critical" onClick={handleCancelSale} loading={cancelling}>Sí, Cancelar Venta</Button>
+                <Button variant="primary" tone="critical" onClick={handleCancelSale} loading={cancelling}>
+                  Sí, Cancelar Venta
+                </Button>
                 <Button onClick={() => setCancelConfirm(false)}>No</Button>
               </InlineStack>
             </Banner>
           ) : (
             <InlineStack align="space-between">
-              <Button
-                onClick={onReturn}
-                variant="secondary"
-              >
+              <Button onClick={onReturn} variant="secondary">
                 Iniciar Devolución
               </Button>
               <Button variant="plain" tone="critical" onClick={() => setCancelConfirm(true)}>

@@ -9,25 +9,12 @@ import {
   fetchSaleRecords,
   fetchSalesData,
 } from '@/app/actions/sales-actions';
-import {
-  fetchInventoryAlerts,
-  fetchKPIData,
-} from '@/app/actions/inventory-actions';
-import {
-  fetchAllProducts,
-} from '@/app/actions/product-actions';
-import {
-  createDevolucion as dbCreateDevolucion,
-} from '@/app/actions/devolucion-actions';
-import {
-  fetchClientes,
-} from '@/app/actions/customer-actions';
-import {
-  createCashMovement as dbCreateCashMovement,
-} from '@/app/actions/cash-movement-actions';
-import {
-  fetchLoyaltyTransactions as dbFetchLoyaltyTransactions,
-} from '@/app/actions/loyalty-actions';
+import { fetchInventoryAlerts, fetchKPIData } from '@/app/actions/inventory-actions';
+import { fetchAllProducts } from '@/app/actions/product-actions';
+import { createDevolucion as dbCreateDevolucion } from '@/app/actions/devolucion-actions';
+import { fetchClientes } from '@/app/actions/customer-actions';
+import { createCashMovement as dbCreateCashMovement } from '@/app/actions/cash-movement-actions';
+import { fetchLoyaltyTransactions as dbFetchLoyaltyTransactions } from '@/app/actions/loyalty-actions';
 
 export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
   registerSale: async (saleData) => {
@@ -53,7 +40,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
     try {
       await dbCancelSale(id);
       const state = get();
-      set({ saleRecords: state.saleRecords.filter(s => s.id !== id) });
+      set({ saleRecords: state.saleRecords.filter((s) => s.id !== id) });
       // Cancellation restores stock → refresh products, alerts, KPIs, salesData
       const [salesData, products, alerts, kpi] = await Promise.all([
         fetchSalesData(),
@@ -73,7 +60,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       await dbDeleteSales(ids);
       const state = get();
       const idSet = new Set(ids);
-      set({ saleRecords: state.saleRecords.filter(s => !idSet.has(s.id)) });
+      set({ saleRecords: state.saleRecords.filter((s) => !idSet.has(s.id)) });
       const [salesData, products, alerts, kpi] = await Promise.all([
         fetchSalesData(),
         fetchAllProducts(),
@@ -92,7 +79,7 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       await dbDeleteCortes(ids);
       const state = get();
       const idSet = new Set(ids);
-      set({ cortesHistory: state.cortesHistory.filter(c => !idSet.has(c.id)) });
+      set({ cortesHistory: state.cortesHistory.filter((c) => !idSet.has(c.id)) });
     } catch (error) {
       console.error('[store:sales] deleteCortes failed', error);
       throw error;
@@ -126,10 +113,10 @@ export const createSalesSlice = (set: StoreSet, get: StoreGet): SalesSlice => ({
       set({ devoluciones: [devolucion, ...state.devoluciones] });
       // Refresh context (stock, clientes saldo, etc)
       await Promise.all([
-        fetchAllProducts().then(products => set({ products })),
-        fetchInventoryAlerts().then(alerts => set({ inventoryAlerts: alerts })),
-        fetchKPIData().then(kpi => set({ kpiData: kpi })),
-        fetchClientes().then(clientes => set({ clientes })),
+        fetchAllProducts().then((products) => set({ products })),
+        fetchInventoryAlerts().then((alerts) => set({ inventoryAlerts: alerts })),
+        fetchKPIData().then((kpi) => set({ kpiData: kpi })),
+        fetchClientes().then((clientes) => set({ clientes })),
       ]);
       return devolucion;
     } catch (error) {

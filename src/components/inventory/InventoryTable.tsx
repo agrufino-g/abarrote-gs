@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  Card,
-  IndexTable,
-  Text,
-  Badge,
-  ProgressBar,
-  BlockStack,
-  InlineStack,
-  Box,
-} from '@shopify/polaris';
+import { Card, IndexTable, Text, Badge, ProgressBar, BlockStack, InlineStack, Box } from '@shopify/polaris';
 import { InventoryAlert, Product } from '@/types';
 import { formatDate, getDaysUntil, getStockStatus } from '@/lib/utils';
 
@@ -50,17 +41,10 @@ export function InventoryTable({ alerts, onProductClick }: InventoryTableProps) 
   const rowMarkup = alerts.map((alert, index) => {
     const { product } = alert;
     const stockStatus = getStockStatus(product.currentStock, product.minStock);
-    const daysUntil = product.expirationDate 
-      ? getDaysUntil(product.expirationDate)
-      : null;
+    const daysUntil = product.expirationDate ? getDaysUntil(product.expirationDate) : null;
 
     return (
-      <IndexTable.Row
-        id={alert.id}
-        key={alert.id}
-        position={index}
-        onClick={() => onProductClick?.(product)}
-      >
+      <IndexTable.Row id={alert.id} key={alert.id} position={index} onClick={() => onProductClick?.(product)}>
         <IndexTable.Cell>
           <BlockStack gap="050">
             <Text as="span" variant="bodyMd" fontWeight="bold">
@@ -71,7 +55,7 @@ export function InventoryTable({ alerts, onProductClick }: InventoryTableProps) 
             </Text>
           </BlockStack>
         </IndexTable.Cell>
-        
+
         <IndexTable.Cell>
           <Box maxWidth="140px">
             <BlockStack gap="100">
@@ -91,7 +75,7 @@ export function InventoryTable({ alerts, onProductClick }: InventoryTableProps) 
             </BlockStack>
           </Box>
         </IndexTable.Cell>
-        
+
         <IndexTable.Cell>
           {product.expirationDate ? (
             <BlockStack gap="050">
@@ -100,11 +84,7 @@ export function InventoryTable({ alerts, onProductClick }: InventoryTableProps) 
               </Text>
               {daysUntil !== null && (
                 <Text as="span" variant="bodySm" tone={daysUntil <= 2 ? 'critical' : 'subdued'}>
-                  {daysUntil <= 0 
-                    ? '⚠️ Expired' 
-                    : daysUntil === 1 
-                    ? 'Tomorrow' 
-                    : `In ${daysUntil} days`}
+                  {daysUntil <= 0 ? '⚠️ Expired' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`}
                 </Text>
               )}
             </BlockStack>
@@ -114,14 +94,10 @@ export function InventoryTable({ alerts, onProductClick }: InventoryTableProps) 
             </Text>
           )}
         </IndexTable.Cell>
-        
-        <IndexTable.Cell>
-          {getAlertBadge(alert)}
-        </IndexTable.Cell>
-        
-        <IndexTable.Cell>
-          {getSeverityBadge(alert.severity)}
-        </IndexTable.Cell>
+
+        <IndexTable.Cell>{getAlertBadge(alert)}</IndexTable.Cell>
+
+        <IndexTable.Cell>{getSeverityBadge(alert.severity)}</IndexTable.Cell>
       </IndexTable.Row>
     );
   });

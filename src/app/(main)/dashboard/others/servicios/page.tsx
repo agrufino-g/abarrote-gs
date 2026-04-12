@@ -18,17 +18,10 @@ import {
   Banner,
   Spinner,
   Modal,
-  Divider,
   InlineGrid,
   Icon,
 } from '@shopify/polaris';
-import {
-  PhoneIcon,
-  HomeIcon,
-  PlusIcon,
-  XSmallIcon,
-  SearchIcon,
-} from '@shopify/polaris-icons';
+import { PhoneIcon, HomeIcon, XSmallIcon, SearchIcon } from '@shopify/polaris-icons';
 import {
   fetchServicios,
   fetchServiciosResumen,
@@ -70,10 +63,7 @@ export default function ServiciosPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [list, summary] = await Promise.all([
-        fetchServicios(),
-        fetchServiciosResumen(),
-      ]);
+      const [list, summary] = await Promise.all([fetchServicios(), fetchServiciosResumen()]);
       setServicios(list);
       setResumen(summary);
     } catch {
@@ -83,7 +73,9 @@ export default function ServiciosPage() {
     }
   }, [showError]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Tab mapping
   const tabMode: TabMode = selectedTab === 0 ? 'recargas' : selectedTab === 1 ? 'pagos' : 'historial';
@@ -97,9 +89,7 @@ export default function ServiciosPage() {
       const q = search.toLowerCase();
       result = result.filter(
         (s) =>
-          s.nombre.toLowerCase().includes(q) ||
-          s.numeroReferencia.includes(q) ||
-          s.folio.toLowerCase().includes(q),
+          s.nombre.toLowerCase().includes(q) || s.numeroReferencia.includes(q) || s.folio.toLowerCase().includes(q),
       );
     }
     return result;
@@ -160,23 +150,34 @@ export default function ServiciosPage() {
     }
   }, [pagoServicio, pagoMonto, pagoReferencia, showSuccess, showError, loadData]);
 
-  const handleCancelar = useCallback(async (id: string) => {
-    if (!confirm('¿Cancelar este servicio?')) return;
-    try {
-      await cancelarServicio(id);
-      showSuccess('Servicio cancelado');
-      loadData();
-    } catch (err) {
-      showError(err instanceof Error ? err.message : 'Error al cancelar');
-    }
-  }, [showSuccess, showError, loadData]);
+  const handleCancelar = useCallback(
+    async (id: string) => {
+      if (!confirm('¿Cancelar este servicio?')) return;
+      try {
+        await cancelarServicio(id);
+        showSuccess('Servicio cancelado');
+        loadData();
+      } catch (err) {
+        showError(err instanceof Error ? err.message : 'Error al cancelar');
+      }
+    },
+    [showSuccess, showError, loadData],
+  );
 
   const estadoBadge = (estado: string) => {
     switch (estado) {
-      case 'completado': return <Badge tone="success">Completado</Badge>;
-      case 'pendiente': return <Badge tone="attention">Pendiente</Badge>;
-      case 'cancelado': return <Badge tone="critical">Cancelado</Badge>;
-      default: return <Badge>{estado}</Badge>;
+      case 'completado':
+        return <Badge tone="success">Completado</Badge>;
+      case 'pendiente':
+        return <Badge tone="attention">Pendiente</Badge>;
+      case 'procesando':
+        return <Badge tone="info">Procesando</Badge>;
+      case 'fallido':
+        return <Badge tone="critical">Fallido</Badge>;
+      case 'cancelado':
+        return <Badge tone="critical">Cancelado</Badge>;
+      default:
+        return <Badge>{estado}</Badge>;
     }
   };
 
@@ -184,7 +185,9 @@ export default function ServiciosPage() {
     return (
       <Page title="Servicios y Recargas">
         <Box padding="800">
-          <InlineStack align="center"><Spinner size="large" /></InlineStack>
+          <InlineStack align="center">
+            <Spinner size="large" />
+          </InlineStack>
         </Box>
       </Page>
     );
@@ -195,9 +198,7 @@ export default function ServiciosPage() {
       title="Servicios y Recargas"
       subtitle="Recargas telefónicas y pagos de servicios — gana comisiones por cada transacción"
       primaryAction={{ content: 'Nueva Recarga', icon: PhoneIcon, onAction: () => setRecargaModalOpen(true) }}
-      secondaryActions={[
-        { content: 'Pago de Servicio', icon: HomeIcon, onAction: () => setPagoModalOpen(true) },
-      ]}
+      secondaryActions={[{ content: 'Pago de Servicio', icon: HomeIcon, onAction: () => setPagoModalOpen(true) }]}
       backAction={{ content: 'Dashboard', url: '/dashboard' }}
     >
       <Layout>
@@ -206,25 +207,39 @@ export default function ServiciosPage() {
           <InlineGrid columns={{ xs: 2, md: 4 }} gap="400">
             <Card>
               <BlockStack gap="200">
-                <Text variant="bodySm" as="p" tone="subdued">Transacciones hoy</Text>
-                <Text variant="headingLg" as="p">{resumen.recargasHoy + resumen.pagosHoy}</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Transacciones hoy
+                </Text>
+                <Text variant="headingLg" as="p">
+                  {resumen.recargasHoy + resumen.pagosHoy}
+                </Text>
               </BlockStack>
             </Card>
             <Card>
               <BlockStack gap="200">
-                <Text variant="bodySm" as="p" tone="subdued">Monto operado</Text>
-                <Text variant="headingLg" as="p">${resumen.totalHoy.toFixed(2)}</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Monto operado
+                </Text>
+                <Text variant="headingLg" as="p">
+                  ${resumen.totalHoy.toFixed(2)}
+                </Text>
               </BlockStack>
             </Card>
             <Card>
               <BlockStack gap="200">
-                <Text variant="bodySm" as="p" tone="subdued">Comisiones ganadas</Text>
-                <Text variant="headingLg" as="p" fontWeight="bold">${resumen.comisionesHoy.toFixed(2)}</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Comisiones ganadas
+                </Text>
+                <Text variant="headingLg" as="p" fontWeight="bold">
+                  ${resumen.comisionesHoy.toFixed(2)}
+                </Text>
               </BlockStack>
             </Card>
             <Card>
               <BlockStack gap="200">
-                <Text variant="bodySm" as="p" tone="subdued">Desglose</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Desglose
+                </Text>
                 <InlineStack gap="200">
                   <Badge tone="info">{`${resumen.recargasHoy} recargas`}</Badge>
                   <Badge>{`${resumen.pagosHoy} pagos`}</Badge>
@@ -271,6 +286,7 @@ export default function ServiciosPage() {
                   { title: 'Monto' },
                   { title: 'Comisión' },
                   { title: 'Estado' },
+                  { title: 'Proveedor' },
                   { title: 'Fecha' },
                   { title: '' },
                 ]}
@@ -278,8 +294,12 @@ export default function ServiciosPage() {
                 emptyState={
                   <Box padding="800">
                     <BlockStack gap="300" align="center">
-                      <Text variant="headingSm" as="h3">Sin transacciones</Text>
-                      <Text as="p" tone="subdued">Realiza tu primera recarga o pago de servicio.</Text>
+                      <Text variant="headingSm" as="h3">
+                        Sin transacciones
+                      </Text>
+                      <Text as="p" tone="subdued">
+                        Realiza tu primera recarga o pago de servicio.
+                      </Text>
                     </BlockStack>
                   </Box>
                 }
@@ -287,7 +307,9 @@ export default function ServiciosPage() {
                 {filtered.map((srv) => (
                   <IndexTable.Row id={srv.id} key={srv.id} position={0}>
                     <IndexTable.Cell>
-                      <Text variant="bodyMd" fontWeight="semibold" as="span">{srv.folio}</Text>
+                      <Text variant="bodyMd" fontWeight="semibold" as="span">
+                        {srv.folio}
+                      </Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
                       <Badge tone={srv.tipo === 'recarga' ? 'info' : 'warning'}>
@@ -298,22 +320,39 @@ export default function ServiciosPage() {
                       <Text as="span">{srv.nombre}</Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      <Text as="span" variant="bodyMd">{srv.numeroReferencia}</Text>
+                      <Text as="span" variant="bodyMd">
+                        {srv.numeroReferencia}
+                      </Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      <Text as="span" fontWeight="semibold">${srv.monto.toFixed(2)}</Text>
+                      <Text as="span" fontWeight="semibold">
+                        ${srv.monto.toFixed(2)}
+                      </Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      <Text as="span" tone="success">${srv.comision.toFixed(2)}</Text>
+                      <Text as="span" tone="success">
+                        ${srv.comision.toFixed(2)}
+                      </Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>{estadoBadge(srv.estado)}</IndexTable.Cell>
                     <IndexTable.Cell>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        {new Date(srv.fecha).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {srv.providerId === 'local' ? '' : srv.providerId}
+                        {srv.providerAuthCode ? ` · ${srv.providerAuthCode}` : ''}
                       </Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      {srv.estado === 'completado' && (
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        {new Date(srv.fecha).toLocaleDateString('es-MX', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      {(srv.estado === 'completado' || srv.estado === 'pendiente') && (
                         <Button
                           icon={XSmallIcon}
                           tone="critical"
@@ -341,7 +380,8 @@ export default function ServiciosPage() {
           content: recargaSubmitting ? 'Procesando...' : `Recargar $${recargaMonto || '0'}`,
           onAction: handleRecarga,
           loading: recargaSubmitting,
-          disabled: !recargaOperador || !recargaMonto || !recargaTelefono || recargaTelefono.replace(/\D/g, '').length < 10,
+          disabled:
+            !recargaOperador || !recargaMonto || !recargaTelefono || recargaTelefono.replace(/\D/g, '').length < 10,
         }}
         secondaryActions={[{ content: 'Cancelar', onAction: () => setRecargaModalOpen(false) }]}
       >
@@ -354,13 +394,18 @@ export default function ServiciosPage() {
                 ...SERVICIO_CATALOGO.recargas.map((r) => ({ label: r.nombre, value: r.id })),
               ]}
               value={recargaOperador}
-              onChange={(v) => { setRecargaOperador(v); setRecargaMonto(''); }}
+              onChange={(v) => {
+                setRecargaOperador(v);
+                setRecargaMonto('');
+              }}
             />
 
             {operadorEntry && (
               <>
                 <BlockStack gap="200">
-                  <Text variant="bodyMd" as="p" fontWeight="semibold">Selecciona monto</Text>
+                  <Text variant="bodyMd" as="p" fontWeight="semibold">
+                    Selecciona monto
+                  </Text>
                   <InlineStack gap="200" wrap>
                     {operadorEntry.montos.map((m) => (
                       <Button
@@ -387,7 +432,11 @@ export default function ServiciosPage() {
                 {recargaMonto && (
                   <Banner tone="info">
                     <Text as="p" variant="bodySm">
-                      Comisión por esta recarga: <Text as="span" fontWeight="bold">${(Number(recargaMonto) * operadorEntry.comisionPct / 100).toFixed(2)} ({operadorEntry.comisionPct}%)</Text>
+                      Comisión por esta recarga:{' '}
+                      <Text as="span" fontWeight="bold">
+                        ${((Number(recargaMonto) * operadorEntry.comisionPct) / 100).toFixed(2)} (
+                        {operadorEntry.comisionPct}%)
+                      </Text>
                     </Text>
                   </Banner>
                 )}
@@ -406,7 +455,12 @@ export default function ServiciosPage() {
           content: pagoSubmitting ? 'Procesando...' : `Pagar $${pagoMonto || '0'}`,
           onAction: handlePago,
           loading: pagoSubmitting,
-          disabled: !pagoServicio || !pagoMonto || Number(pagoMonto) <= 0 || !pagoReferencia || pagoReferencia.trim().length < 5,
+          disabled:
+            !pagoServicio ||
+            !pagoMonto ||
+            Number(pagoMonto) <= 0 ||
+            !pagoReferencia ||
+            pagoReferencia.trim().length < 5,
         }}
         secondaryActions={[{ content: 'Cancelar', onAction: () => setPagoModalOpen(false) }]}
       >
@@ -444,7 +498,10 @@ export default function ServiciosPage() {
 
                 <Banner tone="info">
                   <Text as="p" variant="bodySm">
-                    Comisión fija por este pago: <Text as="span" fontWeight="bold">${servicioEntry.comisionFija.toFixed(2)}</Text>
+                    Comisión fija por este pago:{' '}
+                    <Text as="span" fontWeight="bold">
+                      ${servicioEntry.comisionFija.toFixed(2)}
+                    </Text>
                   </Text>
                 </Banner>
               </>

@@ -30,7 +30,6 @@ interface UpdateProductModalProps {
   product: Product | null;
 }
 
-
 const unitOptions = [
   { label: 'Pieza', value: 'pieza' },
   { label: 'Kilo (kg)', value: 'kilo' },
@@ -45,20 +44,16 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
   const updateProductStore = useDashboardStore((s) => s.updateProduct);
   const categories = useDashboardStore((s) => s.categories);
   const storeConfig = useDashboardStore((s) => s.storeConfig);
-  
+
   const categoryOptions = [
     { label: 'Seleccionar categoría...', value: '' },
-    ...categories.map(c => ({ label: c.name, value: c.id }))
+    ...categories.map((c) => ({ label: c.name, value: c.id })),
   ];
   const { showSuccess, showError } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  const {
-    fields,
-    makeClean,
-    reset,
-  } = useForm({
+  const { fields, makeClean, reset } = useForm({
     fields: {
       name: useField({
         value: product?.name || '',
@@ -91,9 +86,7 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
       unitMultiple: useField(product?.unitMultiple?.toString() || '1'),
       currentStock: useField({
         value: product?.currentStock?.toString() || '0',
-        validates: [
-          (val: string) => (parseInt(val) < 0 ? 'No puede ser negativo' : undefined),
-        ],
+        validates: [(val: string) => (parseInt(val) < 0 ? 'No puede ser negativo' : undefined)],
       }),
       minStock: useField(product?.minStock?.toString() || '0'),
       isPerishable: useField(product?.isPerishable || false),
@@ -121,49 +114,62 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
     }
   }, [product, makeClean]);
 
-  const autoSave = useCallback(async (fieldKey: string, value: any) => {
-    if (!product) return;
-    const field = (fields as any)[fieldKey];
-    if (!field || !field.dirty) return;
+  const autoSave = useCallback(
+    async (fieldKey: string, value: unknown) => {
+      if (!product) return;
+      const f = fields as Record<
+        string,
+        { dirty: boolean; runValidation: (v: unknown) => string | undefined; newDefaultValue: (v: unknown) => void }
+      >;
+      const field = f[fieldKey];
+      if (!field || !field.dirty) return;
 
-    const error = field.runValidation(value);
-    if (error) {
-      showError(`Error en ${fieldKey}: ${error}`);
-      return;
-    }
+      const error = field.runValidation(value);
+      if (error) {
+        showError(`Error en ${fieldKey}: ${error}`);
+        return;
+      }
 
-    try {
-      await updateProductStore(product.id, { [fieldKey]: value });
-      field.newDefaultValue(value);
-    } catch (err) {
-      console.error(`Error auto-saving ${fieldKey}:`, err);
-    }
-  }, [product, fields, updateProductStore, showError]);
+      try {
+        await updateProductStore(product.id, { [fieldKey]: value });
+        field.newDefaultValue(value);
+      } catch (err) {
+        console.error(`Error auto-saving ${fieldKey}:`, err);
+      }
+    },
+    [product, fields, updateProductStore, showError],
+  );
 
-  const handleCostPriceChange = useCallback((value: string) => {
-    fields.costPrice.onChange(value);
-    const cost = parseFloat(value);
-    if (!isNaN(cost) && cost > 0 && !fields.unitPrice.dirty) {
-      const defaultMargin = parseFloat(storeConfig.defaultMargin || '30');
-      const calculatedPrice = cost + (cost * (defaultMargin / 100));
-      fields.unitPrice.onChange(calculatedPrice.toFixed(2));
-    }
-  }, [storeConfig.defaultMargin, fields.costPrice, fields.unitPrice]);
+  const handleCostPriceChange = useCallback(
+    (value: string) => {
+      fields.costPrice.onChange(value);
+      const cost = parseFloat(value);
+      if (!isNaN(cost) && cost > 0 && !fields.unitPrice.dirty) {
+        const defaultMargin = parseFloat(storeConfig.defaultMargin || '30');
+        const calculatedPrice = cost + cost * (defaultMargin / 100);
+        fields.unitPrice.onChange(calculatedPrice.toFixed(2));
+      }
+    },
+    [storeConfig.defaultMargin, fields.costPrice, fields.unitPrice],
+  );
 
-  const handleImageUpload = useCallback(async (newFile: File) => {
-    if (!product) return;
-    setIsUploadingImage(true);
-    try {
-      const path = getProductImagePath(fields.sku.value || product.id, newFile.name);
-      const imageUrl = await uploadFile(newFile, path);
-      await updateProductStore(product.id, { imageUrl });
-      showSuccess('Imagen actualizada');
-    } catch (err) {
-      showError('Error al subir imagen');
-    } finally {
-      setIsUploadingImage(false);
-    }
-  }, [product, fields.sku.value, updateProductStore, showSuccess, showError]);
+  const handleImageUpload = useCallback(
+    async (newFile: File) => {
+      if (!product) return;
+      setIsUploadingImage(true);
+      try {
+        const path = getProductImagePath(fields.sku.value || product.id, newFile.name);
+        const imageUrl = await uploadFile(newFile, path);
+        await updateProductStore(product.id, { imageUrl });
+        showSuccess('Imagen actualizada');
+      } catch (_err) {
+        showError('Error al subir imagen');
+      } finally {
+        setIsUploadingImage(false);
+      }
+    },
+    [product, fields.sku.value, updateProductStore, showSuccess, showError],
+  );
 
   useEffect(() => {
     if (file) {
@@ -173,24 +179,26 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
   }, [file, handleImageUpload]);
 
   const handleDropZoneDrop = useCallback(
-    (_dropFiles: File[], acceptedFiles: File[], _rejectedFiles: File[]) =>
-      setFile(acceptedFiles[0]),
+    (_dropFiles: File[], acceptedFiles: File[], _rejectedFiles: File[]) => setFile(acceptedFiles[0]),
     [],
   );
 
-  const margin = parseFloat(fields.unitPrice.value) > 0 && parseFloat(fields.costPrice.value) > 0
-    ? (((parseFloat(fields.unitPrice.value) - parseFloat(fields.costPrice.value)) / parseFloat(fields.costPrice.value)) * 100).toFixed(1)
-    : null;
+  const margin =
+    parseFloat(fields.unitPrice.value) > 0 && parseFloat(fields.costPrice.value) > 0
+      ? (
+          ((parseFloat(fields.unitPrice.value) - parseFloat(fields.costPrice.value)) /
+            parseFloat(fields.costPrice.value)) *
+          100
+        ).toFixed(1)
+      : null;
 
-  const fileUploadMarkup = !file && !product?.imageUrl && <DropZone.FileUpload actionHint="Archivos permitidos: .jpg, .png, .gif" />;
+  const fileUploadMarkup = !file && !product?.imageUrl && (
+    <DropZone.FileUpload actionHint="Archivos permitidos: .jpg, .png, .gif" />
+  );
   const uploadedFileMarkup = (file || product?.imageUrl) && (
     <InlineStack gap="300" blockAlign="center">
       {file ? (
-        <Thumbnail
-          size="small"
-          alt={file.name}
-          source={window.URL.createObjectURL(file)}
-        />
+        <Thumbnail size="small" alt={file.name} source={window.URL.createObjectURL(file)} />
       ) : (
         <OptimizedImage source={product?.imageUrl} alt={product?.name || ''} size="small" />
       )}
@@ -225,10 +233,14 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
       <Modal.Section>
         <BlockStack gap="400">
           <Banner tone="info">
-            <p>Los cambios se guardan <b>automáticamente</b> mientras editas.</p>
+            <p>
+              Los cambios se guardan <b>automáticamente</b> mientras editas.
+            </p>
           </Banner>
 
-          <Text as="h3" variant="headingMd">Imagen del producto</Text>
+          <Text as="h3" variant="headingMd">
+            Imagen del producto
+          </Text>
           <Box padding="200" borderStyle="dashed" borderWidth="025" borderColor="border" borderRadius="200">
             <DropZone
               onDrop={handleDropZoneDrop}
@@ -246,21 +258,23 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
 
           <Divider />
 
-          <Text as="h3" variant="headingMd">Información del producto</Text>
+          <Text as="h3" variant="headingMd">
+            Información del producto
+          </Text>
 
           <FormLayout>
             <FormLayout.Group>
-              <TextField 
-                label="Nombre" 
-                autoComplete="off" 
+              <TextField
+                label="Nombre"
+                autoComplete="off"
                 value={fields.name.value}
                 onChange={fields.name.onChange}
                 error={fields.name.error}
                 onBlur={() => autoSave('name', fields.name.value)}
               />
-              <TextField 
-                label="SKU" 
-                autoComplete="off" 
+              <TextField
+                label="SKU"
+                autoComplete="off"
                 value={fields.sku.value}
                 onChange={fields.sku.onChange}
                 error={fields.sku.error}
@@ -269,9 +283,9 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
             </FormLayout.Group>
 
             <FormLayout.Group>
-              <TextField 
-                label="Código de barras" 
-                autoComplete="off" 
+              <TextField
+                label="Código de barras"
+                autoComplete="off"
                 value={fields.barcode.value}
                 onChange={fields.barcode.onChange}
                 error={fields.barcode.error}
@@ -287,9 +301,9 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
               />
             </FormLayout.Group>
 
-            <FormSelect 
-              label="Categoría" 
-              options={categoryOptions} 
+            <FormSelect
+              label="Categoría"
+              options={categoryOptions}
               value={fields.category.value}
               onChange={(v) => {
                 fields.category.onChange(v);
@@ -299,30 +313,30 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
             />
 
             <FormLayout.Group>
-              <TextField 
-                label="Costo" 
-                type="number" 
-                autoComplete="off" 
-                prefix="$" 
+              <TextField
+                label="Costo"
+                type="number"
+                autoComplete="off"
+                prefix="$"
                 value={fields.costPrice.value}
                 onChange={handleCostPriceChange}
                 error={fields.costPrice.error}
                 onBlur={() => autoSave('costPrice', parseFloat(fields.costPrice.value))}
               />
-              <TextField 
-                label="Venta" 
-                type="number" 
-                autoComplete="off" 
-                prefix="$" 
-                helpText={margin ? `Margen: ${margin}%` : ''} 
+              <TextField
+                label="Venta"
+                type="number"
+                autoComplete="off"
+                prefix="$"
+                helpText={margin ? `Margen: ${margin}%` : ''}
                 value={fields.unitPrice.value}
                 onChange={fields.unitPrice.onChange}
                 error={fields.unitPrice.error}
                 onBlur={() => autoSave('unitPrice', parseFloat(fields.unitPrice.value))}
               />
-              <FormSelect 
-                label="Unidad" 
-                options={unitOptions} 
+              <FormSelect
+                label="Unidad"
+                options={unitOptions}
                 value={fields.unit.value}
                 onChange={(v) => {
                   fields.unit.onChange(v);
@@ -332,19 +346,19 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
             </FormLayout.Group>
 
             <FormLayout.Group>
-              <TextField 
-                label="Stock actual" 
-                type="number" 
-                autoComplete="off" 
+              <TextField
+                label="Stock actual"
+                type="number"
+                autoComplete="off"
                 value={fields.currentStock.value}
                 onChange={fields.currentStock.onChange}
                 error={fields.currentStock.error}
                 onBlur={() => autoSave('currentStock', parseInt(fields.currentStock.value, 10))}
               />
-              <TextField 
-                label="Stock mínimo" 
-                type="number" 
-                autoComplete="off" 
+              <TextField
+                label="Stock mínimo"
+                type="number"
+                autoComplete="off"
                 value={fields.minStock.value}
                 onChange={fields.minStock.onChange}
                 error={fields.minStock.error}
@@ -352,19 +366,19 @@ export function UpdateProductModal({ open, onClose, product }: UpdateProductModa
               />
             </FormLayout.Group>
 
-            <Checkbox 
-              label="Producto perecedero" 
-              checked={fields.isPerishable.value} 
+            <Checkbox
+              label="Producto perecedero"
+              checked={fields.isPerishable.value}
               onChange={(v) => {
                 fields.isPerishable.onChange(v);
                 autoSave('isPerishable', v);
               }}
             />
             {fields.isPerishable.value && (
-              <TextField 
-                label="Vencimiento" 
-                type="date" 
-                autoComplete="off" 
+              <TextField
+                label="Vencimiento"
+                type="date"
+                autoComplete="off"
                 value={fields.expirationDate.value}
                 onChange={fields.expirationDate.onChange}
                 error={fields.expirationDate.error}

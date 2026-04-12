@@ -1,33 +1,29 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: #f6f6f7;
   --color-foreground: #202223;
-  --font-sans:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 :root {
   /* --- Brand Color Palettes --- */
-  --blue-zodiac-50: #ECF9FF;
-  --blue-zodiac-500: #12A3FF;
-  --blue-zodiac-800: #0055CF;
-  
-  --atoll-500: #00DADA;
-  --feijoa-500: #46BB27;
+  --blue-zodiac-50: #ecf9ff;
+  --blue-zodiac-500: #12a3ff;
+  --blue-zodiac-800: #0055cf;
+
+  --atoll-500: #00dada;
+  --feijoa-500: #46bb27;
 
   /* Shopify Polaris - Map new colors to primary actions only */
   --primary: var(--blue-zodiac-500);
   --primary-hover: var(--blue-zodiac-800);
-  
+
   --radius: 0.5rem;
   --background: #f6f6f7;
   --foreground: #202223;
@@ -67,7 +63,7 @@
 }
 
 /* Forced "hidden but functional" containers */
-html.p-theme-light, 
+html.p-theme-light,
 body,
 .Polaris-Frame,
 .Polaris-Frame__Main,
@@ -105,13 +101,19 @@ body,
 }
 
 /* Custom Accents */
-.accent-blue { color: var(--blue-zodiac-500); }
-.accent-teal { color: var(--atoll-500); }
-.accent-green { color: var(--feijoa-500); }
+.accent-blue {
+  color: var(--blue-zodiac-500);
+}
+.accent-teal {
+  color: var(--atoll-500);
+}
+.accent-green {
+  color: var(--feijoa-500);
+}
 
 /* Ocultación radical de scrollbar en todos los niveles */
-html, 
-body, 
+html,
+body,
 * {
   scrollbar-width: none !important; /* Firefox */
   -ms-overflow-style: none !important; /* IE/Edge */
@@ -143,4 +145,3 @@ body,
     padding-bottom: 70px !important;
   }
 }
-

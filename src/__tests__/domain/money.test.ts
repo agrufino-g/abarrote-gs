@@ -31,8 +31,8 @@ describe('Money Value Object', () => {
   describe('arithmetic operations', () => {
     it('adds two amounts', () => {
       const a = Money.fromPesos(10);
-      const b = Money.fromPesos(5.50);
-      expect(a.add(b).toPesos()).toBe(15.50);
+      const b = Money.fromPesos(5.5);
+      expect(a.add(b).toPesos()).toBe(15.5);
     });
 
     it('subtracts two amounts', () => {
@@ -108,7 +108,7 @@ describe('Money Value Object', () => {
     });
 
     it('formats plain number', () => {
-      const money = Money.fromPesos(99.90);
+      const money = Money.fromPesos(99.9);
       expect(money.formatPlain()).toBe('99.90');
     });
 

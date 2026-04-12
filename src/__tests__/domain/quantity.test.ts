@@ -25,23 +25,19 @@ describe('Quantity Value Object', () => {
     });
 
     it('should throw for negative quantity', () => {
-      expect(() => Quantity.of(-1))
-        .toThrow('Quantity: Cannot be negative');
+      expect(() => Quantity.of(-1)).toThrow('Quantity: Cannot be negative');
     });
 
     it('should throw for NaN', () => {
-      expect(() => Quantity.of(NaN))
-        .toThrow('Quantity: Must be a finite number');
+      expect(() => Quantity.of(NaN)).toThrow('Quantity: Must be a finite number');
     });
 
     it('should throw for Infinity', () => {
-      expect(() => Quantity.of(Infinity))
-        .toThrow('Quantity: Must be a finite number');
+      expect(() => Quantity.of(Infinity)).toThrow('Quantity: Must be a finite number');
     });
 
     it('should throw for negative Infinity', () => {
-      expect(() => Quantity.of(-Infinity))
-        .toThrow('Quantity: Must be a finite number');
+      expect(() => Quantity.of(-Infinity)).toThrow('Quantity: Must be a finite number');
     });
   });
 
@@ -80,8 +76,7 @@ describe('Quantity Value Object', () => {
       it('should throw when result would be negative', () => {
         const a = Quantity.of(2);
         const b = Quantity.of(5);
-        expect(() => a.subtract(b))
-          .toThrow('Quantity: Subtraction would result in negative quantity');
+        expect(() => a.subtract(b)).toThrow('Quantity: Subtraction would result in negative quantity');
       });
 
       it('should allow subtracting to zero', () => {
@@ -143,8 +138,7 @@ describe('Quantity Value Object', () => {
 
       it('should throw for negative factor', () => {
         const qty = Quantity.of(5);
-        expect(() => qty.multiply(-2))
-          .toThrow('Quantity: Cannot multiply by negative factor');
+        expect(() => qty.multiply(-2)).toThrow('Quantity: Cannot multiply by negative factor');
       });
 
       it('should be immutable', () => {
@@ -160,7 +154,7 @@ describe('Quantity Value Object', () => {
       const a = Quantity.of(5);
       const b = Quantity.of(5);
       const c = Quantity.of(3);
-      
+
       expect(a.equals(b)).toBe(true);
       expect(a.equals(c)).toBe(false);
     });
@@ -168,7 +162,7 @@ describe('Quantity Value Object', () => {
     it('should check greater than', () => {
       const larger = Quantity.of(5);
       const smaller = Quantity.of(3);
-      
+
       expect(larger.isGreaterThan(smaller)).toBe(true);
       expect(smaller.isGreaterThan(larger)).toBe(false);
       expect(larger.isGreaterThan(larger)).toBe(false);
@@ -178,7 +172,7 @@ describe('Quantity Value Object', () => {
       const larger = Quantity.of(5);
       const equal = Quantity.of(5);
       const smaller = Quantity.of(3);
-      
+
       expect(larger.isGreaterThanOrEqual(smaller)).toBe(true);
       expect(larger.isGreaterThanOrEqual(equal)).toBe(true);
       expect(smaller.isGreaterThanOrEqual(larger)).toBe(false);
@@ -187,7 +181,7 @@ describe('Quantity Value Object', () => {
     it('should check less than', () => {
       const smaller = Quantity.of(3);
       const larger = Quantity.of(5);
-      
+
       expect(smaller.isLessThan(larger)).toBe(true);
       expect(larger.isLessThan(smaller)).toBe(false);
       expect(smaller.isLessThan(smaller)).toBe(false);
@@ -197,7 +191,7 @@ describe('Quantity Value Object', () => {
       const smaller = Quantity.of(3);
       const equal = Quantity.of(3);
       const larger = Quantity.of(5);
-      
+
       expect(smaller.isLessThanOrEqual(larger)).toBe(true);
       expect(smaller.isLessThanOrEqual(equal)).toBe(true);
       expect(larger.isLessThanOrEqual(smaller)).toBe(false);

@@ -5,16 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { confirmPasswordReset } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import {
-  Card,
-  FormLayout,
-  TextField,
-  Button,
-  BlockStack,
-  Box,
-  Text,
-  Icon,
-} from '@shopify/polaris';
+import { Card, FormLayout, TextField, Button, BlockStack, Box, Text, Icon } from '@shopify/polaris';
 import { AlertDiamondIcon, CheckCircleIcon } from '@shopify/polaris-icons';
 import { useToast } from '@/components/notifications/ToastProvider';
 
@@ -35,41 +26,46 @@ export function ResetPasswordForm() {
     { label: 'Número', met: /\d/.test(password) },
   ];
 
-  const isPasswordValid = passwordRequirements.every(req => req.met);
+  const isPasswordValid = passwordRequirements.every((req) => req.met);
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    if (!isPasswordValid) {
-      toast.showError('La contraseña no cumple los requisitos');
-      return;
-    }
+      if (!isPasswordValid) {
+        toast.showError('La contraseña no cumple los requisitos');
+        return;
+      }
 
-    if (!passwordsMatch) {
-      toast.showError('Las contraseñas no coinciden');
-      return;
-    }
+      if (!passwordsMatch) {
+        toast.showError('Las contraseñas no coinciden');
+        return;
+      }
 
-    if (!token) {
-      toast.showError('Enlace de recuperación inválido');
-      return;
-    }
+      if (!token) {
+        toast.showError('Enlace de recuperación inválido');
+        return;
+      }
 
-    setIsLoading(true);
-    try {
-      await confirmPasswordReset(auth, token, password);
-      setSuccess(true);
-      toast.showSuccess('Contraseña actualizada correctamente');
-    } catch (error: any) {
-      const errorMessage = error?.code === 'auth/invalid-action-code'
-        ? 'El enlace ha expirado o ya ha sido utilizado'
-        : 'Error al restablecer la contraseña';
-      toast.showError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [password, isPasswordValid, passwordsMatch, token, toast]);
+      setIsLoading(true);
+      try {
+        await confirmPasswordReset(auth, token, password);
+        setSuccess(true);
+        toast.showSuccess('Contraseña actualizada correctamente');
+      } catch (error: unknown) {
+        const err = error as { code?: string };
+        const errorMessage =
+          err.code === 'auth/invalid-action-code'
+            ? 'El enlace ha expirado o ya ha sido utilizado'
+            : 'Error al restablecer la contraseña';
+        toast.showError(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [password, isPasswordValid, passwordsMatch, token, toast],
+  );
 
   // Invalid token
   if (!token) {
@@ -78,16 +74,18 @@ export function ResetPasswordForm() {
         <Card>
           <BlockStack gap="600">
             <BlockStack gap="400" align="center">
-              <div style={{
-                backgroundColor: 'var(--p-color-bg-surface-critical-secondary)',
-                padding: '16px',
-                borderRadius: '50%',
-                width: '64px',
-                height: '64px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+              <div
+                style={{
+                  backgroundColor: 'var(--p-color-bg-surface-critical-secondary)',
+                  padding: '16px',
+                  borderRadius: '50%',
+                  width: '64px',
+                  height: '64px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 <div style={{ width: '32px', height: '32px' }}>
                   <Icon source={AlertDiamondIcon} tone="critical" />
                 </div>
@@ -119,16 +117,18 @@ export function ResetPasswordForm() {
         <Card>
           <BlockStack gap="600">
             <BlockStack gap="400" align="center">
-              <div style={{
-                backgroundColor: 'var(--p-color-bg-surface-success-secondary)',
-                padding: '16px',
-                borderRadius: '50%',
-                width: '64px',
-                height: '64px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+              <div
+                style={{
+                  backgroundColor: 'var(--p-color-bg-surface-success-secondary)',
+                  padding: '16px',
+                  borderRadius: '50%',
+                  width: '64px',
+                  height: '64px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 <div style={{ width: '32px', height: '32px' }}>
                   <Icon source={CheckCircleIcon} tone="success" />
                 </div>
@@ -158,21 +158,23 @@ export function ResetPasswordForm() {
       <Card>
         <BlockStack gap="600">
           <BlockStack gap="400" align="center">
-            <div style={{
-              padding: '24px 0 12px 0',
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <img 
-                src="/login-brand.svg" 
-                alt="Logo" 
-                style={{ 
-                  width: '200px', 
-                  height: 'auto'
-                }} 
+            <div
+              style={{
+                padding: '24px 0 12px 0',
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <img
+                src="/login-brand.svg"
+                alt="Logo"
+                style={{
+                  width: '200px',
+                  height: 'auto',
+                }}
               />
             </div>
             <BlockStack gap="100" align="center">
@@ -211,7 +213,7 @@ export function ResetPasswordForm() {
                         border: `1px solid ${req.met ? '#bbe5b3' : '#e1e3e5'}`,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '4px'
+                        gap: '4px',
                       }}
                     >
                       {req.met ? '✓' : '○'} {req.label}

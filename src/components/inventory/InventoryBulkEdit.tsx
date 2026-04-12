@@ -1,15 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  BlockStack,
-  Box,
-  Button,
-  Card,
-  Divider,
-  InlineStack,
-  Text,
-} from '@shopify/polaris';
+import { BlockStack, Box, Button, Card, Divider, InlineStack, Text } from '@shopify/polaris';
 import { ArrowLeftIcon, SortIcon } from '@shopify/polaris-icons';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { Product } from '@/types';
@@ -84,7 +76,12 @@ export function InventoryBulkEdit({
                 selectedColumns={draftVisibleColumns}
                 onColumnChange={onDraftColumnChange}
               />
-              <Button variant="primary" onClick={onSave} loading={isSavingBulkEdit} disabled={visibleColumnDefinitions.length === 0}>
+              <Button
+                variant="primary"
+                onClick={onSave}
+                loading={isSavingBulkEdit}
+                disabled={visibleColumnDefinitions.length === 0}
+              >
                 Guardar
               </Button>
             </InlineStack>
@@ -118,7 +115,9 @@ export function InventoryBulkEdit({
                       background: '#f6f6f7',
                     }}
                   >
-                    <Text as="span" variant="bodySm" tone="subdued">{column.label}</Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      {column.label}
+                    </Text>
                   </th>
                 ))}
               </tr>

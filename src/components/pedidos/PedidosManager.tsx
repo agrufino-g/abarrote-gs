@@ -4,20 +4,18 @@ import { useState, useCallback, useMemo } from 'react';
 import {
   Badge,
   BlockStack,
-  Button,
+  Box,
   Card,
+  IndexFilters,
+  IndexFiltersMode,
   IndexTable,
+  InlineGrid,
   InlineStack,
-  Tabs,
   Text,
   useIndexResourceState,
+  useSetIndexFiltersMode,
 } from '@shopify/polaris';
-import {
-  FilterIcon,
-  PlusIcon,
-  SearchIcon,
-  SortIcon,
-} from '@shopify/polaris-icons';
+import type { TabProps } from '@shopify/polaris';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { GenericExportModal } from '@/components/inventory/ShopifyModals';
@@ -28,38 +26,26 @@ import { printTicketSurtido, type OrderLineItem } from './printTicketSurtido';
 import { PedidoDetailModal } from './PedidoDetailModal';
 import { formatCurrency } from '@/lib/utils';
 
-// --- Mapeo de estados ---
-type PedidoStatus = 'todas' | 'pendiente' | 'enviado' | 'recibido';
-
+// ── Status mapping ──
 const estadoBadge: Record<PedidoRecord['estado'], { tone: 'attention' | 'info' | 'success'; label: string }> = {
   pendiente: { tone: 'attention', label: 'Borrador' },
   enviado: { tone: 'info', label: 'Ordenado' },
   recibido: { tone: 'success', label: 'Recibido' },
 };
 
-const TABS = [
-  { id: 'todas', content: 'Todas', accessibilityLabel: 'Todas las órdenes', panelID: 'todas-panel' },
-  { id: 'pendiente', content: 'Borrador', accessibilityLabel: 'Borradores', panelID: 'borrador-panel' },
-  { id: 'enviado', content: 'Ordenado', accessibilityLabel: 'Ordenados', panelID: 'ordenado-panel' },
-  { id: 'parcial', content: 'Parcial', accessibilityLabel: 'Parcial', panelID: 'parcial-panel' },
-  { id: 'recibido', content: 'Recibido', accessibilityLabel: 'Recibidos', panelID: 'recibido-panel' },
-  { id: 'cerrado', content: 'Cerrado', accessibilityLabel: 'Cerrados', panelID: 'cerrado-panel' },
+// ── Tab definitions for IndexFilters ──
+const TAB_DEFINITIONS: { id: string; content: string; filter: PedidoRecord['estado'] | null }[] = [
+  { id: 'todas', content: 'Todas', filter: null },
+  { id: 'pendiente', content: 'Borrador', filter: 'pendiente' },
+  { id: 'enviado', content: 'Ordenado', filter: 'enviado' },
+  { id: 'recibido', content: 'Recibido', filter: 'recibido' },
 ];
-
-const TAB_FILTER_MAP: Record<string, PedidoStatus> = {
-  todas: 'todas',
-  pendiente: 'pendiente',
-  enviado: 'enviado',
-  parcial: 'todas', // no hay estado parcial, muestra todas
-  recibido: 'recibido',
-  cerrado: 'recibido', // cerrado = recibido
-};
 
 interface PedidosManagerProps {
   onCreateOrder: () => void;
 }
 
-export function PedidosManager({ onCreateOrder }: PedidosManagerProps) {
+export function PedidosManager({ onCreateOrder: _onCreateOrder }: PedidosManagerProps) {
   const pedidos = useDashboardStore((s) => s.pedidos);
   const updatePedidoStatus = useDashboardStore((s) => s.updatePedidoStatus);
   const receivePedido = useDashboardStore((s) => s.receivePedido);
@@ -72,20 +58,47 @@ export function PedidosManager({ onCreateOrder }: PedidosManagerProps) {
   const [selectedPedido, setSelectedPedido] = useState<PedidoRecord | null>(null);
   const [receiving, setReceiving] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
   const [queryValue, setQueryValue] = useState('');
+  const [sortSelected, setSortSelected] = useState(['fecha desc']);
 
-  // --- Filtrar por tab ---
+  const { mode, setMode } = useSetIndexFiltersMode(IndexFiltersMode.Filtering);
+
+  // ── Tabs as TabProps[] ──
+  const tabs: TabProps[] = TAB_DEFINITIONS.map((t, i) => ({
+    content: t.content,
+    index: i,
+    id: t.id,
+    isLocked: i === 0,
+    onAction: () => {},
+  }));
+
+  // ── Sort options ──
+  const sortOptions = [
+    { label: 'Fecha', value: 'fecha desc' as const, directionLabel: 'Más reciente' },
+    { label: 'Fecha', value: 'fecha asc' as const, directionLabel: 'Más antiguo' },
+    { label: 'Total', value: 'total desc' as const, directionLabel: 'Mayor a menor' },
+    { label: 'Total', value: 'total asc' as const, directionLabel: 'Menor a mayor' },
+    { label: 'Proveedor', value: 'proveedor asc' as const, directionLabel: 'A-Z' },
+    { label: 'Proveedor', value: 'proveedor desc' as const, directionLabel: 'Z-A' },
+  ];
+
+  // ── Compute totals for each pedido ──
+  const getPedidoTotal = useCallback(
+    (pedido: PedidoRecord) =>
+      pedido.productos.reduce((sum, p) => {
+        const found = products.find((pr) => pr.id === p.productId);
+        return sum + (found?.costPrice ?? 0) * p.cantidad;
+      }, 0),
+    [products],
+  );
+
+  // ── Filter + Sort ──
   const filteredPedidos = useMemo(() => {
-    const tabId = TABS[selectedTab]?.id || 'todas';
-    const statusFilter = TAB_FILTER_MAP[tabId];
-    const order = { pendiente: 0, enviado: 1, recibido: 2 };
+    const statusFilter = TAB_DEFINITIONS[selectedTab]?.filter ?? null;
 
-    let result = [...pedidos].sort(
-      (a, b) => order[a.estado] - order[b.estado] || new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
-    );
+    let result = [...pedidos];
 
-    if (statusFilter !== 'todas') {
+    if (statusFilter) {
       result = result.filter((p) => p.estado === statusFilter);
     }
 
@@ -95,109 +108,131 @@ export function PedidosManager({ onCreateOrder }: PedidosManagerProps) {
         (p) =>
           p.proveedor.toLowerCase().includes(q) ||
           p.id.toLowerCase().includes(q) ||
-          p.notas?.toLowerCase().includes(q)
+          p.notas?.toLowerCase().includes(q),
       );
     }
 
+    const [sortKey, sortDir] = sortSelected[0].split(' ');
+    result.sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'fecha') cmp = new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
+      else if (sortKey === 'total') cmp = getPedidoTotal(a) - getPedidoTotal(b);
+      else if (sortKey === 'proveedor') cmp = a.proveedor.localeCompare(b.proveedor);
+      return sortDir === 'desc' ? -cmp : cmp;
+    });
+
     return result;
-  }, [pedidos, selectedTab, queryValue]);
+  }, [pedidos, selectedTab, queryValue, sortSelected, getPedidoTotal]);
 
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(filteredPedidos as any);
+  const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(
+    filteredPedidos as { id: string }[],
+  );
 
-  // --- Handlers ---
+  // ── KPI aggregates ──
+  const kpis = useMemo(() => {
+    const total = pedidos.reduce((s, p) => s + getPedidoTotal(p), 0);
+    const pendientes = pedidos.filter((p) => p.estado === 'pendiente').length;
+    const enviados = pedidos.filter((p) => p.estado === 'enviado').length;
+    const recibidos = pedidos.filter((p) => p.estado === 'recibido').length;
+    return { total, pendientes, enviados, recibidos, count: pedidos.length };
+  }, [pedidos, getPedidoTotal]);
+
+  // ── Handlers ──
   const handleViewDetail = useCallback((pedido: PedidoRecord) => {
     setSelectedPedido(pedido);
     setDetailOpen(true);
   }, []);
 
-  const handleStatusChange = useCallback(async (id: string, estado: PedidoRecord['estado']) => {
-    try {
-      await updatePedidoStatus(id, estado);
-      showSuccess(`Pedido marcado como "${estado}"`);
-      setSelectedPedido((prev) => (prev?.id === id ? { ...prev, estado } : prev));
-    } catch {
-      showError('Error al actualizar estado');
-    }
-  }, [updatePedidoStatus, showSuccess, showError]);
+  const handleStatusChange = useCallback(
+    async (id: string, estado: PedidoRecord['estado']) => {
+      try {
+        await updatePedidoStatus(id, estado);
+        showSuccess(`Pedido marcado como "${estadoBadge[estado].label}"`);
+        setSelectedPedido((prev) => (prev?.id === id ? { ...prev, estado } : prev));
+      } catch {
+        showError('Error al actualizar estado');
+      }
+    },
+    [updatePedidoStatus, showSuccess, showError],
+  );
 
-  const handleReceive = useCallback(async (id: string) => {
-    setReceiving(true);
-    try {
-      await receivePedido(id);
-      showSuccess('Pedido recibido — inventario actualizado');
-      setSelectedPedido((prev) => (prev?.id === id ? { ...prev, estado: 'recibido' as const } : prev));
-    } catch {
-      showError('Error al recibir mercancía');
-    }
-    setReceiving(false);
-  }, [receivePedido, showSuccess, showError]);
+  const handleReceive = useCallback(
+    async (id: string) => {
+      setReceiving(true);
+      try {
+        await receivePedido(id);
+        showSuccess('Pedido recibido — inventario actualizado');
+        setSelectedPedido((prev) => (prev?.id === id ? { ...prev, estado: 'recibido' as const } : prev));
+      } catch {
+        showError('Error al recibir mercancía');
+      }
+      setReceiving(false);
+    },
+    [receivePedido, showSuccess, showError],
+  );
 
-  const handleReprint = useCallback((pedido: PedidoRecord) => {
-    const lineItems: OrderLineItem[] = pedido.productos.map((p) => {
-      const found = products.find((pr: Product) => pr.id === p.productId);
-      return {
-        productId: p.productId,
-        productName: p.productName,
-        sku: found?.sku ?? '',
-        precio: found?.costPrice ?? 0,
-        cantidad: p.cantidad,
-      };
-    });
-    const subtotal = lineItems.reduce((s, l) => s + l.precio * l.cantidad, 0);
-    printTicketSurtido({
-      folio: pedido.id,
-      fecha: pedido.fecha,
-      proveedor: pedido.proveedor,
-      terminosPago: '',
-      moneda: 'MXN',
-      destino: storeConfig.storeName,
-      destinoAddress: [storeConfig.address, storeConfig.city].filter(Boolean).join(', '),
-      notas: pedido.notas ?? '',
-      lineItems,
-      subtotal,
-      storeName: storeConfig.storeName,
-      storeAddress: [storeConfig.address, storeConfig.city, storeConfig.postalCode].filter(Boolean).join(', '),
-      storePhone: storeConfig.phone,
-      templateProveedor: storeConfig.ticketTemplateProveedor,
-    });
-  }, [products, storeConfig]);
+  const handleReprint = useCallback(
+    (pedido: PedidoRecord) => {
+      const lineItems: OrderLineItem[] = pedido.productos.map((p) => {
+        const found = products.find((pr: Product) => pr.id === p.productId);
+        return {
+          productId: p.productId,
+          productName: p.productName,
+          sku: found?.sku ?? '',
+          precio: found?.costPrice ?? 0,
+          cantidad: p.cantidad,
+        };
+      });
+      const subtotal = lineItems.reduce((s, l) => s + l.precio * l.cantidad, 0);
+      printTicketSurtido({
+        folio: pedido.id,
+        fecha: pedido.fecha,
+        proveedor: pedido.proveedor,
+        terminosPago: '',
+        moneda: 'MXN',
+        destino: storeConfig.storeName,
+        destinoAddress: [storeConfig.address, storeConfig.city].filter(Boolean).join(', '),
+        notas: pedido.notas ?? '',
+        lineItems,
+        subtotal,
+        storeName: storeConfig.storeName,
+        storeAddress: [storeConfig.address, storeConfig.city, storeConfig.postalCode].filter(Boolean).join(', '),
+        storePhone: storeConfig.phone,
+        templateProveedor: storeConfig.ticketTemplateProveedor,
+      });
+    },
+    [products, storeConfig],
+  );
 
   const handleDetailClose = useCallback(() => {
     setDetailOpen(false);
     setSelectedPedido(null);
   }, []);
 
-  // --- Calcular total de un pedido ---
-  const getPedidoTotal = useCallback((pedido: PedidoRecord) => {
-    return pedido.productos.reduce((sum, p) => {
-      const found = products.find((pr) => pr.id === p.productId);
-      return sum + (found?.costPrice ?? 0) * p.cantidad;
-    }, 0);
-  }, [products]);
-
-  // --- Calcular recibido ---
   const getRecibidoText = useCallback((pedido: PedidoRecord) => {
     const total = pedido.productos.reduce((s, p) => s + p.cantidad, 0);
     if (pedido.estado === 'recibido') return `${total} de ${total}`;
     return `0 de ${total}`;
   }, []);
 
-  // --- Format fecha corta ---
-  const formatFechaCorta = (fecha: string) => {
-    const d = new Date(fecha);
-    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
-  };
+  const formatFechaCorta = (fecha: string) =>
+    new Date(fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' });
 
-  // --- Generar folio corto ---
-  const getFolio = (pedido: PedidoRecord, index: number) => {
-    return `#PO${index + 1}`;
-  };
+  const getFolio = (_pedido: PedidoRecord, index: number) => `#PO-${String(index + 1).padStart(4, '0')}`;
 
-  // --- Row markup (7 columnas del screenshot) ---
+  // ── Promoted bulk actions ──
+  const promotedBulkActions = [
+    {
+      content: 'Exportar seleccionados',
+      onAction: () => setIsExportOpen(true),
+    },
+  ];
+
+  // ── Row markup ──
   const rowMarkup = filteredPedidos.map((pedido, index) => {
     const total = getPedidoTotal(pedido);
     const badge = estadoBadge[pedido.estado];
+    const itemCount = pedido.productos.reduce((s, p) => s + p.cantidad, 0);
 
     return (
       <IndexTable.Row
@@ -207,55 +242,43 @@ export function PedidosManager({ onCreateOrder }: PedidosManagerProps) {
         selected={selectedResources.includes(pedido.id)}
         onClick={() => handleViewDetail(pedido)}
       >
-        {/* Orden de compra */}
         <IndexTable.Cell>
-          <BlockStack gap="050">
-            <Text as="span" variant="bodyMd" fontWeight="bold">
-              {getFolio(pedido, index)}
-            </Text>
-            <Text as="span" variant="bodySm" tone="subdued">
-              {pedido.id.slice(0, 6)}
-            </Text>
-          </BlockStack>
+          <Text as="span" variant="bodyMd" fontWeight="bold">
+            {getFolio(pedido, index)}
+          </Text>
         </IndexTable.Cell>
 
-        {/* Distribuidor */}
         <IndexTable.Cell>
-          <Text as="span" variant="bodyMd">
+          <Text as="span" variant="bodyMd" fontWeight="medium">
             {pedido.proveedor}
           </Text>
         </IndexTable.Cell>
 
-        {/* Destino */}
         <IndexTable.Cell>
           <Text as="span" variant="bodyMd">
-            {formatFechaCorta(pedido.fecha)} {storeConfig.storeNumber || ''}
+            {formatFechaCorta(pedido.fecha)}
           </Text>
         </IndexTable.Cell>
 
-        {/* Estado */}
         <IndexTable.Cell>
           <Badge tone={badge.tone}>{badge.label}</Badge>
         </IndexTable.Cell>
 
-        {/* Recibido */}
+        <IndexTable.Cell>
+          <Text as="span" variant="bodyMd" tone="subdued">
+            {`${itemCount} artículos`}
+          </Text>
+        </IndexTable.Cell>
+
         <IndexTable.Cell>
           <Text as="span" variant="bodyMd">
             {getRecibidoText(pedido)}
           </Text>
         </IndexTable.Cell>
 
-        {/* Total */}
         <IndexTable.Cell>
-          <Text as="span" variant="bodyMd">
+          <Text as="span" variant="bodyMd" fontWeight="semibold">
             {formatCurrency(total)}
-          </Text>
-        </IndexTable.Cell>
-
-        {/* Llegada prevista */}
-        <IndexTable.Cell>
-          <Text as="span" variant="bodyMd" tone="subdued">
-            —
           </Text>
         </IndexTable.Cell>
       </IndexTable.Row>
@@ -265,91 +288,114 @@ export function PedidosManager({ onCreateOrder }: PedidosManagerProps) {
   return (
     <>
       <BlockStack gap="400">
+        {/* ═══ KPI SUMMARY ═══ */}
+        <InlineGrid columns={{ xs: 2, md: 4 }} gap="300">
+          <Card>
+            <BlockStack gap="100">
+              <Text as="p" variant="bodyXs" tone="subdued">
+                Total Órdenes
+              </Text>
+              <Text as="p" variant="headingLg" fontWeight="bold">
+                {kpis.count}
+              </Text>
+              <Text as="p" variant="bodyXs" tone="subdued">
+                {formatCurrency(kpis.total)} valor total
+              </Text>
+            </BlockStack>
+          </Card>
+          <Card>
+            <BlockStack gap="100">
+              <Text as="p" variant="bodyXs" tone="subdued">
+                Borradores
+              </Text>
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="p" variant="headingLg" fontWeight="bold">
+                  {kpis.pendientes}
+                </Text>
+                {kpis.pendientes > 0 && <Badge tone="attention">Pendientes</Badge>}
+              </InlineStack>
+            </BlockStack>
+          </Card>
+          <Card>
+            <BlockStack gap="100">
+              <Text as="p" variant="bodyXs" tone="subdued">
+                En Tránsito
+              </Text>
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="p" variant="headingLg" fontWeight="bold">
+                  {kpis.enviados}
+                </Text>
+                {kpis.enviados > 0 && <Badge tone="info">Ordenados</Badge>}
+              </InlineStack>
+            </BlockStack>
+          </Card>
+          <Card>
+            <BlockStack gap="100">
+              <Text as="p" variant="bodyXs" tone="subdued">
+                Recibidos
+              </Text>
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="p" variant="headingLg" fontWeight="bold">
+                  {kpis.recibidos}
+                </Text>
+                <Badge tone="success">Completados</Badge>
+              </InlineStack>
+            </BlockStack>
+          </Card>
+        </InlineGrid>
+
+        {/* ═══ INDEX TABLE WITH FILTERS ═══ */}
         <Card padding="0">
-          {/* Toolbar: Tabs izquierda + iconos derecha */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '1px solid var(--p-color-border-subdued, #e1e3e5)',
-            }}
-          >
-            {/* Izquierda: Tabs + boton + */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <Tabs tabs={TABS} selected={selectedTab} onSelect={setSelectedTab} fitted={false} />
-              <Button icon={PlusIcon} variant="plain" accessibilityLabel="Agregar vista" />
-            </div>
+          <IndexFilters
+            sortOptions={sortOptions}
+            sortSelected={sortSelected}
+            queryValue={queryValue}
+            queryPlaceholder="Buscar por proveedor, folio o notas..."
+            onQueryChange={setQueryValue}
+            onQueryClear={() => setQueryValue('')}
+            onSort={setSortSelected}
+            cancelAction={{ onAction: () => {}, disabled: false, loading: false }}
+            tabs={tabs}
+            selected={selectedTab}
+            onSelect={setSelectedTab}
+            mode={mode}
+            setMode={setMode}
+            filters={[]}
+            appliedFilters={[]}
+            onClearAll={() => {}}
+          />
 
-            {/* Derecha: Search/Filter + Sort */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', paddingRight: '12px' }}>
-              {showSearch ? (
-                <div style={{ width: '200px' }}>
-                  <input
-                    type="text"
-                    value={queryValue}
-                    onChange={(e) => setQueryValue(e.target.value)}
-                    onBlur={() => { if (!queryValue) setShowSearch(false); }}
-                    placeholder="Buscar órdenes..."
-                    autoFocus
-                    style={{
-                      width: '100%',
-                      padding: '6px 10px',
-                      border: '1px solid var(--p-color-border-subdued, #dcdfe3)',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '4px 8px',
-                    border: '1px solid var(--p-color-border-subdued, #dcdfe3)',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    backgroundColor: 'var(--p-color-bg-surface, white)',
-                  }}
-                  onClick={() => setShowSearch(true)}
-                >
-                  <SearchIcon />
-                  <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--p-color-border-subdued, #e1e3e5)' }} />
-                  <FilterIcon />
-                </div>
-              )}
-
-              <Button icon={SortIcon} variant="tertiary" onClick={() => {}} />
-            </div>
-          </div>
-
-          {/* Tabla 7 columnas del screenshot */}
           <IndexTable
-            resourceName={{ singular: 'orden', plural: 'órdenes' }}
+            resourceName={{ singular: 'orden de compra', plural: 'órdenes de compra' }}
             itemCount={filteredPedidos.length}
             selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
             onSelectionChange={handleSelectionChange}
             headings={[
-              { title: 'Orden de compra' },
-              { title: 'Distribuidor' },
-              { title: 'Destino' },
+              { title: 'Orden' },
+              { title: 'Proveedor' },
+              { title: 'Fecha' },
               { title: 'Estado' },
+              { title: 'Productos' },
               { title: 'Recibido' },
               { title: 'Total' },
-              { title: 'Llegada prevista' },
-            ] as any}
+            ]}
+            promotedBulkActions={promotedBulkActions}
+            emptyState={
+              <Box padding="800">
+                <BlockStack gap="200" inlineAlign="center">
+                  <Text as="p" variant="headingMd" alignment="center">
+                    No hay órdenes de compra
+                  </Text>
+                  <Text as="p" tone="subdued" alignment="center">
+                    Crea tu primera orden para abastecer tu inventario
+                  </Text>
+                </BlockStack>
+              </Box>
+            }
           >
             {rowMarkup}
           </IndexTable>
         </Card>
-
-        {/* Footer */}
-        <InlineStack align="center">
-          <Button variant="monochromePlain">Más información sobre órdenes de compra</Button>
-        </InlineStack>
       </BlockStack>
 
       {/* Detail Modal */}
@@ -372,13 +418,13 @@ export function PedidosManager({ onCreateOrder }: PedidosManagerProps) {
         exportName="órdenes"
         onExport={(format) => {
           const exportData = filteredPedidos.map((p) => ({
-            'Orden': p.id.slice(0, 6),
-            'Distribuidor': p.proveedor,
-            'Fecha': new Date(p.fecha).toLocaleDateString('es-MX'),
-            'Estado': estadoBadge[p.estado].label,
-            'Recibido': getRecibidoText(p),
-            'Total': formatCurrency(getPedidoTotal(p)),
-            'Notas': p.notas || 'N/A',
+            Orden: p.id.slice(0, 8),
+            Distribuidor: p.proveedor,
+            Fecha: new Date(p.fecha).toLocaleDateString('es-MX'),
+            Estado: estadoBadge[p.estado].label,
+            Recibido: getRecibidoText(p),
+            Total: formatCurrency(getPedidoTotal(p)),
+            Notas: p.notas || 'N/A',
           }));
           const filename = `Ordenes_Compra_${new Date().toISOString().split('T')[0]}`;
           if (format === 'pdf') {

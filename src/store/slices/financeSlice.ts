@@ -29,7 +29,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
     try {
       await dbUpdateGasto(id, data);
       const state = get();
-      set({ gastos: state.gastos.map(g => g.id === id ? { ...g, ...data } : g) });
+      set({ gastos: state.gastos.map((g) => (g.id === id ? { ...g, ...data } : g)) });
     } catch (error) {
       console.error('[store:finance] updateGasto failed', error);
       throw error;
@@ -40,7 +40,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
     try {
       await dbDeleteGasto(id);
       const state = get();
-      set({ gastos: state.gastos.filter(g => g.id !== id) });
+      set({ gastos: state.gastos.filter((g) => g.id !== id) });
     } catch (error) {
       console.error('[store:finance] deleteGasto failed', error);
       throw error;
@@ -63,7 +63,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
     try {
       await dbUpdateProveedor(id, data);
       const state = get();
-      set({ proveedores: state.proveedores.map(p => p.id === id ? { ...p, ...data } : p) });
+      set({ proveedores: state.proveedores.map((p) => (p.id === id ? { ...p, ...data } : p)) });
     } catch (error) {
       console.error('[store:finance] updateProveedor failed', error);
     }
@@ -73,7 +73,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
     try {
       await dbDeleteProveedor(id);
       const state = get();
-      set({ proveedores: state.proveedores.filter(p => p.id !== id) });
+      set({ proveedores: state.proveedores.filter((p) => p.id !== id) });
     } catch (error) {
       console.error('[store:finance] deleteProveedor failed', error);
       throw error;
@@ -96,7 +96,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
     try {
       await dbUpdatePedidoStatus(id, estado);
       const state = get();
-      set({ pedidos: state.pedidos.map(p => p.id === id ? { ...p, estado } : p) });
+      set({ pedidos: state.pedidos.map((p) => (p.id === id ? { ...p, estado } : p)) });
     } catch (error) {
       console.error('[store:finance] updatePedidoStatus failed', error);
       throw error;
@@ -107,7 +107,7 @@ export const createFinanceSlice = (set: StoreSet, get: StoreGet): FinanceSlice =
     try {
       await dbReceivePedido(id);
       const state = get();
-      set({ pedidos: state.pedidos.map(p => p.id === id ? { ...p, estado: 'recibido' as const } : p) });
+      set({ pedidos: state.pedidos.map((p) => (p.id === id ? { ...p, estado: 'recibido' as const } : p)) });
       // Receiving a pedido updates stock → refresh products, alerts, KPIs
       const [newProducts, newAlerts, newKPI] = await Promise.all([
         fetchAllProducts(),

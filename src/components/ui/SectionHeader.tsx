@@ -33,14 +33,16 @@ export function SectionHeader({
 }: SectionHeaderProps) {
   const actions = [
     ...(secondaryActions ?? []),
-    ...(primaryAction ? [{ ...primaryAction, variant: primaryAction.variant ?? 'primary' as const }] : []),
+    ...(primaryAction ? [{ ...primaryAction, variant: primaryAction.variant ?? ('primary' as const) }] : []),
   ];
 
   return (
     <>
       <InlineStack align="space-between" blockAlign="center">
         <InlineStack gap="300" blockAlign="center">
-          <Text as="h2" variant="headingMd">{title}</Text>
+          <Text as="h2" variant="headingMd">
+            {title}
+          </Text>
           {badge && <Badge tone={badge.tone}>{badge.content}</Badge>}
         </InlineStack>
         {actions.length > 0 && (
@@ -62,7 +64,9 @@ export function SectionHeader({
         )}
       </InlineStack>
       {subtitle && (
-        <Text as="p" variant="bodySm" tone="subdued">{subtitle}</Text>
+        <Text as="p" variant="bodySm" tone="subdued">
+          {subtitle}
+        </Text>
       )}
       {children}
     </>

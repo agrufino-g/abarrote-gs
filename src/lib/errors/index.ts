@@ -54,7 +54,7 @@ export class InfrastructureError extends AppError {
 }
 
 /**
- * Parses any unknown error caught in the application and standardizes it 
+ * Parses any unknown error caught in the application and standardizes it
  * into a professional title and detailed description for UI display via Sileo.
  */
 export function parseError(error: unknown): { title: string; description: string } {
@@ -69,24 +69,26 @@ export function parseError(error: unknown): { title: string; description: string
     }
     return {
       title: error.code.replace(/_/g, ' '),
-      description
+      description,
     };
   }
 
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
-    
+
     // Network-level errors (browser/fetch API)
     if (msg === 'failed to fetch' || msg.includes('fetch failed') || msg.includes('network')) {
       return {
         title: 'Error de Conexión',
-        description: 'No se pudo conectar con el servidor. Esto puede ocurrir si el servidor se está reiniciando, hay problemas de red, o estás sin conexión.',
+        description:
+          'No se pudo conectar con el servidor. Esto puede ocurrir si el servidor se está reiniciando, hay problemas de red, o estás sin conexión.',
       };
     }
     if (msg.includes('econnrefused')) {
       return {
         title: 'Conexión Rechazada',
-        description: 'La base de datos o servicio externo rechazó la conexión. Verifica tu internet o el estado del proveedor.',
+        description:
+          'La base de datos o servicio externo rechazó la conexión. Verifica tu internet o el estado del proveedor.',
       };
     }
     if (msg.includes('timeout') || msg.includes('timed out')) {

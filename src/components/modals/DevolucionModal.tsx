@@ -9,18 +9,16 @@ import {
   Select,
   TextField,
   Checkbox,
-  Button,
   Divider,
   Banner,
   Badge,
   Box,
 } from '@shopify/polaris';
-import { ReturnIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { getSaleItemsForDevolucion } from '@/app/actions/db-actions';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/components/notifications/ToastProvider';
-import type { SaleRecord, Devolucion, DevolucionItem } from '@/types';
+import type { SaleRecord, Devolucion } from '@/types';
 
 interface DevolucionItemForm {
   productId: string;
@@ -78,12 +76,14 @@ export function DevolucionModal({ open, sale, cajero, onClose, onSuccess }: Prop
     setClienteId('');
     try {
       const saleItems = await getSaleItemsForDevolucion(sale.id);
-      setItems(saleItems.map((i) => ({
-        ...i,
-        maxQty: i.quantity,
-        regresoInventario: true,
-        selected: true,
-      })));
+      setItems(
+        saleItems.map((i) => ({
+          ...i,
+          maxQty: i.quantity,
+          regresoInventario: true,
+          selected: true,
+        })),
+      );
     } catch {
       showError('Error al cargar los artículos de la venta');
     }
@@ -91,22 +91,26 @@ export function DevolucionModal({ open, sale, cajero, onClose, onSuccess }: Prop
   }, [sale.id, showError]);
 
   // When modal opens, load items
+  /* eslint-disable react-hooks/set-state-in-effect -- data fetch on modal open */
   useEffect(() => {
     if (open && items.length === 0 && !loadingItems) {
       handleOpen();
     }
   }, [open, items.length, loadingItems, handleOpen]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const selectedItems = items.filter((i) => i.selected && i.quantity > 0);
   const montoDevuelto = selectedItems.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
 
   const updateItem = (idx: number, partial: Partial<DevolucionItemForm>) => {
-    setItems((prev) => prev.map((item, i) => {
-      if (i !== idx) return item;
-      const updated = { ...item, ...partial };
-      updated.subtotal = updated.quantity * updated.unitPrice;
-      return updated;
-    }));
+    setItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== idx) return item;
+        const updated = { ...item, ...partial };
+        updated.subtotal = updated.quantity * updated.unitPrice;
+        return updated;
+      }),
+    );
   };
 
   const handleQtyChange = (idx: number, value: string) => {
@@ -115,14 +119,25 @@ export function DevolucionModal({ open, sale, cajero, onClose, onSuccess }: Prop
   };
 
   const handleSubmit = async () => {
-    if (!motivo) { showError('Selecciona un motivo'); return; }
-    if (selectedItems.length === 0) { showError('Selecciona al menos un artículo'); return; }
-    if (metodoDev === 'credito_cliente' && !clienteId) { showError('Selecciona el cliente para aplicar crédito'); return; }
+    if (!motivo) {
+      showError('Selecciona un motivo');
+      return;
+    }
+    if (selectedItems.length === 0) {
+      showError('Selecciona al menos un artículo');
+      return;
+    }
+    if (metodoDev === 'credito_cliente' && !clienteId) {
+      showError('Selecciona el cliente para aplicar crédito');
+      return;
+    }
 
     setSaving(true);
     try {
-      const tipo = selectedItems.length === items.length &&
-        selectedItems.every((i) => i.quantity === i.maxQty) ? 'total' : 'parcial';
+      const tipo =
+        selectedItems.length === items.length && selectedItems.every((i) => i.quantity === i.maxQty)
+          ? 'total'
+          : 'parcial';
 
       const devolucion = await registerDevolucion({
         saleId: sale.id,
@@ -163,7 +178,10 @@ export function DevolucionModal({ open, sale, cajero, onClose, onSuccess }: Prop
   return (
     <Modal
       open={open}
-      onClose={() => { onClose(); setItems([]); }}
+      onClose={() => {
+        onClose();
+        setItems([]);
+      }}
       title={`Devolución — Venta ${sale.folio}`}
       primaryAction={{
         content: saving ? 'Registrando...' : `Registrar Devolución (${formatCurrency(montoDevuelto)})`,
@@ -171,29 +189,30 @@ export function DevolucionModal({ open, sale, cajero, onClose, onSuccess }: Prop
         loading: saving,
         disabled: selectedItems.length === 0 || !motivo,
       }}
-      secondaryActions={[{
-        content: 'Cancelar',
-        onAction: () => { onClose(); setItems([]); },
-      }]}
+      secondaryActions={[
+        {
+          content: 'Cancelar',
+          onAction: () => {
+            onClose();
+            setItems([]);
+          },
+        },
+      ]}
       size="large"
     >
       <Modal.Section>
         {loadingItems ? (
           <Box padding="400">
-            <Text as="p" tone="subdued">Cargando artículos...</Text>
+            <Text as="p" tone="subdued">
+              Cargando artículos...
+            </Text>
           </Box>
         ) : (
           <BlockStack gap="400">
-
             {/* Motivo + Método */}
             <InlineStack gap="400" wrap={false}>
               <div style={{ flex: 1 }}>
-                <Select
-                  label="Motivo de devolución"
-                  options={MOTIVOS}
-                  value={motivo}
-                  onChange={setMotivo}
-                />
+                <Select label="Motivo de devolución" options={MOTIVOS} value={motivo} onChange={setMotivo} />
               </div>
               <div style={{ flex: 1 }}>
                 <Select
@@ -207,18 +226,15 @@ export function DevolucionModal({ open, sale, cajero, onClose, onSuccess }: Prop
 
             {/* Cliente (solo si crédito_cliente) */}
             {metodoDev === 'credito_cliente' && (
-              <Select
-                label="Cliente"
-                options={clienteOptions}
-                value={clienteId}
-                onChange={setClienteId}
-              />
+              <Select label="Cliente" options={clienteOptions} value={clienteId} onChange={setClienteId} />
             )}
 
             <Divider />
 
             {/* Items */}
-            <Text as="h3" variant="headingSm" fontWeight="semibold">Artículos a devolver</Text>
+            <Text as="h3" variant="headingSm" fontWeight="semibold">
+              Artículos a devolver
+            </Text>
 
             {items.map((item, idx) => (
               <Box
@@ -239,8 +255,12 @@ export function DevolucionModal({ open, sale, cajero, onClose, onSuccess }: Prop
                         onChange={(v) => updateItem(idx, { selected: v })}
                       />
                       <BlockStack gap="050">
-                        <Text as="span" fontWeight="semibold">{item.productName}</Text>
-                        <Text as="span" variant="bodySm" tone="subdued">SKU: {item.sku} · {formatCurrency(item.unitPrice)} c/u</Text>
+                        <Text as="span" fontWeight="semibold">
+                          {item.productName}
+                        </Text>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          SKU: {item.sku} · {formatCurrency(item.unitPrice)} c/u
+                        </Text>
                       </BlockStack>
                     </InlineStack>
                     <Badge tone="info">{`Máx: ${item.maxQty}`}</Badge>
@@ -296,7 +316,6 @@ export function DevolucionModal({ open, sale, cajero, onClose, onSuccess }: Prop
                 </InlineStack>
               </Banner>
             )}
-
           </BlockStack>
         )}
       </Modal.Section>

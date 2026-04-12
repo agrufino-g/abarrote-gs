@@ -127,10 +127,7 @@ export function PagosReembolsosPanel() {
     setLoading(true);
     setError(null);
     try {
-      const [paymentsData, refundsData] = await Promise.all([
-        fetchMercadoPagoPayments(),
-        fetchMercadoPagoRefunds(),
-      ]);
+      const [paymentsData, refundsData] = await Promise.all([fetchMercadoPagoPayments(), fetchMercadoPagoRefunds()]);
       setPayments(paymentsData);
       setRefunds(refundsData);
     } catch (err) {
@@ -247,10 +244,7 @@ export function PagosReembolsosPanel() {
 
   const paymentsMarkup =
     payments.length === 0 ? (
-      <EmptyState
-        heading="Sin pagos registrados"
-        image=""
-      >
+      <EmptyState heading="Sin pagos registrados" image="">
         <p>Los pagos procesados por MercadoPago aparecerán aquí automáticamente al recibir pagos con terminal o web.</p>
       </EmptyState>
     ) : (
@@ -272,18 +266,16 @@ export function PagosReembolsosPanel() {
         selectable={false}
       >
         {payments.map((payment, index) => (
-          <IndexTable.Row
-            id={payment.id}
-            key={payment.id}
-            position={index}
-          >
+          <IndexTable.Row id={payment.id} key={payment.id} position={index}>
             <IndexTable.Cell>
               <Text variant="bodyMd" fontWeight="semibold" as="span">
                 {payment.paymentId}
               </Text>
             </IndexTable.Cell>
             <IndexTable.Cell>
-              <Text variant="bodySm" as="span">{formatDate(payment.createdAt)}</Text>
+              <Text variant="bodySm" as="span">
+                {formatDate(payment.createdAt)}
+              </Text>
             </IndexTable.Cell>
             <IndexTable.Cell>
               <Text variant="bodyMd" fontWeight="medium" as="span">
@@ -299,7 +291,9 @@ export function PagosReembolsosPanel() {
               {payment.installments > 1 ? (
                 <Badge tone="info">{`${payment.installments} MSI`}</Badge>
               ) : (
-                <Text variant="bodySm" as="span">1</Text>
+                <Text variant="bodySm" as="span">
+                  1
+                </Text>
               )}
             </IndexTable.Cell>
             <IndexTable.Cell>
@@ -319,16 +313,14 @@ export function PagosReembolsosPanel() {
               ) : payment.externalReference ? (
                 <Badge tone="warning">{`Ref: ${payment.externalReference}`}</Badge>
               ) : (
-                <Text variant="bodySm" as="span" tone="subdued">—</Text>
+                <Text variant="bodySm" as="span" tone="subdued">
+                  —
+                </Text>
               )}
             </IndexTable.Cell>
             <IndexTable.Cell>
               {refundableStatuses.includes(payment.status) && (
-                <Button
-                  size="slim"
-                  tone="critical"
-                  onClick={() => openRefundModal(payment)}
-                >
+                <Button size="slim" tone="critical" onClick={() => openRefundModal(payment)}>
                   Reembolsar
                 </Button>
               )}
@@ -342,10 +334,7 @@ export function PagosReembolsosPanel() {
 
   const refundsMarkup =
     refunds.length === 0 ? (
-      <EmptyState
-        heading="Sin reembolsos"
-        image=""
-      >
+      <EmptyState heading="Sin reembolsos" image="">
         <p>Cuando proceses un reembolso desde la pestaña de Pagos, aparecerá aquí con su status actualizado.</p>
       </EmptyState>
     ) : (
@@ -365,21 +354,21 @@ export function PagosReembolsosPanel() {
         selectable={false}
       >
         {refunds.map((refund, index) => (
-          <IndexTable.Row
-            id={refund.id}
-            key={refund.id}
-            position={index}
-          >
+          <IndexTable.Row id={refund.id} key={refund.id} position={index}>
             <IndexTable.Cell>
               <Text variant="bodySm" fontWeight="semibold" as="span">
                 {refund.mpRefundId || refund.id.slice(0, 12)}
               </Text>
             </IndexTable.Cell>
             <IndexTable.Cell>
-              <Text variant="bodySm" as="span">{refund.mpPaymentId}</Text>
+              <Text variant="bodySm" as="span">
+                {refund.mpPaymentId}
+              </Text>
             </IndexTable.Cell>
             <IndexTable.Cell>
-              <Text variant="bodySm" as="span">{formatDate(refund.createdAt)}</Text>
+              <Text variant="bodySm" as="span">
+                {formatDate(refund.createdAt)}
+              </Text>
             </IndexTable.Cell>
             <IndexTable.Cell>
               <Text variant="bodyMd" fontWeight="medium" as="span" tone="critical">
@@ -388,10 +377,14 @@ export function PagosReembolsosPanel() {
             </IndexTable.Cell>
             <IndexTable.Cell>{refundStatusBadge(refund.status)}</IndexTable.Cell>
             <IndexTable.Cell>
-              <Text variant="bodySm" as="span">{refund.reason}</Text>
+              <Text variant="bodySm" as="span">
+                {refund.reason}
+              </Text>
             </IndexTable.Cell>
             <IndexTable.Cell>
-              <Text variant="bodySm" as="span">{refund.initiatedBy}</Text>
+              <Text variant="bodySm" as="span">
+                {refund.initiatedBy}
+              </Text>
             </IndexTable.Cell>
             <IndexTable.Cell>
               <Text variant="bodySm" as="span">
@@ -405,15 +398,9 @@ export function PagosReembolsosPanel() {
 
   // ── KPI Summary ──
 
-  const totalApproved = payments
-    .filter((p) => p.status === 'approved')
-    .reduce((sum, p) => sum + p.amount, 0);
-  const totalFees = payments
-    .filter((p) => p.feeAmount != null)
-    .reduce((sum, p) => sum + (p.feeAmount ?? 0), 0);
-  const totalRefunded = refunds
-    .filter((r) => r.status === 'approved')
-    .reduce((sum, r) => sum + r.amount, 0);
+  const totalApproved = payments.filter((p) => p.status === 'approved').reduce((sum, p) => sum + p.amount, 0);
+  const totalFees = payments.filter((p) => p.feeAmount != null).reduce((sum, p) => sum + (p.feeAmount ?? 0), 0);
+  const totalRefunded = refunds.filter((r) => r.status === 'approved').reduce((sum, r) => sum + r.amount, 0);
 
   return (
     <BlockStack gap="500">
@@ -428,36 +415,60 @@ export function PagosReembolsosPanel() {
         <Box minWidth="200px">
           <Card>
             <BlockStack gap="100">
-              <Text variant="bodySm" as="p" tone="subdued">Total cobrado</Text>
-              <Text variant="headingLg" as="p">{formatCurrency(totalApproved)}</Text>
-              <Text variant="bodySm" as="p" tone="subdued">{payments.filter(p => p.status === 'approved').length} pagos</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Total cobrado
+              </Text>
+              <Text variant="headingLg" as="p">
+                {formatCurrency(totalApproved)}
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                {payments.filter((p) => p.status === 'approved').length} pagos
+              </Text>
             </BlockStack>
           </Card>
         </Box>
         <Box minWidth="200px">
           <Card>
             <BlockStack gap="100">
-              <Text variant="bodySm" as="p" tone="subdued">Comisiones MP</Text>
-              <Text variant="headingLg" as="p" tone="critical">{formatCurrency(totalFees)}</Text>
-              <Text variant="bodySm" as="p" tone="subdued">{((totalFees / (totalApproved || 1)) * 100).toFixed(1)}% del total</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Comisiones MP
+              </Text>
+              <Text variant="headingLg" as="p" tone="critical">
+                {formatCurrency(totalFees)}
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                {((totalFees / (totalApproved || 1)) * 100).toFixed(1)}% del total
+              </Text>
             </BlockStack>
           </Card>
         </Box>
         <Box minWidth="200px">
           <Card>
             <BlockStack gap="100">
-              <Text variant="bodySm" as="p" tone="subdued">Reembolsado</Text>
-              <Text variant="headingLg" as="p" tone="caution">{formatCurrency(totalRefunded)}</Text>
-              <Text variant="bodySm" as="p" tone="subdued">{refunds.filter(r => r.status === 'approved').length} reembolsos</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Reembolsado
+              </Text>
+              <Text variant="headingLg" as="p" tone="caution">
+                {formatCurrency(totalRefunded)}
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                {refunds.filter((r) => r.status === 'approved').length} reembolsos
+              </Text>
             </BlockStack>
           </Card>
         </Box>
         <Box minWidth="200px">
           <Card>
             <BlockStack gap="100">
-              <Text variant="bodySm" as="p" tone="subdued">Neto recibido</Text>
-              <Text variant="headingLg" as="p" fontWeight="bold">{formatCurrency(totalApproved - totalFees - totalRefunded)}</Text>
-              <Text variant="bodySm" as="p" tone="subdued">Después de comisiones y reembolsos</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Neto recibido
+              </Text>
+              <Text variant="headingLg" as="p" fontWeight="bold">
+                {formatCurrency(totalApproved - totalFees - totalRefunded)}
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Después de comisiones y reembolsos
+              </Text>
             </BlockStack>
           </Card>
         </Box>
@@ -510,21 +521,29 @@ export function PagosReembolsosPanel() {
               <Card>
                 <BlockStack gap="200">
                   <InlineStack align="space-between">
-                    <Text variant="bodySm" as="span" tone="subdued">Monto original</Text>
+                    <Text variant="bodySm" as="span" tone="subdued">
+                      Monto original
+                    </Text>
                     <Text variant="bodyMd" fontWeight="semibold" as="span">
                       {formatCurrency(selectedPayment.amount)}
                     </Text>
                   </InlineStack>
                   <InlineStack align="space-between">
-                    <Text variant="bodySm" as="span" tone="subdued">Método</Text>
+                    <Text variant="bodySm" as="span" tone="subdued">
+                      Método
+                    </Text>
                     <Text variant="bodySm" as="span">
                       {paymentMethodLabel(selectedPayment.paymentMethodId, selectedPayment.paymentType)}
                     </Text>
                   </InlineStack>
                   {selectedPayment.payerEmail && (
                     <InlineStack align="space-between">
-                      <Text variant="bodySm" as="span" tone="subdued">Pagador</Text>
-                      <Text variant="bodySm" as="span">{selectedPayment.payerEmail}</Text>
+                      <Text variant="bodySm" as="span" tone="subdued">
+                        Pagador
+                      </Text>
+                      <Text variant="bodySm" as="span">
+                        {selectedPayment.payerEmail}
+                      </Text>
                     </InlineStack>
                   )}
                 </BlockStack>

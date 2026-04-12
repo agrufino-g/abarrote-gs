@@ -245,10 +245,7 @@ export class OfflineQueue {
   private async moveToDeadLetter(op: QueuedOperation): Promise<void> {
     if (!this.db) return;
     return new Promise((resolve) => {
-      const tx = this.db!.transaction(
-        [this.config.storeName, this.config.deadLetterStoreName],
-        'readwrite',
-      );
+      const tx = this.db!.transaction([this.config.storeName, this.config.deadLetterStoreName], 'readwrite');
       tx.objectStore(this.config.storeName).delete(op.id);
       tx.objectStore(this.config.deadLetterStoreName).put({
         ...op,
@@ -272,10 +269,7 @@ export class OfflineQueue {
     }
 
     // Exponential backoff: baseDelay * 2^retries, capped at maxDelay
-    const delay = Math.min(
-      this.config.baseDelayMs * Math.pow(2, op.retries),
-      this.config.maxDelayMs,
-    );
+    const delay = Math.min(this.config.baseDelayMs * Math.pow(2, op.retries), this.config.maxDelayMs);
     op.nextRetryAt = Date.now() + delay;
     await this.putOperation(op);
   }

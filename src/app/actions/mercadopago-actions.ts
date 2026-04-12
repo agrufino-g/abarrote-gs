@@ -3,8 +3,8 @@
 import { requirePermission, sanitize, validateNumber } from '@/lib/auth/guard';
 import { withLogging } from '@/lib/errors';
 import { db } from '@/db';
-import { mercadopagoPayments, mercadopagoRefunds, saleRecords } from '@/db/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { mercadopagoPayments, mercadopagoRefunds } from '@/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 import { logAudit } from '@/lib/audit';
 import type { MercadoPagoRefund } from '@/types';
@@ -34,13 +34,9 @@ async function _fetchMercadoPagoPayments(): Promise<
     createdAt: string;
   }[]
 > {
-  const user = await requirePermission('sales.view');
+  const _user = await requirePermission('sales.view');
 
-  const rows = await db
-    .select()
-    .from(mercadopagoPayments)
-    .orderBy(desc(mercadopagoPayments.createdAt))
-    .limit(200);
+  const rows = await db.select().from(mercadopagoPayments).orderBy(desc(mercadopagoPayments.createdAt)).limit(200);
 
   return rows.map((r) => ({
     id: r.id,
@@ -63,13 +59,9 @@ async function _fetchMercadoPagoPayments(): Promise<
  * Fetch all refunds (most recent first).
  */
 async function _fetchMercadoPagoRefunds(): Promise<MercadoPagoRefund[]> {
-  const user = await requirePermission('sales.view');
+  const _user = await requirePermission('sales.view');
 
-  const rows = await db
-    .select()
-    .from(mercadopagoRefunds)
-    .orderBy(desc(mercadopagoRefunds.createdAt))
-    .limit(200);
+  const rows = await db.select().from(mercadopagoRefunds).orderBy(desc(mercadopagoRefunds.createdAt)).limit(200);
 
   return rows.map((r) => ({
     id: r.id,
@@ -129,18 +121,15 @@ async function _createMercadoPagoRefund(input: {
   }
 
   // 2. Call MP Refund API (via our internal API route)
-  const refundResponse = await fetch(
-    `${getBaseUrl()}/api/mercadopago`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'create_refund',
-        paymentId: input.mpPaymentId,
-        amount,
-      }),
-    },
-  );
+  const refundResponse = await fetch(`${getBaseUrl()}/api/mercadopago`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'create_refund',
+      paymentId: input.mpPaymentId,
+      amount,
+    }),
+  });
 
   if (!refundResponse.ok) {
     const errorData = await refundResponse.json().catch(() => ({}));
@@ -252,9 +241,7 @@ async function _fetchMPAccountBalance(): Promise<MPAccountBalance> {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      (errorData as Record<string, string>).error || 'Error al consultar saldo de MercadoPago',
-    );
+    throw new Error((errorData as Record<string, string>).error || 'Error al consultar saldo de MercadoPago');
   }
 
   return response.json() as Promise<MPAccountBalance>;
@@ -296,9 +283,7 @@ async function _generateMPPaymentLink(input: {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      (errorData as Record<string, string>).error || 'Error al crear link de pago',
-    );
+    throw new Error((errorData as Record<string, string>).error || 'Error al crear link de pago');
   }
 
   const data = (await response.json()) as {
@@ -398,9 +383,7 @@ async function _searchMPPayments(input: {
       status: input.status || undefined,
       beginDate: input.beginDate || undefined,
       endDate: input.endDate || undefined,
-      externalReference: input.externalReference
-        ? sanitize(input.externalReference)
-        : undefined,
+      externalReference: input.externalReference ? sanitize(input.externalReference) : undefined,
       offset: input.offset ?? 0,
       limit: input.limit ?? 30,
     }),
@@ -408,9 +391,7 @@ async function _searchMPPayments(input: {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      (errorData as Record<string, string>).error || 'Error al buscar pagos en MercadoPago',
-    );
+    throw new Error((errorData as Record<string, string>).error || 'Error al buscar pagos en MercadoPago');
   }
 
   return response.json() as Promise<MPSearchResult>;

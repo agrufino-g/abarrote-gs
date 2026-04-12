@@ -3,7 +3,6 @@
 import { useCallback, useState, useRef, useTransition, useEffect } from 'react';
 import {
   Card,
-  FormLayout,
   BlockStack,
   Banner,
   Button,
@@ -42,7 +41,6 @@ import {
   SettingsIcon,
   GiftCardIcon,
   StoreIcon,
-  CashDollarIcon,
   CheckIcon,
   StarFilledIcon,
   ChevronLeftIcon,
@@ -89,7 +87,8 @@ function hexToHsb(hex: string): { hue: number; saturation: number; brightness: n
   const r = parseInt(h.substring(0, 2), 16) / 255;
   const g = parseInt(h.substring(2, 4), 16) / 255;
   const b = parseInt(h.substring(4, 6), 16) / 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b);
   const d = max - min;
   let hue = 0;
   if (d !== 0) {
@@ -105,14 +104,32 @@ function hsbToHex({ hue, saturation, brightness }: { hue: number; saturation: nu
   const c = brightness * saturation;
   const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
   const m = brightness - c;
-  let r = 0, g = 0, b = 0;
-  if (hue < 60) { r = c; g = x; }
-  else if (hue < 120) { r = x; g = c; }
-  else if (hue < 180) { g = c; b = x; }
-  else if (hue < 240) { g = x; b = c; }
-  else if (hue < 300) { r = x; b = c; }
-  else { r = c; b = x; }
-  const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  let r = 0,
+    g = 0,
+    b = 0;
+  if (hue < 60) {
+    r = c;
+    g = x;
+  } else if (hue < 120) {
+    r = x;
+    g = c;
+  } else if (hue < 180) {
+    g = c;
+    b = x;
+  } else if (hue < 240) {
+    g = x;
+    b = c;
+  } else if (hue < 300) {
+    r = x;
+    b = c;
+  } else {
+    r = c;
+    b = x;
+  }
+  const toHex = (v: number) =>
+    Math.round((v + m) * 255)
+      .toString(16)
+      .padStart(2, '0');
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
@@ -150,7 +167,7 @@ const SPEED_LABELS: Record<TransitionSpeed, string> = {
 
 const THEME_META: Record<CustomerDisplayTheme, { label: string; bg: string; text: string; accent: string }> = {
   light: { label: 'Claro', bg: '#ffffff', text: '#1a1a1a', accent: '#008060' },
-  dark:  { label: 'Oscuro', bg: '#1a1c1e', text: '#f1f1f1', accent: '#36d399' },
+  dark: { label: 'Oscuro', bg: '#1a1c1e', text: '#f1f1f1', accent: '#36d399' },
   brand: { label: 'Marca', bg: '#0a2540', text: '#ffffff', accent: '#00d4aa' },
 };
 
@@ -190,12 +207,22 @@ export function CustomerDisplaySectionV4() {
   const [promoText, setPromoText] = useState(storeConfig.customerDisplayPromoText ?? '');
   // Toggle/select fields — optimistic local state
   const [enabled, setEnabled] = useState(storeConfig.customerDisplayEnabled ?? false);
-  const [promoImages, setPromoImages] = useState<string[]>(parsePromoImages(storeConfig.customerDisplayPromoImage ?? ''));
-  const [idleAnim, setIdleAnim] = useState<CustomerDisplayAnimation>((storeConfig.customerDisplayIdleAnimation ?? 'fade') as CustomerDisplayAnimation);
-  const [promoAnim, setPromoAnim] = useState<CustomerDisplayPromoAnimation>((storeConfig.customerDisplayPromoAnimation ?? 'slideUp') as CustomerDisplayPromoAnimation);
-  const [speed, setSpeed] = useState<TransitionSpeed>((storeConfig.customerDisplayTransitionSpeed ?? 'normal') as TransitionSpeed);
+  const [promoImages, setPromoImages] = useState<string[]>(
+    parsePromoImages(storeConfig.customerDisplayPromoImage ?? ''),
+  );
+  const [idleAnim, setIdleAnim] = useState<CustomerDisplayAnimation>(
+    (storeConfig.customerDisplayIdleAnimation ?? 'fade') as CustomerDisplayAnimation,
+  );
+  const [promoAnim, setPromoAnim] = useState<CustomerDisplayPromoAnimation>(
+    (storeConfig.customerDisplayPromoAnimation ?? 'slideUp') as CustomerDisplayPromoAnimation,
+  );
+  const [speed, setSpeed] = useState<TransitionSpeed>(
+    (storeConfig.customerDisplayTransitionSpeed ?? 'normal') as TransitionSpeed,
+  );
   const [showClock, setShowClock] = useState(storeConfig.customerDisplayShowClock ?? true);
-  const [theme, setTheme] = useState<CustomerDisplayTheme>((storeConfig.customerDisplayTheme ?? 'light') as CustomerDisplayTheme);
+  const [theme, setTheme] = useState<CustomerDisplayTheme>(
+    (storeConfig.customerDisplayTheme ?? 'light') as CustomerDisplayTheme,
+  );
   const [carousel, setCarousel] = useState(storeConfig.customerDisplayIdleCarousel ?? false);
   const [carouselSec, setCarouselSec] = useState(storeConfig.customerDisplayCarouselInterval ?? '5');
   // Extended settings
@@ -232,7 +259,6 @@ export function CustomerDisplaySectionV4() {
     setSoundEnabled(storeConfig.customerDisplaySoundEnabled ?? false);
     setOrientation(storeConfig.customerDisplayOrientation ?? 'landscape');
     setMsgStyle(storeConfig.customerDisplayMessageStyle ?? { ...DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeConfig]);
 
   // ── UI state ──
@@ -250,136 +276,203 @@ export function CustomerDisplaySectionV4() {
   const isBusy = isPending || status === 'saving';
 
   // ── Optimistic save: update local state immediately, persist to server, rollback on error ──
-  const save = useCallback(async (field: string, value: unknown, rollback?: () => void) => {
-    setStatus('saving');
-    setErrorMsg(null);
-    try {
-      await doSave({ [field]: value });
-      setStatus('saved');
-      setTimeout(() => setStatus('idle'), 2000);
-    } catch (err) {
-      rollback?.();
-      setErrorMsg(parseError(err).description);
-      setStatus('error');
-    }
-  }, [doSave]);
+  const save = useCallback(
+    async (field: string, value: unknown, rollback?: () => void) => {
+      setStatus('saving');
+      setErrorMsg(null);
+      try {
+        await doSave({ [field]: value });
+        setStatus('saved');
+        setTimeout(() => setStatus('idle'), 2000);
+      } catch (err) {
+        rollback?.();
+        setErrorMsg(parseError(err).description);
+        setStatus('error');
+      }
+    },
+    [doSave],
+  );
 
-  const debouncedSave = useCallback((field: string, val: string) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => save(field, val), 800);
-  }, [save]);
+  const debouncedSave = useCallback(
+    (field: string, val: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => save(field, val), 800);
+    },
+    [save],
+  );
 
   // ── Optimistic handlers ──
   const toggleEnabled = useCallback(() => {
     const prev = enabled;
     setEnabled(!prev);
-    startTransition(() => { save('customerDisplayEnabled', !prev, () => setEnabled(prev)); });
+    startTransition(() => {
+      save('customerDisplayEnabled', !prev, () => setEnabled(prev));
+    });
   }, [enabled, save]);
 
-  const onWelcome  = useCallback((v: string) => { setWelcome(v);  debouncedSave('customerDisplayWelcome', v); }, [debouncedSave]);
-  const onFarewell = useCallback((v: string) => { setFarewell(v); debouncedSave('customerDisplayFarewell', v); }, [debouncedSave]);
-  const onPromo    = useCallback((v: string) => { setPromoText(v); debouncedSave('customerDisplayPromoText', v); }, [debouncedSave]);
+  const onWelcome = useCallback(
+    (v: string) => {
+      setWelcome(v);
+      debouncedSave('customerDisplayWelcome', v);
+    },
+    [debouncedSave],
+  );
+  const onFarewell = useCallback(
+    (v: string) => {
+      setFarewell(v);
+      debouncedSave('customerDisplayFarewell', v);
+    },
+    [debouncedSave],
+  );
+  const onPromo = useCallback(
+    (v: string) => {
+      setPromoText(v);
+      debouncedSave('customerDisplayPromoText', v);
+    },
+    [debouncedSave],
+  );
 
-  const onTheme = useCallback((t: CustomerDisplayTheme) => {
-    const prev = theme;
-    setTheme(t);
-    save('customerDisplayTheme', t, () => setTheme(prev));
-  }, [theme, save]);
+  const onTheme = useCallback(
+    (t: CustomerDisplayTheme) => {
+      const prev = theme;
+      setTheme(t);
+      save('customerDisplayTheme', t, () => setTheme(prev));
+    },
+    [theme, save],
+  );
 
-  const onIdleAnim = useCallback((v: string) => {
-    const prev = idleAnim;
-    setIdleAnim(v as CustomerDisplayAnimation);
-    setIdleAnimPop(false);
-    save('customerDisplayIdleAnimation', v, () => setIdleAnim(prev));
-  }, [idleAnim, save]);
+  const onIdleAnim = useCallback(
+    (v: string) => {
+      const prev = idleAnim;
+      setIdleAnim(v as CustomerDisplayAnimation);
+      setIdleAnimPop(false);
+      save('customerDisplayIdleAnimation', v, () => setIdleAnim(prev));
+    },
+    [idleAnim, save],
+  );
 
-  const onPromoAnim = useCallback((v: string) => {
-    const prev = promoAnim;
-    setPromoAnim(v as CustomerDisplayPromoAnimation);
-    setPromoAnimPop(false);
-    save('customerDisplayPromoAnimation', v, () => setPromoAnim(prev));
-  }, [promoAnim, save]);
+  const onPromoAnim = useCallback(
+    (v: string) => {
+      const prev = promoAnim;
+      setPromoAnim(v as CustomerDisplayPromoAnimation);
+      setPromoAnimPop(false);
+      save('customerDisplayPromoAnimation', v, () => setPromoAnim(prev));
+    },
+    [promoAnim, save],
+  );
 
-  const onSpeed = useCallback((s: TransitionSpeed) => {
-    const prev = speed;
-    setSpeed(s);
-    save('customerDisplayTransitionSpeed', s, () => setSpeed(prev));
-  }, [speed, save]);
+  const onSpeed = useCallback(
+    (s: TransitionSpeed) => {
+      const prev = speed;
+      setSpeed(s);
+      save('customerDisplayTransitionSpeed', s, () => setSpeed(prev));
+    },
+    [speed, save],
+  );
 
-  const onShowClock = useCallback((v: boolean) => {
-    const prev = showClock;
-    setShowClock(v);
-    save('customerDisplayShowClock', v, () => setShowClock(prev));
-  }, [showClock, save]);
+  const onShowClock = useCallback(
+    (v: boolean) => {
+      const prev = showClock;
+      setShowClock(v);
+      save('customerDisplayShowClock', v, () => setShowClock(prev));
+    },
+    [showClock, save],
+  );
 
-  const onCarousel = useCallback((v: boolean) => {
-    const prev = carousel;
-    setCarousel(v);
-    save('customerDisplayIdleCarousel', v, () => setCarousel(prev));
-  }, [carousel, save]);
+  const onCarousel = useCallback(
+    (v: boolean) => {
+      const prev = carousel;
+      setCarousel(v);
+      save('customerDisplayIdleCarousel', v, () => setCarousel(prev));
+    },
+    [carousel, save],
+  );
 
-  const onCarouselSec = useCallback((v: number) => {
-    const prev = carouselSec;
-    const str = String(v);
-    setCarouselSec(str);
-    save('customerDisplayCarouselInterval', str, () => setCarouselSec(prev));
-  }, [carouselSec, save]);
+  const onCarouselSec = useCallback(
+    (v: number) => {
+      const prev = carouselSec;
+      const str = String(v);
+      setCarouselSec(str);
+      save('customerDisplayCarouselInterval', str, () => setCarouselSec(prev));
+    },
+    [carouselSec, save],
+  );
 
-  const onFontScale = useCallback((v: number) => {
-    const prev = fontScale;
-    const str = String(v);
-    setFontScale(str);
-    save('customerDisplayFontScale', str, () => setFontScale(prev));
-  }, [fontScale, save]);
+  const onFontScale = useCallback(
+    (v: number) => {
+      const prev = fontScale;
+      const str = String(v);
+      setFontScale(str);
+      save('customerDisplayFontScale', str, () => setFontScale(prev));
+    },
+    [fontScale, save],
+  );
 
-  const onAutoReturn = useCallback((v: number) => {
-    const prev = autoReturnSec;
-    const str = String(v);
-    setAutoReturnSec(str);
-    save('customerDisplayAutoReturnSec', str, () => setAutoReturnSec(prev));
-  }, [autoReturnSec, save]);
+  const onAutoReturn = useCallback(
+    (v: number) => {
+      const prev = autoReturnSec;
+      const str = String(v);
+      setAutoReturnSec(str);
+      save('customerDisplayAutoReturnSec', str, () => setAutoReturnSec(prev));
+    },
+    [autoReturnSec, save],
+  );
 
-  const onAccentColor = useCallback((v: string) => {
-    setAccentColor(v);
-    debouncedSave('customerDisplayAccentColor', v);
-  }, [debouncedSave]);
+  const onAccentColor = useCallback(
+    (v: string) => {
+      setAccentColor(v);
+      debouncedSave('customerDisplayAccentColor', v);
+    },
+    [debouncedSave],
+  );
 
-  const onSoundEnabled = useCallback((v: boolean) => {
-    const prev = soundEnabled;
-    setSoundEnabled(v);
-    save('customerDisplaySoundEnabled', v, () => setSoundEnabled(prev));
-  }, [soundEnabled, save]);
+  const onSoundEnabled = useCallback(
+    (v: boolean) => {
+      const prev = soundEnabled;
+      setSoundEnabled(v);
+      save('customerDisplaySoundEnabled', v, () => setSoundEnabled(prev));
+    },
+    [soundEnabled, save],
+  );
 
-  const onOrientation = useCallback((v: string) => {
-    const prev = orientation;
-    setOrientation(v);
-    save('customerDisplayOrientation', v, () => setOrientation(prev));
-  }, [orientation, save]);
+  const onOrientation = useCallback(
+    (v: string) => {
+      const prev = orientation;
+      setOrientation(v);
+      save('customerDisplayOrientation', v, () => setOrientation(prev));
+    },
+    [orientation, save],
+  );
 
   /** Update a single message slot's style property and auto-save the full object. */
-  const updateMsgSlot = useCallback(<K extends keyof MessageStyle>(
-    slot: 'welcome' | 'farewell' | 'promo',
-    prop: K,
-    value: MessageStyle[K],
-  ) => {
-    setMsgStyle((prev) => {
-      const next: CustomerDisplayMessageStyle = {
-        ...prev,
-        [slot]: { ...prev[slot], [prop]: value },
-      };
-      // debounce save for text fields, immediate for selects
-      if (prop === 'subtitle' || prop === 'textColor') {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => save('customerDisplayMessageStyle', next), 800);
-      } else {
-        save('customerDisplayMessageStyle', next);
-      }
-      return next;
-    });
-  }, [save]);
+  const updateMsgSlot = useCallback(
+    <K extends keyof MessageStyle>(slot: 'welcome' | 'farewell' | 'promo', prop: K, value: MessageStyle[K]) => {
+      setMsgStyle((prev) => {
+        const next: CustomerDisplayMessageStyle = {
+          ...prev,
+          [slot]: { ...prev[slot], [prop]: value },
+        };
+        // debounce save for text fields, immediate for selects
+        if (prop === 'subtitle' || prop === 'textColor') {
+          if (debounceRef.current) clearTimeout(debounceRef.current);
+          debounceRef.current = setTimeout(() => save('customerDisplayMessageStyle', next), 800);
+        } else {
+          save('customerDisplayMessageStyle', next);
+        }
+        return next;
+      });
+    },
+    [save],
+  );
 
   const copyUrl = useCallback(async () => {
-    try { await navigator.clipboard.writeText(displayUrl); setUrlCopied(true); setTimeout(() => setUrlCopied(false), 2500); } catch { /* noop */ }
+    try {
+      await navigator.clipboard.writeText(displayUrl);
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 2500);
+    } catch {
+      /* noop */
+    }
   }, [displayUrl]);
 
   const openDisplay = useCallback(() => {
@@ -392,19 +485,25 @@ export function CustomerDisplaySectionV4() {
     if (rej.length) setErrorMsg('Solo imágenes (JPG, PNG, WebP) de máximo 2 MB.');
   }, []);
 
-  const onLogoAccepted = useCallback(async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
-    setUploading(true);
-    setErrorMsg(null);
-    try {
-      const ext = file.name.split('.').pop() ?? 'webp';
-      const url = await uploadFile(file, `display/logo-${Date.now()}.${ext}`);
-      setCustomLogo(url);
-      await save('customerDisplayLogo', url, () => setCustomLogo(customLogo));
-    } catch (err) { setErrorMsg(parseError(err).description); }
-    finally { setUploading(false); }
-  }, [save, customLogo]);
+  const onLogoAccepted = useCallback(
+    async (files: File[]) => {
+      const file = files[0];
+      if (!file) return;
+      setUploading(true);
+      setErrorMsg(null);
+      try {
+        const ext = file.name.split('.').pop() ?? 'webp';
+        const url = await uploadFile(file, `display/logo-${Date.now()}.${ext}`);
+        setCustomLogo(url);
+        await save('customerDisplayLogo', url, () => setCustomLogo(customLogo));
+      } catch (err) {
+        setErrorMsg(parseError(err).description);
+      } finally {
+        setUploading(false);
+      }
+    },
+    [save, customLogo],
+  );
 
   const removeLogo = useCallback(() => {
     const prev = customLogo;
@@ -416,41 +515,53 @@ export function CustomerDisplaySectionV4() {
     if (rej.length) setErrorMsg('Solo imágenes (JPG, PNG, WebP) de máximo 2 MB.');
   }, []);
 
-  const onImageAccepted = useCallback(async (files: File[]) => {
-    if (promoImages.length >= MAX_PROMO_IMAGES) {
-      setErrorMsg(`Máximo ${MAX_PROMO_IMAGES} imágenes promocionales.`);
-      return;
-    }
-    const file = files[0];
-    if (!file) return;
-    setUploading(true);
-    setErrorMsg(null);
-    try {
-      const ext = file.name.split('.').pop() ?? 'webp';
-      const url = await uploadFile(file, `promo/display-${Date.now()}.${ext}`);
-      const updated = [...promoImages, url];
+  const onImageAccepted = useCallback(
+    async (files: File[]) => {
+      if (promoImages.length >= MAX_PROMO_IMAGES) {
+        setErrorMsg(`Máximo ${MAX_PROMO_IMAGES} imágenes promocionales.`);
+        return;
+      }
+      const file = files[0];
+      if (!file) return;
+      setUploading(true);
+      setErrorMsg(null);
+      try {
+        const ext = file.name.split('.').pop() ?? 'webp';
+        const url = await uploadFile(file, `promo/display-${Date.now()}.${ext}`);
+        const updated = [...promoImages, url];
+        setPromoImages(updated);
+        await save('customerDisplayPromoImage', serializePromoImages(updated), () => setPromoImages(promoImages));
+      } catch (err) {
+        setErrorMsg(parseError(err).description);
+      } finally {
+        setUploading(false);
+      }
+    },
+    [save, promoImages],
+  );
+
+  const removeImage = useCallback(
+    (index: number) => {
+      const prev = [...promoImages];
+      const updated = promoImages.filter((_, i) => i !== index);
       setPromoImages(updated);
-      await save('customerDisplayPromoImage', serializePromoImages(updated), () => setPromoImages(promoImages));
-    } catch (err) { setErrorMsg(parseError(err).description); }
-    finally { setUploading(false); }
-  }, [save, promoImages]);
+      save('customerDisplayPromoImage', serializePromoImages(updated), () => setPromoImages(prev));
+    },
+    [promoImages, save],
+  );
 
-  const removeImage = useCallback((index: number) => {
-    const prev = [...promoImages];
-    const updated = promoImages.filter((_, i) => i !== index);
-    setPromoImages(updated);
-    save('customerDisplayPromoImage', serializePromoImages(updated), () => setPromoImages(prev));
-  }, [promoImages, save]);
-
-  const reorderImage = useCallback((from: number, to: number) => {
-    if (to < 0 || to >= promoImages.length) return;
-    const prev = [...promoImages];
-    const updated = [...promoImages];
-    const [moved] = updated.splice(from, 1);
-    updated.splice(to, 0, moved);
-    setPromoImages(updated);
-    save('customerDisplayPromoImage', serializePromoImages(updated), () => setPromoImages(prev));
-  }, [promoImages, save]);
+  const reorderImage = useCallback(
+    (from: number, to: number) => {
+      if (to < 0 || to >= promoImages.length) return;
+      const prev = [...promoImages];
+      const updated = [...promoImages];
+      const [moved] = updated.splice(from, 1);
+      updated.splice(to, 0, moved);
+      setPromoImages(updated);
+      save('customerDisplayPromoImage', serializePromoImages(updated), () => setPromoImages(prev));
+    },
+    [promoImages, save],
+  );
 
   // ─────────────────────────────────────────────────────────
   // RENDER
@@ -458,10 +569,17 @@ export function CustomerDisplaySectionV4() {
 
   return (
     <BlockStack gap="400">
-
       {/* Banners */}
-      {errorMsg && <Banner tone="critical" onDismiss={() => setErrorMsg(null)}>{errorMsg}</Banner>}
-      {status === 'saved' && <Banner tone="success" onDismiss={() => setStatus('idle')}>Cambios guardados.</Banner>}
+      {errorMsg && (
+        <Banner tone="critical" onDismiss={() => setErrorMsg(null)}>
+          {errorMsg}
+        </Banner>
+      )}
+      {status === 'saved' && (
+        <Banner tone="success" onDismiss={() => setStatus('idle')}>
+          Cambios guardados.
+        </Banner>
+      )}
 
       {/* ═══════════════════════════════════════════════════
           CARD 1 — Estado y acceso rápido
@@ -470,12 +588,20 @@ export function CustomerDisplaySectionV4() {
         <BlockStack gap="400">
           <InlineStack align="space-between" blockAlign="center" wrap={false}>
             <InlineStack gap="300" blockAlign="center">
-              <Box padding="200" background={enabled ? 'bg-fill-success-secondary' : 'bg-surface-secondary'} borderRadius="200">
+              <Box
+                padding="200"
+                background={enabled ? 'bg-fill-success-secondary' : 'bg-surface-secondary'}
+                borderRadius="200"
+              >
                 <Icon source={DesktopIcon} tone={enabled ? 'success' : 'subdued'} />
               </Box>
               <BlockStack gap="050">
-                <Text variant="headingMd" as="h3">Pantalla del cliente</Text>
-                <Text variant="bodySm" as="p" tone="subdued">Segundo monitor o tablet para mostrar la compra.</Text>
+                <Text variant="headingMd" as="h3">
+                  Pantalla del cliente
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Segundo monitor o tablet para mostrar la compra.
+                </Text>
               </BlockStack>
             </InlineStack>
             <Badge tone={enabled ? 'success' : undefined}>{enabled ? 'Activa' : 'Inactiva'}</Badge>
@@ -485,7 +611,9 @@ export function CustomerDisplaySectionV4() {
             <InlineStack align="space-between" blockAlign="center" wrap={false}>
               <InlineStack gap="200" blockAlign="center">
                 <Icon source={StatusActiveIcon} tone={enabled ? 'success' : 'subdued'} />
-                <Text variant="bodySm" as="span" tone="subdued">{displayUrl}</Text>
+                <Text variant="bodySm" as="span" tone="subdued">
+                  {displayUrl}
+                </Text>
               </InlineStack>
               <ButtonGroup>
                 <Tooltip content="Copiar URL">
@@ -526,10 +654,14 @@ export function CustomerDisplaySectionV4() {
             </Box>
             <BlockStack gap="050">
               <InlineStack gap="200" blockAlign="center">
-                <Text variant="headingMd" as="h3">Mensajes personalizados</Text>
+                <Text variant="headingMd" as="h3">
+                  Mensajes personalizados
+                </Text>
                 <Badge tone="info">Auto-guardado</Badge>
               </InlineStack>
-              <Text variant="bodySm" as="p" tone="subdued">Configura el contenido y estilo de cada mensaje.</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Configura el contenido y estilo de cada mensaje.
+              </Text>
             </BlockStack>
           </InlineStack>
 
@@ -545,7 +677,7 @@ export function CustomerDisplaySectionV4() {
             style={msgStyle.welcome}
             onStyleChange={(prop, value) => updateMsgSlot('welcome', prop, value)}
             expanded={msgExpandedSlot === 'welcome'}
-            onToggle={() => setMsgExpandedSlot((p) => p === 'welcome' ? null : 'welcome')}
+            onToggle={() => setMsgExpandedSlot((p) => (p === 'welcome' ? null : 'welcome'))}
           />
 
           <Divider />
@@ -562,7 +694,7 @@ export function CustomerDisplaySectionV4() {
             style={msgStyle.farewell}
             onStyleChange={(prop, value) => updateMsgSlot('farewell', prop, value)}
             expanded={msgExpandedSlot === 'farewell'}
-            onToggle={() => setMsgExpandedSlot((p) => p === 'farewell' ? null : 'farewell')}
+            onToggle={() => setMsgExpandedSlot((p) => (p === 'farewell' ? null : 'farewell'))}
           />
 
           <Divider />
@@ -580,7 +712,7 @@ export function CustomerDisplaySectionV4() {
             style={msgStyle.promo}
             onStyleChange={(prop, value) => updateMsgSlot('promo', prop, value)}
             expanded={msgExpandedSlot === 'promo'}
-            onToggle={() => setMsgExpandedSlot((p) => p === 'promo' ? null : 'promo')}
+            onToggle={() => setMsgExpandedSlot((p) => (p === 'promo' ? null : 'promo'))}
           />
         </BlockStack>
       </Card>
@@ -596,8 +728,12 @@ export function CustomerDisplaySectionV4() {
                 <Icon source={ImageIcon} tone="subdued" />
               </Box>
               <BlockStack gap="050">
-                <Text variant="headingMd" as="h3">Imágenes promocionales</Text>
-                <Text variant="bodySm" as="p" tone="subdued">Se muestran en pantalla de espera. Recomendado: 1200×400px.</Text>
+                <Text variant="headingMd" as="h3">
+                  Imágenes promocionales
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Se muestran en pantalla de espera. Recomendado: 1200×400px.
+                </Text>
               </BlockStack>
             </InlineStack>
             <Badge tone={promoImages.length >= MAX_PROMO_IMAGES ? 'warning' : 'info'}>
@@ -612,7 +748,9 @@ export function CustomerDisplaySectionV4() {
                 <Box key={url} background="bg-surface-secondary" borderRadius="200" padding="300">
                   <InlineStack align="space-between" blockAlign="center" gap="300" wrap={false}>
                     <InlineStack gap="300" blockAlign="center" wrap={false}>
-                      <Text variant="bodySm" as="span" tone="subdued" fontWeight="bold">{idx + 1}</Text>
+                      <Text variant="bodySm" as="span" tone="subdued" fontWeight="bold">
+                        {idx + 1}
+                      </Text>
                       <Thumbnail source={url} alt={`Promo ${idx + 1}`} size="small" />
                       <Text variant="bodySm" as="span" tone="subdued" truncate>
                         {url.split('/').pop() ?? 'imagen'}
@@ -620,13 +758,34 @@ export function CustomerDisplaySectionV4() {
                     </InlineStack>
                     <InlineStack gap="100" blockAlign="center">
                       <Tooltip content="Mover izquierda">
-                        <Button icon={ChevronLeftIcon} size="slim" variant="plain" disabled={idx === 0} onClick={() => reorderImage(idx, idx - 1)} accessibilityLabel="Mover izquierda" />
+                        <Button
+                          icon={ChevronLeftIcon}
+                          size="slim"
+                          variant="plain"
+                          disabled={idx === 0}
+                          onClick={() => reorderImage(idx, idx - 1)}
+                          accessibilityLabel="Mover izquierda"
+                        />
                       </Tooltip>
                       <Tooltip content="Mover derecha">
-                        <Button icon={ChevronRightIcon} size="slim" variant="plain" disabled={idx === promoImages.length - 1} onClick={() => reorderImage(idx, idx + 1)} accessibilityLabel="Mover derecha" />
+                        <Button
+                          icon={ChevronRightIcon}
+                          size="slim"
+                          variant="plain"
+                          disabled={idx === promoImages.length - 1}
+                          onClick={() => reorderImage(idx, idx + 1)}
+                          accessibilityLabel="Mover derecha"
+                        />
                       </Tooltip>
                       <Tooltip content="Eliminar imagen">
-                        <Button icon={DeleteIcon} size="slim" variant="plain" tone="critical" onClick={() => removeImage(idx)} accessibilityLabel="Eliminar" />
+                        <Button
+                          icon={DeleteIcon}
+                          size="slim"
+                          variant="plain"
+                          tone="critical"
+                          onClick={() => removeImage(idx)}
+                          accessibilityLabel="Eliminar"
+                        />
                       </Tooltip>
                     </InlineStack>
                   </InlineStack>
@@ -637,12 +796,20 @@ export function CustomerDisplaySectionV4() {
 
           {/* Upload zone (hidden when max reached) */}
           {promoImages.length < MAX_PROMO_IMAGES && (
-            <DropZone accept="image/*" type="image" allowMultiple={false} onDrop={onImageDrop} onDropAccepted={onImageAccepted}>
+            <DropZone
+              accept="image/*"
+              type="image"
+              allowMultiple={false}
+              onDrop={onImageDrop}
+              onDropAccepted={onImageAccepted}
+            >
               {uploading ? (
                 <Box padding="600">
                   <BlockStack gap="200" inlineAlign="center">
                     <Spinner size="small" />
-                    <Text variant="bodySm" as="span" tone="subdued">Subiendo...</Text>
+                    <Text variant="bodySm" as="span" tone="subdued">
+                      Subiendo...
+                    </Text>
                   </BlockStack>
                 </Box>
               ) : (
@@ -652,7 +819,9 @@ export function CustomerDisplaySectionV4() {
           )}
 
           {promoImages.length >= MAX_PROMO_IMAGES && (
-            <Banner tone="warning">Has alcanzado el límite de {MAX_PROMO_IMAGES} imágenes. Elimina una para subir más.</Banner>
+            <Banner tone="warning">
+              Has alcanzado el límite de {MAX_PROMO_IMAGES} imágenes. Elimina una para subir más.
+            </Banner>
           )}
         </BlockStack>
       </Card>
@@ -667,8 +836,12 @@ export function CustomerDisplaySectionV4() {
               <Icon source={PaintBrushFlatIcon} tone="info" />
             </Box>
             <BlockStack gap="050">
-              <Text variant="headingMd" as="h3">Tema visual</Text>
-              <Text variant="bodySm" as="p" tone="subdued">Selecciona la paleta de colores de la pantalla.</Text>
+              <Text variant="headingMd" as="h3">
+                Tema visual
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Selecciona la paleta de colores de la pantalla.
+              </Text>
             </BlockStack>
           </InlineStack>
 
@@ -677,13 +850,35 @@ export function CustomerDisplaySectionV4() {
               const mt = THEME_META[t];
               const active = theme === t;
               return (
-                <div key={t} role="button" tabIndex={0} onClick={() => onTheme(t)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onTheme(t); }} style={{ cursor: 'pointer', border: active ? `2px solid ${mt.accent}` : '2px solid transparent', borderRadius: 12, padding: 12, background: active ? 'var(--p-color-bg-surface-selected)' : 'var(--p-color-bg-surface-secondary)' }}>
+                <div
+                  key={t}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onTheme(t)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') onTheme(t);
+                  }}
+                  style={{
+                    cursor: 'pointer',
+                    border: active ? `2px solid ${mt.accent}` : '2px solid transparent',
+                    borderRadius: 12,
+                    padding: 12,
+                    background: active ? 'var(--p-color-bg-surface-selected)' : 'var(--p-color-bg-surface-secondary)',
+                  }}
+                >
                   <BlockStack gap="200" inlineAlign="center">
-                    <div style={{
-                      width: 40, height: 40, borderRadius: 8,
-                      background: mt.bg, border: `2px solid ${mt.accent}`,
-                    }} />
-                    <Text variant="bodySm" as="span" fontWeight={active ? 'bold' : undefined}>{mt.label}</Text>
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 8,
+                        background: mt.bg,
+                        border: `2px solid ${mt.accent}`,
+                      }}
+                    />
+                    <Text variant="bodySm" as="span" fontWeight={active ? 'bold' : undefined}>
+                      {mt.label}
+                    </Text>
                     {active && <Icon source={CheckIcon} tone="success" />}
                   </BlockStack>
                 </div>
@@ -703,8 +898,12 @@ export function CustomerDisplaySectionV4() {
               <Icon source={PlayIcon} tone="info" />
             </Box>
             <BlockStack gap="050">
-              <Text variant="headingMd" as="h3">Animaciones</Text>
-              <Text variant="bodySm" as="p" tone="subdued">Configura cómo aparecen los elementos en la pantalla.</Text>
+              <Text variant="headingMd" as="h3">
+                Animaciones
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Configura cómo aparecen los elementos en la pantalla.
+              </Text>
             </BlockStack>
           </InlineStack>
 
@@ -713,7 +912,9 @@ export function CustomerDisplaySectionV4() {
           <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
             {/* Idle animation — Popover + OptionList */}
             <BlockStack gap="200">
-              <Text variant="bodySm" as="p" fontWeight="semibold">Animación de entrada</Text>
+              <Text variant="bodySm" as="p" fontWeight="semibold">
+                Animación de entrada
+              </Text>
               <Popover
                 active={idleAnimPop}
                 activator={
@@ -725,17 +926,23 @@ export function CustomerDisplaySectionV4() {
                 fullWidth
               >
                 <OptionList
-                  onChange={(sel) => { onIdleAnim(sel[0]); }}
+                  onChange={(sel) => {
+                    onIdleAnim(sel[0]);
+                  }}
                   options={CUSTOMER_DISPLAY_ANIMATIONS.map((v) => ({ label: IDLE_ANIM_LABELS[v], value: v }))}
                   selected={[idleAnim]}
                 />
               </Popover>
-              <Text variant="bodySm" as="p" tone="subdued">Cómo entran los elementos al iniciar.</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Cómo entran los elementos al iniciar.
+              </Text>
             </BlockStack>
 
             {/* Promo animation — Popover + OptionList */}
             <BlockStack gap="200">
-              <Text variant="bodySm" as="p" fontWeight="semibold">Animación de promoción</Text>
+              <Text variant="bodySm" as="p" fontWeight="semibold">
+                Animación de promoción
+              </Text>
               <Popover
                 active={promoAnimPop}
                 activator={
@@ -747,12 +954,16 @@ export function CustomerDisplaySectionV4() {
                 fullWidth
               >
                 <OptionList
-                  onChange={(sel) => { onPromoAnim(sel[0]); }}
+                  onChange={(sel) => {
+                    onPromoAnim(sel[0]);
+                  }}
                   options={CUSTOMER_DISPLAY_PROMO_ANIMATIONS.map((v) => ({ label: PROMO_ANIM_LABELS[v], value: v }))}
                   selected={[promoAnim]}
                 />
               </Popover>
-              <Text variant="bodySm" as="p" tone="subdued">Efecto para la imagen/texto de promo.</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Efecto para la imagen/texto de promo.
+              </Text>
             </BlockStack>
           </InlineGrid>
 
@@ -760,7 +971,9 @@ export function CustomerDisplaySectionV4() {
 
           {/* Speed — segmented buttons */}
           <BlockStack gap="200">
-            <Text variant="bodySm" as="p" fontWeight="semibold">Velocidad de transición</Text>
+            <Text variant="bodySm" as="p" fontWeight="semibold">
+              Velocidad de transición
+            </Text>
             <ButtonGroup variant="segmented">
               {TRANSITION_SPEEDS.map((s) => (
                 <Button key={s} pressed={speed === s} onClick={() => onSpeed(s)}>
@@ -782,8 +995,12 @@ export function CustomerDisplaySectionV4() {
               <Icon source={ClockIcon} tone="subdued" />
             </Box>
             <BlockStack gap="050">
-              <Text variant="headingMd" as="h3">Reloj y carrusel</Text>
-              <Text variant="bodySm" as="p" tone="subdued">Controla el reloj digital y la rotación de contenido.</Text>
+              <Text variant="headingMd" as="h3">
+                Reloj y carrusel
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Controla el reloj digital y la rotación de contenido.
+              </Text>
             </BlockStack>
           </InlineStack>
 
@@ -807,7 +1024,9 @@ export function CustomerDisplaySectionV4() {
 
             {carousel && (
               <BlockStack gap="200">
-                <Text variant="bodySm" as="p" fontWeight="semibold">Intervalo del carrusel</Text>
+                <Text variant="bodySm" as="p" fontWeight="semibold">
+                  Intervalo del carrusel
+                </Text>
                 <RangeSlider
                   label={`${carouselSec} segundos`}
                   value={Number(carouselSec)}
@@ -817,7 +1036,9 @@ export function CustomerDisplaySectionV4() {
                   onChange={(v) => onCarouselSec(v as number)}
                   output
                 />
-                <Text variant="bodySm" as="p" tone="subdued">Tiempo entre cada slide.</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Tiempo entre cada slide.
+                </Text>
               </BlockStack>
             )}
           </InlineGrid>
@@ -834,20 +1055,39 @@ export function CustomerDisplaySectionV4() {
               <Icon source={ImageIcon} tone="info" />
             </Box>
             <BlockStack gap="050">
-              <Text variant="headingMd" as="h3">Logo de pantalla</Text>
-              <Text variant="bodySm" as="p" tone="subdued">Logo que aparece en la pantalla de espera. Si no se configura, se usa el logo general.</Text>
+              <Text variant="headingMd" as="h3">
+                Logo de pantalla
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Logo que aparece en la pantalla de espera. Si no se configura, se usa el logo general.
+              </Text>
             </BlockStack>
           </InlineStack>
 
           {customLogo ? (
             <InlineStack gap="400" blockAlign="center">
               <Thumbnail source={customLogo} alt="Logo display" size="large" />
-              <Button icon={DeleteIcon} tone="critical" variant="plain" onClick={removeLogo}>Eliminar logo</Button>
+              <Button icon={DeleteIcon} tone="critical" variant="plain" onClick={removeLogo}>
+                Eliminar logo
+              </Button>
             </InlineStack>
           ) : (
-            <DropZone accept="image/*" type="image" allowMultiple={false} onDrop={onLogoDrop} onDropAccepted={onLogoAccepted}>
+            <DropZone
+              accept="image/*"
+              type="image"
+              allowMultiple={false}
+              onDrop={onLogoDrop}
+              onDropAccepted={onLogoAccepted}
+            >
               {uploading ? (
-                <Box padding="400"><BlockStack gap="200" inlineAlign="center"><Spinner size="small" /><Text variant="bodySm" as="span" tone="subdued">Subiendo...</Text></BlockStack></Box>
+                <Box padding="400">
+                  <BlockStack gap="200" inlineAlign="center">
+                    <Spinner size="small" />
+                    <Text variant="bodySm" as="span" tone="subdued">
+                      Subiendo...
+                    </Text>
+                  </BlockStack>
+                </Box>
               ) : (
                 <DropZone.FileUpload actionHint="JPG, PNG o WebP · Recomendado: cuadrado 200×200px" />
               )}
@@ -866,8 +1106,12 @@ export function CustomerDisplaySectionV4() {
               <Icon source={TextFontIcon} tone="info" />
             </Box>
             <BlockStack gap="050">
-              <Text variant="headingMd" as="h3">Personalización avanzada</Text>
-              <Text variant="bodySm" as="p" tone="subdued">Tipografía, colores y comportamiento.</Text>
+              <Text variant="headingMd" as="h3">
+                Personalización avanzada
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Tipografía, colores y comportamiento.
+              </Text>
             </BlockStack>
           </InlineStack>
 
@@ -876,7 +1120,9 @@ export function CustomerDisplaySectionV4() {
           <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
             {/* Font scale */}
             <BlockStack gap="200">
-              <Text variant="bodySm" as="p" fontWeight="semibold">Tamaño de fuente</Text>
+              <Text variant="bodySm" as="p" fontWeight="semibold">
+                Tamaño de fuente
+              </Text>
               <RangeSlider
                 label={`${Number(fontScale).toFixed(1)}x`}
                 value={Number(fontScale) * 10}
@@ -886,12 +1132,16 @@ export function CustomerDisplaySectionV4() {
                 onChange={(v) => onFontScale((v as number) / 10)}
                 output
               />
-              <Text variant="bodySm" as="p" tone="subdued">Escala del texto: 0.7x (pequeño) → 1.5x (grande).</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Escala del texto: 0.7x (pequeño) → 1.5x (grande).
+              </Text>
             </BlockStack>
 
             {/* Auto return */}
             <BlockStack gap="200">
-              <Text variant="bodySm" as="p" fontWeight="semibold">Tiempo auto-retorno</Text>
+              <Text variant="bodySm" as="p" fontWeight="semibold">
+                Tiempo auto-retorno
+              </Text>
               <RangeSlider
                 label={`${autoReturnSec} segundos`}
                 value={Number(autoReturnSec)}
@@ -901,7 +1151,9 @@ export function CustomerDisplaySectionV4() {
                 onChange={(v) => onAutoReturn(v as number)}
                 output
               />
-              <Text variant="bodySm" as="p" tone="subdued">Segundos para volver a pantalla de espera después de una venta.</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Segundos para volver a pantalla de espera después de una venta.
+              </Text>
             </BlockStack>
           </InlineGrid>
 
@@ -912,7 +1164,9 @@ export function CustomerDisplaySectionV4() {
             <BlockStack gap="200">
               <InlineStack gap="200" blockAlign="center">
                 <Icon source={ColorIcon} tone="subdued" />
-                <Text variant="bodySm" as="p" fontWeight="semibold">Color de acento personalizado</Text>
+                <Text variant="bodySm" as="p" fontWeight="semibold">
+                  Color de acento personalizado
+                </Text>
               </InlineStack>
               <InlineStack gap="300" blockAlign="center">
                 <Popover
@@ -920,7 +1174,14 @@ export function CustomerDisplaySectionV4() {
                   onClose={() => setColorPickerOpen(false)}
                   activator={
                     <div
-                      style={{ width: 36, height: 36, borderRadius: 8, background: accentColor || THEME_META[theme].accent, border: '2px solid var(--p-color-border)', cursor: 'pointer' }}
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 8,
+                        background: accentColor || THEME_META[theme].accent,
+                        border: '2px solid var(--p-color-border)',
+                        cursor: 'pointer',
+                      }}
                       onClick={() => setColorPickerOpen(true)}
                       role="button"
                       tabIndex={0}
@@ -954,7 +1215,9 @@ export function CustomerDisplaySectionV4() {
             <BlockStack gap="200">
               <InlineStack gap="200" blockAlign="center">
                 <Icon source={SoundIcon} tone="subdued" />
-                <Text variant="bodySm" as="p" fontWeight="semibold">Sonido de notificación</Text>
+                <Text variant="bodySm" as="p" fontWeight="semibold">
+                  Sonido de notificación
+                </Text>
               </InlineStack>
               <Checkbox
                 label="Reproducir sonido al iniciar venta"
@@ -977,8 +1240,12 @@ export function CustomerDisplaySectionV4() {
               <Icon source={MobileIcon} tone="info" />
             </Box>
             <BlockStack gap="050">
-              <Text variant="headingMd" as="h3">Orientación de pantalla</Text>
-              <Text variant="bodySm" as="p" tone="subdued">Selecciona según la posición de tu monitor o tablet.</Text>
+              <Text variant="headingMd" as="h3">
+                Orientación de pantalla
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Selecciona según la posición de tu monitor o tablet.
+              </Text>
             </BlockStack>
           </InlineStack>
 
@@ -989,11 +1256,39 @@ export function CustomerDisplaySectionV4() {
             ].map((opt) => {
               const active = orientation === opt.value;
               return (
-                <div key={opt.value} role="button" tabIndex={0} onClick={() => onOrientation(opt.value)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOrientation(opt.value); }} style={{ cursor: 'pointer', border: active ? '2px solid var(--p-color-border-emphasis)' : '2px solid transparent', borderRadius: 12, padding: 16, background: active ? 'var(--p-color-bg-surface-selected)' : 'var(--p-color-bg-surface-secondary)', minWidth: 140 }}>
+                <div
+                  key={opt.value}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onOrientation(opt.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') onOrientation(opt.value);
+                  }}
+                  style={{
+                    cursor: 'pointer',
+                    border: active ? '2px solid var(--p-color-border-emphasis)' : '2px solid transparent',
+                    borderRadius: 12,
+                    padding: 16,
+                    background: active ? 'var(--p-color-bg-surface-selected)' : 'var(--p-color-bg-surface-secondary)',
+                    minWidth: 140,
+                  }}
+                >
                   <BlockStack gap="200" inlineAlign="center">
-                    <div style={{ width: opt.width, height: opt.height, borderRadius: 6, border: '2px solid var(--p-color-border)', background: active ? 'var(--p-color-bg-fill-info)' : 'var(--p-color-bg-surface)' }} />
-                    <Text variant="bodySm" as="span" fontWeight={active ? 'bold' : undefined}>{opt.label}</Text>
-                    <Text variant="bodySm" as="span" tone="subdued">{opt.desc}</Text>
+                    <div
+                      style={{
+                        width: opt.width,
+                        height: opt.height,
+                        borderRadius: 6,
+                        border: '2px solid var(--p-color-border)',
+                        background: active ? 'var(--p-color-bg-fill-info)' : 'var(--p-color-bg-surface)',
+                      }}
+                    />
+                    <Text variant="bodySm" as="span" fontWeight={active ? 'bold' : undefined}>
+                      {opt.label}
+                    </Text>
+                    <Text variant="bodySm" as="span" tone="subdued">
+                      {opt.desc}
+                    </Text>
                     {active && <Icon source={CheckIcon} tone="success" />}
                   </BlockStack>
                 </div>
@@ -1032,30 +1327,44 @@ export function CustomerDisplaySectionV4() {
             <Box padding="200" background="bg-surface-secondary" borderRadius="200">
               <Icon source={SettingsIcon} tone="subdued" />
             </Box>
-            <Text variant="headingMd" as="h3">Información técnica</Text>
+            <Text variant="headingMd" as="h3">
+              Información técnica
+            </Text>
           </InlineStack>
           <Divider />
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="050">
-                <Text variant="bodyMd" as="p" fontWeight="semibold">Sincronización en tiempo real</Text>
-                <Text variant="bodySm" as="p" tone="subdued">Cambios se reflejan al instante en /display via BroadcastChannel.</Text>
+                <Text variant="bodyMd" as="p" fontWeight="semibold">
+                  Sincronización en tiempo real
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Cambios se reflejan al instante en /display via BroadcastChannel.
+                </Text>
               </BlockStack>
               <Badge tone="success">Activa</Badge>
             </InlineStack>
             <Divider />
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="050">
-                <Text variant="bodyMd" as="p" fontWeight="semibold">Auto-retorno a espera</Text>
-                <Text variant="bodySm" as="p" tone="subdued">Después de cada venta, la pantalla vuelve al modo espera automáticamente.</Text>
+                <Text variant="bodyMd" as="p" fontWeight="semibold">
+                  Auto-retorno a espera
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Después de cada venta, la pantalla vuelve al modo espera automáticamente.
+                </Text>
               </BlockStack>
               <Badge tone="info">{`${autoReturnSec} segundos`}</Badge>
             </InlineStack>
             <Divider />
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="050">
-                <Text variant="bodyMd" as="p" fontWeight="semibold">Modo pantalla completa</Text>
-                <Text variant="bodySm" as="p" tone="subdued">Oculta la navegación del navegador automáticamente. Usa F11 para máximo efecto.</Text>
+                <Text variant="bodyMd" as="p" fontWeight="semibold">
+                  Modo pantalla completa
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Oculta la navegación del navegador automáticamente. Usa F11 para máximo efecto.
+                </Text>
               </BlockStack>
               <Badge tone="info">Automático</Badge>
             </InlineStack>
@@ -1106,8 +1415,18 @@ interface MessageSlotDesignerProps {
 }
 
 function MessageSlotDesigner({
-  label, description, icon, textValue, onTextChange, textPlaceholder,
-  maxLength, multiline, style, onStyleChange, expanded, onToggle,
+  label,
+  description,
+  icon,
+  textValue,
+  onTextChange,
+  textPlaceholder,
+  maxLength,
+  multiline,
+  style,
+  onStyleChange,
+  expanded,
+  onToggle,
 }: MessageSlotDesignerProps) {
   const [colorPop, setColorPop] = useState(false);
 
@@ -1145,7 +1464,11 @@ function MessageSlotDesigner({
       </InlineStack>
 
       {/* Collapsible styling panel */}
-      <Collapsible open={expanded} id={`msg-style-${label}`} transition={{ duration: '200ms', timingFunction: 'ease-in-out' }}>
+      <Collapsible
+        open={expanded}
+        id={`msg-style-${label}`}
+        transition={{ duration: '200ms', timingFunction: 'ease-in-out' }}
+      >
         <Box background="bg-surface-secondary" borderRadius="200" padding="400">
           <BlockStack gap="400">
             {/* Subtitle */}
@@ -1163,10 +1486,17 @@ function MessageSlotDesigner({
             {/* Text size + weight */}
             <InlineGrid columns={{ xs: 1, md: 2 }} gap="300">
               <BlockStack gap="200">
-                <Text variant="bodySm" as="p" fontWeight="semibold">Tamaño de texto</Text>
+                <Text variant="bodySm" as="p" fontWeight="semibold">
+                  Tamaño de texto
+                </Text>
                 <ButtonGroup variant="segmented">
                   {MESSAGE_TEXT_SIZES.map((s) => (
-                    <Button key={s} pressed={style.textSize === s} onClick={() => onStyleChange('textSize', s)} size="slim">
+                    <Button
+                      key={s}
+                      pressed={style.textSize === s}
+                      onClick={() => onStyleChange('textSize', s)}
+                      size="slim"
+                    >
                       {SIZE_LABELS[s]}
                     </Button>
                   ))}
@@ -1174,10 +1504,17 @@ function MessageSlotDesigner({
               </BlockStack>
 
               <BlockStack gap="200">
-                <Text variant="bodySm" as="p" fontWeight="semibold">Peso de fuente</Text>
+                <Text variant="bodySm" as="p" fontWeight="semibold">
+                  Peso de fuente
+                </Text>
                 <ButtonGroup variant="segmented">
                   {MESSAGE_TEXT_WEIGHTS.map((w) => (
-                    <Button key={w} pressed={style.textWeight === w} onClick={() => onStyleChange('textWeight', w)} size="slim">
+                    <Button
+                      key={w}
+                      pressed={style.textWeight === w}
+                      onClick={() => onStyleChange('textWeight', w)}
+                      size="slim"
+                    >
                       {WEIGHT_LABELS[w]}
                     </Button>
                   ))}
@@ -1187,10 +1524,17 @@ function MessageSlotDesigner({
 
             {/* Alignment */}
             <BlockStack gap="200">
-              <Text variant="bodySm" as="p" fontWeight="semibold">Alineación</Text>
+              <Text variant="bodySm" as="p" fontWeight="semibold">
+                Alineación
+              </Text>
               <ButtonGroup variant="segmented">
                 {MESSAGE_TEXT_ALIGNS.map((a) => (
-                  <Button key={a} pressed={style.textAlign === a} onClick={() => onStyleChange('textAlign', a)} size="slim">
+                  <Button
+                    key={a}
+                    pressed={style.textAlign === a}
+                    onClick={() => onStyleChange('textAlign', a)}
+                    size="slim"
+                  >
                     {ALIGN_LABELS[a]}
                   </Button>
                 ))}
@@ -1200,7 +1544,9 @@ function MessageSlotDesigner({
             {/* Color + toggles */}
             <InlineGrid columns={{ xs: 1, md: 2 }} gap="300">
               <BlockStack gap="200">
-                <Text variant="bodySm" as="p" fontWeight="semibold">Color del texto</Text>
+                <Text variant="bodySm" as="p" fontWeight="semibold">
+                  Color del texto
+                </Text>
                 <InlineStack gap="200" blockAlign="center">
                   <Popover
                     active={colorPop}
@@ -1208,7 +1554,9 @@ function MessageSlotDesigner({
                     activator={
                       <div
                         style={{
-                          width: 32, height: 32, borderRadius: 6,
+                          width: 32,
+                          height: 32,
+                          borderRadius: 6,
                           background: style.textColor || 'var(--p-color-text)',
                           border: '2px solid var(--p-color-border)',
                           cursor: 'pointer',
@@ -1260,7 +1608,9 @@ function MessageSlotDesigner({
             {/* Live mini-preview */}
             <Divider />
             <BlockStack gap="100">
-              <Text variant="bodySm" as="p" tone="subdued" fontWeight="semibold">Vista previa del estilo</Text>
+              <Text variant="bodySm" as="p" tone="subdued" fontWeight="semibold">
+                Vista previa del estilo
+              </Text>
               <Box background="bg-surface" borderRadius="200" padding="300">
                 <div style={{ textAlign: style.textAlign }}>
                   <Text
@@ -1269,10 +1619,12 @@ function MessageSlotDesigner({
                     fontWeight={style.textWeight === 'regular' ? undefined : style.textWeight}
                     alignment={toPolarisAlign(style.textAlign)}
                   >
-                    <span style={{
-                      color: style.textColor || undefined,
-                      textTransform: style.uppercase ? 'uppercase' : undefined,
-                    }}>
+                    <span
+                      style={{
+                        color: style.textColor || undefined,
+                        textTransform: style.uppercase ? 'uppercase' : undefined,
+                      }}
+                    >
                       {textValue || textPlaceholder}
                     </span>
                   </Text>
@@ -1310,26 +1662,47 @@ const SIZE_TO_POLARIS_VARIANT: Record<MessageTextSize, 'bodySm' | 'bodyMd' | 'bo
 // ═══════════════════════════════════════════════════════════
 
 /** Full theme config matching the actual display page */
-const DISPLAY_THEMES: Record<CustomerDisplayTheme, {
-  bg: string; bgGradient: string; text: string; textMuted: string;
-  accent: string; promoBg: string; border: string; decorLine: string;
-}> = {
+const DISPLAY_THEMES: Record<
+  CustomerDisplayTheme,
+  {
+    bg: string;
+    bgGradient: string;
+    text: string;
+    textMuted: string;
+    accent: string;
+    promoBg: string;
+    border: string;
+    decorLine: string;
+  }
+> = {
   light: {
-    bg: '#ffffff', bgGradient: 'radial-gradient(ellipse at 50% 0%, #f0fdf4 0%, #ffffff 50%, #f8fafc 100%)',
-    text: '#1a1a1a', textMuted: '#6d7175', accent: '#008060',
-    promoBg: 'rgba(0, 128, 96, 0.08)', border: '#e1e3e5',
+    bg: '#ffffff',
+    bgGradient: 'radial-gradient(ellipse at 50% 0%, #f0fdf4 0%, #ffffff 50%, #f8fafc 100%)',
+    text: '#1a1a1a',
+    textMuted: '#6d7175',
+    accent: '#008060',
+    promoBg: 'rgba(0, 128, 96, 0.08)',
+    border: '#e1e3e5',
     decorLine: 'linear-gradient(90deg, transparent, #008060, transparent)',
   },
   dark: {
-    bg: '#0f1114', bgGradient: 'radial-gradient(ellipse at 50% 0%, #1e293b 0%, #0f1114 50%, #0a0c0e 100%)',
-    text: '#f1f1f1', textMuted: '#9a9da0', accent: '#36d399',
-    promoBg: 'rgba(54, 211, 153, 0.12)', border: '#2a2d31',
+    bg: '#0f1114',
+    bgGradient: 'radial-gradient(ellipse at 50% 0%, #1e293b 0%, #0f1114 50%, #0a0c0e 100%)',
+    text: '#f1f1f1',
+    textMuted: '#9a9da0',
+    accent: '#36d399',
+    promoBg: 'rgba(54, 211, 153, 0.12)',
+    border: '#2a2d31',
     decorLine: 'linear-gradient(90deg, transparent, #36d399, transparent)',
   },
   brand: {
-    bg: '#0a2540', bgGradient: 'radial-gradient(ellipse at 50% 0%, #1e4d7a 0%, #0a2540 50%, #061b2e 100%)',
-    text: '#ffffff', textMuted: '#b0c4de', accent: '#00d4aa',
-    promoBg: 'rgba(0, 212, 170, 0.12)', border: '#1e4d7a',
+    bg: '#0a2540',
+    bgGradient: 'radial-gradient(ellipse at 50% 0%, #1e4d7a 0%, #0a2540 50%, #061b2e 100%)',
+    text: '#ffffff',
+    textMuted: '#b0c4de',
+    accent: '#00d4aa',
+    promoBg: 'rgba(0, 212, 170, 0.12)',
+    border: '#1e4d7a',
     decorLine: 'linear-gradient(90deg, transparent, #00d4aa, transparent)',
   },
 };
@@ -1361,16 +1734,28 @@ interface PreviewProps {
 
 /** Sample sale data for preview */
 const SAMPLE_ITEMS = [
-  { name: 'Coca-Cola 600ml', qty: 2, price: 15.00, sub: 30.00 },
-  { name: 'Pan Bimbo Grande', qty: 1, price: 52.00, sub: 52.00 },
-  { name: 'Sabritas Original', qty: 3, price: 18.50, sub: 55.50 },
+  { name: 'Coca-Cola 600ml', qty: 2, price: 15.0, sub: 30.0 },
+  { name: 'Pan Bimbo Grande', qty: 1, price: 52.0, sub: 52.0 },
+  { name: 'Sabritas Original', qty: 3, price: 18.5, sub: 55.5 },
 ];
-const SAMPLE_TOTAL = 137.50;
+const SAMPLE_TOTAL = 137.5;
 const SAMPLE_IVA = 19.03;
 
 function PreviewCard({
-  theme, welcome, farewell, promoText, promoImages, showClock,
-  storeName, logoUrl, accentColor, fontScale, orientation, msgStyle, phone, address,
+  theme,
+  welcome,
+  farewell,
+  promoText,
+  promoImages,
+  showClock,
+  storeName,
+  logoUrl,
+  accentColor,
+  fontScale,
+  orientation,
+  msgStyle,
+  phone,
+  address,
 }: PreviewProps) {
   const [mode, setMode] = useState<'idle' | 'sale' | 'done'>('idle');
   const [key, setKey] = useState(0);
@@ -1400,14 +1785,45 @@ function PreviewCard({
               <Icon source={ViewIcon} tone="info" />
             </Box>
             <BlockStack gap="050">
-              <Text variant="headingMd" as="h3">Vista previa avanzada</Text>
-              <Text variant="bodySm" as="p" tone="subdued">Réplica exacta de la pantalla del cliente.</Text>
+              <Text variant="headingMd" as="h3">
+                Vista previa avanzada
+              </Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Réplica exacta de la pantalla del cliente.
+              </Text>
             </BlockStack>
           </InlineStack>
           <ButtonGroup>
-            <Button size="slim" pressed={mode === 'idle'} onClick={() => { setMode('idle'); replay(); }}>Espera</Button>
-            <Button size="slim" pressed={mode === 'sale'} onClick={() => { setMode('sale'); replay(); }}>Venta</Button>
-            <Button size="slim" pressed={mode === 'done'} onClick={() => { setMode('done'); replay(); }}>Finalizada</Button>
+            <Button
+              size="slim"
+              pressed={mode === 'idle'}
+              onClick={() => {
+                setMode('idle');
+                replay();
+              }}
+            >
+              Espera
+            </Button>
+            <Button
+              size="slim"
+              pressed={mode === 'sale'}
+              onClick={() => {
+                setMode('sale');
+                replay();
+              }}
+            >
+              Venta
+            </Button>
+            <Button
+              size="slim"
+              pressed={mode === 'done'}
+              onClick={() => {
+                setMode('done');
+                replay();
+              }}
+            >
+              Finalizada
+            </Button>
             <Tooltip content="Reproducir animación">
               <Button icon={RefreshIcon} size="slim" onClick={replay} />
             </Tooltip>
@@ -1415,61 +1831,100 @@ function PreviewCard({
         </InlineStack>
 
         {/* Preview frame — exact aspect ratio + scale */}
-        <div style={{
-          borderRadius: 12,
-          border: '2px solid var(--p-color-border)',
-          overflow: 'hidden',
-          position: 'relative',
-          aspectRatio,
-          maxHeight: 480,
-        }}>
-          <div key={key} style={{
-            position: 'absolute', inset: 0,
-            fontSize: `${scale * 0.55}rem`,
+        <div
+          style={{
+            borderRadius: 12,
+            border: '2px solid var(--p-color-border)',
             overflow: 'hidden',
-          }}>
+            position: 'relative',
+            aspectRatio,
+            maxHeight: 480,
+          }}
+        >
+          <div
+            key={key}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              fontSize: `${scale * 0.55}rem`,
+              overflow: 'hidden',
+            }}
+          >
             {/* ══════════════ IDLE ══════════════ */}
             {mode === 'idle' && (
-              <div style={{
-                background: t.bgGradient,
-                width: '100%', height: '100%',
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
-                gap: '1.2em', padding: '2em 1.5em',
-                position: 'relative',
-              }}>
+              <div
+                style={{
+                  background: t.bgGradient,
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '1.2em',
+                  padding: '2em 1.5em',
+                  position: 'relative',
+                }}
+              >
                 {/* Decorative line */}
-                <div style={{ position: 'absolute', top: 0, left: '10%', right: '10%', height: 2, background: t.decorLine }} />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: '10%',
+                    right: '10%',
+                    height: 2,
+                    background: t.decorLine,
+                  }}
+                />
 
                 {/* Logo */}
                 {logoUrl ? (
-                  <img src={logoUrl} alt={storeName} style={{ width: '3.5em', height: '3.5em', borderRadius: '0.6em', objectFit: 'contain' }} />
+                  <img
+                    src={logoUrl}
+                    alt={storeName}
+                    style={{ width: '3.5em', height: '3.5em', borderRadius: '0.6em', objectFit: 'contain' }}
+                  />
                 ) : (
-                  <div style={{
-                    width: '3.5em', height: '3.5em', borderRadius: '0.8em',
-                    background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', fontSize: '1.6em', fontWeight: 700,
-                  }}>
+                  <div
+                    style={{
+                      width: '3.5em',
+                      height: '3.5em',
+                      borderRadius: '0.8em',
+                      background: accent,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: '1.6em',
+                      fontWeight: 700,
+                    }}
+                  >
                     {storeName.charAt(0)}
                   </div>
                 )}
 
                 {/* Welcome message */}
                 <div style={{ width: '100%', textAlign: ws.textAlign }}>
-                  <div style={{
-                    fontSize: PREVIEW_TEXT_SIZE[ws.textSize].main,
-                    fontWeight: ws.textWeight === 'bold' ? 700 : ws.textWeight === 'semibold' ? 600 : 400,
-                    color: ws.textColor || t.text,
-                    textTransform: ws.uppercase ? 'uppercase' : undefined,
-                    lineHeight: 1.3,
-                  }}>
+                  <div
+                    style={{
+                      fontSize: PREVIEW_TEXT_SIZE[ws.textSize].main,
+                      fontWeight: ws.textWeight === 'bold' ? 700 : ws.textWeight === 'semibold' ? 600 : 400,
+                      color: ws.textColor || t.text,
+                      textTransform: ws.uppercase ? 'uppercase' : undefined,
+                      lineHeight: 1.3,
+                    }}
+                  >
                     {welcomeText}
                   </div>
                   {ws.subtitle && (
-                    <div style={{
-                      fontSize: PREVIEW_TEXT_SIZE[ws.textSize].sub,
-                      color: accent, marginTop: '0.3em',
-                    }}>
+                    <div
+                      style={{
+                        fontSize: PREVIEW_TEXT_SIZE[ws.textSize].sub,
+                        color: accent,
+                        marginTop: '0.3em',
+                      }}
+                    >
                       {ws.subtitle}
                     </div>
                   )}
@@ -1477,19 +1932,28 @@ function PreviewCard({
 
                 {/* Promo text */}
                 {promoText && (
-                  <div style={{
-                    background: t.promoBg, borderRadius: '0.5em', padding: '0.5em 1em',
-                    display: 'flex', alignItems: 'center', gap: '0.4em',
-                    justifyContent: ps.textAlign === 'center' ? 'center' : ps.textAlign === 'right' ? 'flex-end' : 'flex-start',
-                    width: '100%',
-                  }}>
+                  <div
+                    style={{
+                      background: t.promoBg,
+                      borderRadius: '0.5em',
+                      padding: '0.5em 1em',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4em',
+                      justifyContent:
+                        ps.textAlign === 'center' ? 'center' : ps.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                      width: '100%',
+                    }}
+                  >
                     {ps.showIcon && <span style={{ fontSize: '1em' }}>🎁</span>}
-                    <span style={{
-                      fontSize: PREVIEW_TEXT_SIZE[ps.textSize].main,
-                      fontWeight: ps.textWeight === 'bold' ? 700 : ps.textWeight === 'semibold' ? 600 : 400,
-                      color: ps.textColor || accent,
-                      textTransform: ps.uppercase ? 'uppercase' : undefined,
-                    }}>
+                    <span
+                      style={{
+                        fontSize: PREVIEW_TEXT_SIZE[ps.textSize].main,
+                        fontWeight: ps.textWeight === 'bold' ? 700 : ps.textWeight === 'semibold' ? 600 : 400,
+                        color: ps.textColor || accent,
+                        textTransform: ps.uppercase ? 'uppercase' : undefined,
+                      }}
+                    >
                       {promoText}
                     </span>
                   </div>
@@ -1497,47 +1961,110 @@ function PreviewCard({
 
                 {/* Promo image */}
                 {promoImages.length > 0 && promoImages[0] && (
-                  <img src={promoImages[0]} alt="Promo" style={{
-                    maxWidth: '80%', maxHeight: '6em', borderRadius: '0.5em', objectFit: 'cover',
-                  }} />
+                  <img
+                    src={promoImages[0]}
+                    alt="Promo"
+                    style={{
+                      maxWidth: '80%',
+                      maxHeight: '6em',
+                      borderRadius: '0.5em',
+                      objectFit: 'cover',
+                    }}
+                  />
                 )}
 
                 {/* Clock */}
                 {showClock && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3em', color: t.textMuted, fontSize: '1.1em' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3em',
+                      color: t.textMuted,
+                      fontSize: '1.1em',
+                    }}
+                  >
                     🕐 {now}
                   </div>
                 )}
 
                 {/* Bottom contact */}
                 {(phone || address) && (
-                  <div style={{
-                    position: 'absolute', bottom: '0.8em', left: 0, right: 0,
-                    textAlign: 'center', color: t.textMuted, fontSize: '0.6em',
-                  }}>
-                    {phone && `Tel. ${phone}`}{phone && address && ' · '}{address}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '0.8em',
+                      left: 0,
+                      right: 0,
+                      textAlign: 'center',
+                      color: t.textMuted,
+                      fontSize: '0.6em',
+                    }}
+                  >
+                    {phone && `Tel. ${phone}`}
+                    {phone && address && ' · '}
+                    {address}
                   </div>
                 )}
 
                 {/* Bottom decorative line */}
-                <div style={{ position: 'absolute', bottom: 0, left: '10%', right: '10%', height: 2, background: t.decorLine }} />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: '10%',
+                    right: '10%',
+                    height: 2,
+                    background: t.decorLine,
+                  }}
+                />
               </div>
             )}
 
             {/* ══════════════ SALE ══════════════ */}
             {mode === 'sale' && (
-              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#f6f6f7' }}>
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  background: '#f6f6f7',
+                }}
+              >
                 {/* Header bar */}
-                <div style={{
-                  padding: '0.6em 1em', background: '#fff',
-                  borderBottom: '1px solid #e1e3e5',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                }}>
+                <div
+                  style={{
+                    padding: '0.6em 1em',
+                    background: '#fff',
+                    borderBottom: '1px solid #e1e3e5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em' }}>
                     {logoUrl ? (
-                      <img src={logoUrl} alt="" style={{ width: '1.6em', height: '1.6em', borderRadius: 4, objectFit: 'contain' }} />
+                      <img
+                        src={logoUrl}
+                        alt=""
+                        style={{ width: '1.6em', height: '1.6em', borderRadius: 4, objectFit: 'contain' }}
+                      />
                     ) : (
-                      <div style={{ width: '1.6em', height: '1.6em', borderRadius: 4, background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.8em', fontWeight: 700 }}>
+                      <div
+                        style={{
+                          width: '1.6em',
+                          height: '1.6em',
+                          borderRadius: 4,
+                          background: accent,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontSize: '0.8em',
+                          fontWeight: 700,
+                        }}
+                      >
                         {storeName.charAt(0)}
                       </div>
                     )}
@@ -1545,7 +2072,16 @@ function PreviewCard({
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6em' }}>
                     <span style={{ fontSize: '0.65em', color: '#6d7175' }}>🕐 {now}</span>
-                    <span style={{ fontSize: '0.6em', background: '#e4f5e9', color: '#0d7a47', padding: '0.15em 0.5em', borderRadius: 10, fontWeight: 600 }}>
+                    <span
+                      style={{
+                        fontSize: '0.6em',
+                        background: '#e4f5e9',
+                        color: '#0d7a47',
+                        padding: '0.15em 0.5em',
+                        borderRadius: 10,
+                        fontWeight: 600,
+                      }}
+                    >
                       {SAMPLE_ITEMS.reduce((s, i) => s + i.qty, 0)} artículos
                     </span>
                   </div>
@@ -1555,27 +2091,59 @@ function PreviewCard({
                 <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
                   {/* Left — items table */}
                   <div style={{ flex: 1.6, padding: '0.8em', overflowY: 'auto' }}>
-                    <div style={{ fontSize: '0.65em', color: '#6d7175', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.6em', letterSpacing: '0.05em' }}>
+                    <div
+                      style={{
+                        fontSize: '0.65em',
+                        color: '#6d7175',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        marginBottom: '0.6em',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
                       📋 Su compra
                     </div>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7em' }}>
                       <thead>
                         <tr style={{ borderBottom: '1px solid #e1e3e5' }}>
-                          <th style={{ textAlign: 'left', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>Cant.</th>
-                          <th style={{ textAlign: 'left', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>Producto</th>
-                          <th style={{ textAlign: 'right', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>P.Unit.</th>
-                          <th style={{ textAlign: 'right', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>Subtotal</th>
+                          <th style={{ textAlign: 'left', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>
+                            Cant.
+                          </th>
+                          <th style={{ textAlign: 'left', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>
+                            Producto
+                          </th>
+                          <th style={{ textAlign: 'right', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>
+                            P.Unit.
+                          </th>
+                          <th style={{ textAlign: 'right', padding: '0.4em', color: '#6d7175', fontWeight: 500 }}>
+                            Subtotal
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {SAMPLE_ITEMS.map((item) => (
                           <tr key={item.name} style={{ borderBottom: '1px solid #f0f0f0' }}>
                             <td style={{ padding: '0.4em' }}>
-                              <span style={{ background: '#e4f5e9', color: '#0d7a47', padding: '0.1em 0.4em', borderRadius: 6, fontWeight: 600, fontSize: '0.85em' }}>{item.qty}</span>
+                              <span
+                                style={{
+                                  background: '#e4f5e9',
+                                  color: '#0d7a47',
+                                  padding: '0.1em 0.4em',
+                                  borderRadius: 6,
+                                  fontWeight: 600,
+                                  fontSize: '0.85em',
+                                }}
+                              >
+                                {item.qty}
+                              </span>
                             </td>
                             <td style={{ padding: '0.4em', fontWeight: 600 }}>{item.name}</td>
-                            <td style={{ padding: '0.4em', textAlign: 'right', color: '#6d7175' }}>${item.price.toFixed(2)}</td>
-                            <td style={{ padding: '0.4em', textAlign: 'right', fontWeight: 600 }}>${item.sub.toFixed(2)}</td>
+                            <td style={{ padding: '0.4em', textAlign: 'right', color: '#6d7175' }}>
+                              ${item.price.toFixed(2)}
+                            </td>
+                            <td style={{ padding: '0.4em', textAlign: 'right', fontWeight: 600 }}>
+                              ${item.sub.toFixed(2)}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1585,19 +2153,52 @@ function PreviewCard({
                   {/* Right — totals */}
                   <div style={{ flex: 1, padding: '0.8em', display: 'flex', flexDirection: 'column', gap: '0.6em' }}>
                     <div style={{ background: '#fff', borderRadius: 8, padding: '0.8em', border: '1px solid #e1e3e5' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', marginBottom: '0.3em' }}>
-                        <span>Subtotal</span><span>${SAMPLE_TOTAL.toFixed(2)}</span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '0.75em',
+                          marginBottom: '0.3em',
+                        }}
+                      >
+                        <span>Subtotal</span>
+                        <span>${SAMPLE_TOTAL.toFixed(2)}</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6em', color: '#6d7175', marginBottom: '0.5em' }}>
-                        <span>IVA (16%)</span><span>${SAMPLE_IVA.toFixed(2)}</span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '0.6em',
+                          color: '#6d7175',
+                          marginBottom: '0.5em',
+                        }}
+                      >
+                        <span>IVA (16%)</span>
+                        <span>${SAMPLE_IVA.toFixed(2)}</span>
                       </div>
-                      <div style={{ borderTop: '1px solid #e1e3e5', paddingTop: '0.5em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div
+                        style={{
+                          borderTop: '1px solid #e1e3e5',
+                          paddingTop: '0.5em',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
                         <span style={{ fontSize: '0.9em', fontWeight: 700 }}>TOTAL</span>
                         <span style={{ fontSize: '1.3em', fontWeight: 800 }}>${SAMPLE_TOTAL.toFixed(2)}</span>
                       </div>
                     </div>
 
-                    <div style={{ background: '#fff', borderRadius: 8, padding: '0.6em', border: '1px solid #e1e3e5', textAlign: 'center' }}>
+                    <div
+                      style={{
+                        background: '#fff',
+                        borderRadius: 8,
+                        padding: '0.6em',
+                        border: '1px solid #e1e3e5',
+                        textAlign: 'center',
+                      }}
+                    >
                       <div style={{ fontSize: '0.6em', color: '#6d7175' }}>Método de pago</div>
                       <div style={{ fontSize: '0.8em', fontWeight: 700, marginTop: '0.2em' }}>💵 Efectivo</div>
                     </div>
@@ -1612,18 +2213,32 @@ function PreviewCard({
 
             {/* ══════════════ FINISHED ══════════════ */}
             {mode === 'done' && (
-              <div style={{
-                width: '100%', height: '100%', background: '#fff',
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
-                gap: '1em', padding: '2em 1.5em',
-              }}>
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  background: '#fff',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '1em',
+                  padding: '2em 1.5em',
+                }}
+              >
                 {/* Check icon */}
-                <div style={{
-                  width: '3em', height: '3em', borderRadius: '50%',
-                  background: '#e4f5e9', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1.5em',
-                }}>
+                <div
+                  style={{
+                    width: '3em',
+                    height: '3em',
+                    borderRadius: '50%',
+                    background: '#e4f5e9',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.5em',
+                  }}
+                >
                   ✓
                 </div>
 
@@ -1633,40 +2248,87 @@ function PreviewCard({
                 </div>
 
                 {/* Receipt card */}
-                <div style={{
-                  background: '#fff', borderRadius: 8, padding: '1em',
-                  border: '1px solid #e1e3e5', minWidth: '50%', maxWidth: '75%',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8em', marginBottom: '0.4em' }}>
+                <div
+                  style={{
+                    background: '#fff',
+                    borderRadius: 8,
+                    padding: '1em',
+                    border: '1px solid #e1e3e5',
+                    minWidth: '50%',
+                    maxWidth: '75%',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.8em',
+                      marginBottom: '0.4em',
+                    }}
+                  >
                     <span style={{ color: '#6d7175' }}>Total pagado</span>
                     <span style={{ fontWeight: 800, fontSize: '1.1em' }}>${SAMPLE_TOTAL.toFixed(2)}</span>
                   </div>
-                  <div style={{ borderTop: '1px solid #e1e3e5', paddingTop: '0.4em', display: 'flex', justifyContent: 'space-between', fontSize: '0.7em' }}>
+                  <div
+                    style={{
+                      borderTop: '1px solid #e1e3e5',
+                      paddingTop: '0.4em',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.7em',
+                    }}
+                  >
                     <span style={{ color: '#6d7175' }}>Método</span>
-                    <span style={{ background: '#f0f0f0', padding: '0.1em 0.5em', borderRadius: 6, fontWeight: 500 }}>Efectivo</span>
+                    <span style={{ background: '#f0f0f0', padding: '0.1em 0.5em', borderRadius: 6, fontWeight: 500 }}>
+                      Efectivo
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7em', marginTop: '0.3em' }}>
+                  <div
+                    style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7em', marginTop: '0.3em' }}
+                  >
                     <span style={{ color: '#6d7175' }}>Folio</span>
                     <span style={{ fontWeight: 600 }}>V-00042</span>
                   </div>
-                  <div style={{ borderTop: '1px solid #e1e3e5', paddingTop: '0.4em', display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', marginTop: '0.3em' }}>
+                  <div
+                    style={{
+                      borderTop: '1px solid #e1e3e5',
+                      paddingTop: '0.4em',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.75em',
+                      marginTop: '0.3em',
+                    }}
+                  >
                     <span style={{ color: '#6d7175' }}>Su cambio</span>
                     <span style={{ fontWeight: 700, color: '#b98900' }}>${(200 - SAMPLE_TOTAL).toFixed(2)}</span>
                   </div>
                 </div>
 
                 {/* Farewell message — uses actual styling */}
-                <div style={{
-                  textAlign: fs.textAlign, width: '100%',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3em', justifyContent: fs.textAlign === 'center' ? 'center' : fs.textAlign === 'right' ? 'flex-end' : 'flex-start' }}>
+                <div
+                  style={{
+                    textAlign: fs.textAlign,
+                    width: '100%',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3em',
+                      justifyContent:
+                        fs.textAlign === 'center' ? 'center' : fs.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                    }}
+                  >
                     {fs.showIcon && <span>⭐</span>}
-                    <span style={{
-                      fontSize: PREVIEW_TEXT_SIZE[fs.textSize].main,
-                      fontWeight: fs.textWeight === 'bold' ? 700 : fs.textWeight === 'semibold' ? 600 : 400,
-                      color: fs.textColor || '#6d7175',
-                      textTransform: fs.uppercase ? 'uppercase' : undefined,
-                    }}>
+                    <span
+                      style={{
+                        fontSize: PREVIEW_TEXT_SIZE[fs.textSize].main,
+                        fontWeight: fs.textWeight === 'bold' ? 700 : fs.textWeight === 'semibold' ? 600 : 400,
+                        color: fs.textColor || '#6d7175',
+                        textTransform: fs.uppercase ? 'uppercase' : undefined,
+                      }}
+                    >
                       {farewellText}
                     </span>
                     {fs.showIcon && <span>⭐</span>}
@@ -1682,10 +2344,18 @@ function PreviewCard({
           </div>
 
           {/* Orientation badge overlay */}
-          <div style={{
-            position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)',
-            color: '#fff', fontSize: 10, padding: '2px 8px', borderRadius: 4,
-          }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              background: 'rgba(0,0,0,0.6)',
+              color: '#fff',
+              fontSize: 10,
+              padding: '2px 8px',
+              borderRadius: 4,
+            }}
+          >
             {isPortrait ? '📱 Vertical' : '🖥️ Horizontal'} · {`${scale}x`}
           </div>
         </div>

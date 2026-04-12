@@ -38,7 +38,8 @@ interface CircuitBreakerOptions {
   /** Success count needed in HALF_OPEN to close. Default: 2 */
   halfOpenSuccessThreshold?: number;
   /** Optional fallback to execute when circuit is open */
-  fallback?: <T>() => T | Promise<T>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  fallback?: () => any;
 }
 
 interface CircuitBreakerStats {
@@ -85,10 +86,7 @@ const DEFAULT_FAILURE_THRESHOLD = 5;
 const DEFAULT_RESET_TIMEOUT_MS = 30_000;
 const DEFAULT_HALF_OPEN_SUCCESS = 2;
 
-export function createCircuitBreaker(
-  service: string,
-  options?: CircuitBreakerOptions,
-): CircuitBreaker {
+export function createCircuitBreaker(service: string, options?: CircuitBreakerOptions): CircuitBreaker {
   const failureThreshold = options?.failureThreshold ?? DEFAULT_FAILURE_THRESHOLD;
   const resetTimeoutMs = options?.resetTimeoutMs ?? DEFAULT_RESET_TIMEOUT_MS;
   const halfOpenSuccess = options?.halfOpenSuccessThreshold ?? DEFAULT_HALF_OPEN_SUCCESS;

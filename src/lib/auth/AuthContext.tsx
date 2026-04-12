@@ -15,7 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  signOut: async () => { },
+  signOut: async () => {},
   getIdToken: async () => null,
 });
 
@@ -27,7 +27,7 @@ export function useAuth() {
  * Sets the __session cookie with the Firebase ID token.
  * This cookie is read by server-side code (Server Actions, API routes)
  * to authenticate requests.
- * 
+ *
  * IMPORTANT: We only SET the cookie when a user is present.
  * We DO NOT clear the cookie here - that's only done on explicit logout.
  * This prevents race conditions where a new tab briefly reports user=null
@@ -73,14 +73,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Refresh the token/cookie periodically (every 50 min, tokens expire at 60 min)
   useEffect(() => {
     if (!user) return;
-    const interval = setInterval(async () => {
-      try {
-        await user.getIdToken(true); // Force refresh
-        await syncSessionCookie(user);
-      } catch {
-        // Token refresh failed — user might be signed out
-      }
-    }, 50 * 60 * 1000);
+    const interval = setInterval(
+      async () => {
+        try {
+          await user.getIdToken(true); // Force refresh
+          await syncSessionCookie(user);
+        } catch {
+          // Token refresh failed — user might be signed out
+        }
+      },
+      50 * 60 * 1000,
+    );
     return () => clearInterval(interval);
   }, [user]);
 
@@ -114,17 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(expInterval);
   }, [user, handleSignOut]);
 
-  const getIdToken = useCallback(async (forceRefresh = false): Promise<string | null> => {
-    if (!user) return null;
-    try {
-      const token = await user.getIdToken(forceRefresh);
-      // Sincronizar cookie de inmediato para asegurar que el servidor la vea
-      document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Strict; Secure`;
-      return token;
-    } catch {
-      return null;
-    }
-  }, [user]);
+  const getIdToken = useCallback(
+    async (forceRefresh = false): Promise<string | null> => {
+      if (!user) return null;
+      try {
+        const token = await user.getIdToken(forceRefresh);
+        // Sincronizar cookie de inmediato para asegurar que el servidor la vea
+        document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Strict; Secure`;
+        return token;
+      } catch {
+        return null;
+      }
+    },
+    [user],
+  );
 
   return (
     <AuthContext.Provider value={{ user, loading, signOut: handleSignOut, getIdToken }}>

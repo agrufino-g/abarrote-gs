@@ -39,7 +39,7 @@ async function _createCashMovement(data: {
   cajero: string;
 }): Promise<CashMovement> {
   await requirePermission('corte.create');
-  const validated = validateSchema(createCashMovementSchema, data, 'createCashMovement');
+  const _validated = validateSchema(createCashMovementSchema, data, 'createCashMovement');
 
   const id = `cm-${crypto.randomUUID()}`;
   const now = new Date();

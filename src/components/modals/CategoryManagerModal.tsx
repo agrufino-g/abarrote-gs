@@ -14,11 +14,7 @@ import {
   Divider,
   Icon,
 } from '@shopify/polaris';
-import {
-  DeleteIcon,
-  CollectionIcon,
-  PlusIcon,
-} from '@shopify/polaris-icons';
+import { CollectionIcon, PlusIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 
@@ -47,23 +43,26 @@ export function CategoryManagerModal({ open, onClose }: CategoryManagerModalProp
       });
       setNewName('');
       showSuccess('Categoría creada correctamente');
-    } catch (err) {
+    } catch (_err) {
       showError('Error al crear la categoría');
     } finally {
       setIsSubmitting(false);
     }
   }, [newName, createCategory, showSuccess, showError]);
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (confirm('¿Estás seguro de eliminar esta categoría?')) {
-      try {
-        await deleteCategory(id);
-        showSuccess('Categoría eliminada');
-      } catch (err) {
-        showError('No se pudo eliminar la categoría');
+  const handleDelete = useCallback(
+    async (id: string) => {
+      if (confirm('¿Estás seguro de eliminar esta categoría?')) {
+        try {
+          await deleteCategory(id);
+          showSuccess('Categoría eliminada');
+        } catch (_err) {
+          showError('No se pudo eliminar la categoría');
+        }
       }
-    }
-  }, [deleteCategory, showSuccess, showError]);
+    },
+    [deleteCategory, showSuccess, showError],
+  );
 
   return (
     <Modal
@@ -76,7 +75,9 @@ export function CategoryManagerModal({ open, onClose }: CategoryManagerModalProp
         <BlockStack gap="400">
           <Box padding="400" background="bg-surface-secondary" borderRadius="200">
             <BlockStack gap="200">
-              <Text as="h3" variant="headingSm">Nueva Categoría</Text>
+              <Text as="h3" variant="headingSm">
+                Nueva Categoría
+              </Text>
               <InlineStack gap="200">
                 <Box minWidth="300px">
                   <TextField
@@ -89,9 +90,9 @@ export function CategoryManagerModal({ open, onClose }: CategoryManagerModalProp
                     disabled={isSubmitting}
                   />
                 </Box>
-                <Button 
-                  variant="primary" 
-                  icon={PlusIcon} 
+                <Button
+                  variant="primary"
+                  icon={PlusIcon}
                   onClick={handleCreate}
                   loading={isSubmitting}
                   disabled={!newName.trim()}
@@ -104,8 +105,10 @@ export function CategoryManagerModal({ open, onClose }: CategoryManagerModalProp
 
           <Divider />
 
-          <Text as="h3" variant="headingMd">Categorías existentes</Text>
-          
+          <Text as="h3" variant="headingMd">
+            Categorías existentes
+          </Text>
+
           <Box borderStyle="solid" borderWidth="025" borderColor="border" borderRadius="200">
             <ResourceList
               resourceName={{ singular: 'categoría', plural: 'categorías' }}
@@ -115,7 +118,9 @@ export function CategoryManagerModal({ open, onClose }: CategoryManagerModalProp
                 return (
                   <ResourceItem
                     id={id}
-                    onClick={() => {}}
+                    onClick={() => {
+                      /* row selection handled by ResourceList */
+                    }}
                     shortcutActions={[
                       {
                         content: 'Eliminar',

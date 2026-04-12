@@ -18,12 +18,12 @@ import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/components/notifications/ToastProvider';
 
 export function CortesHistory() {
-  const cortesHistory  = useDashboardStore((s) => s.cortesHistory);
-  const deleteCortes   = useDashboardStore((s) => s.deleteCortes);
+  const cortesHistory = useDashboardStore((s) => s.cortesHistory);
+  const deleteCortes = useDashboardStore((s) => s.deleteCortes);
   const { showSuccess, showError } = useToast();
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleting,        setDeleting]        = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const sorted = [...cortesHistory].reverse();
 
@@ -38,7 +38,9 @@ export function CortesHistory() {
     setDeleting(true);
     try {
       await deleteCortes(selectedIds);
-      showSuccess(`${selectedIds.length} corte${selectedIds.length !== 1 ? 's' : ''} eliminado${selectedIds.length !== 1 ? 's' : ''}`);
+      showSuccess(
+        `${selectedIds.length} corte${selectedIds.length !== 1 ? 's' : ''} eliminado${selectedIds.length !== 1 ? 's' : ''}`,
+      );
       clearSelection();
       setDeleteModalOpen(false);
     } catch {
@@ -59,13 +61,11 @@ export function CortesHistory() {
           {/* Header */}
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--p-color-border)' }}>
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">Historial de Cortes</Text>
+              <Text as="h2" variant="headingMd">
+                Historial de Cortes
+              </Text>
               {selectedCount > 0 && (
-                <Button
-                  icon={DeleteIcon}
-                  tone="critical"
-                  onClick={() => setDeleteModalOpen(true)}
-                >
+                <Button icon={DeleteIcon} tone="critical" onClick={() => setDeleteModalOpen(true)}>
                   {`Eliminar (${selectedCount})`}
                 </Button>
               )}
@@ -87,18 +87,17 @@ export function CortesHistory() {
             ]}
           >
             {sorted.map((c, idx) => (
-              <IndexTable.Row
-                id={c.id}
-                key={c.id}
-                position={idx}
-                selected={selectedIds.includes(c.id)}
-              >
+              <IndexTable.Row id={c.id} key={c.id} position={idx} selected={selectedIds.includes(c.id)}>
                 <IndexTable.Cell>
-                  <Text as="span" variant="bodySm">{new Date(c.fecha).toLocaleDateString('es-MX')}</Text>
+                  <Text as="span" variant="bodySm">
+                    {new Date(c.fecha).toLocaleDateString('es-MX')}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>{c.cajero}</IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" fontWeight="semibold">{formatCurrency(c.totalVentas)}</Text>
+                  <Text as="span" fontWeight="semibold">
+                    {formatCurrency(c.totalVentas)}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>{formatCurrency(c.efectivoEsperado)}</IndexTable.Cell>
                 <IndexTable.Cell>{formatCurrency(c.efectivoContado)}</IndexTable.Cell>
@@ -123,14 +122,18 @@ export function CortesHistory() {
           loading: deleting,
           onAction: handleDeleteSelected,
         }}
-        secondaryActions={[{
-          content: 'Cancelar',
-          onAction: () => setDeleteModalOpen(false),
-        }]}
+        secondaryActions={[
+          {
+            content: 'Cancelar',
+            onAction: () => setDeleteModalOpen(false),
+          },
+        ]}
       >
         <Modal.Section>
           <Text as="p">
-            Esta acción eliminará permanentemente {selectedCount === 1 ? 'el corte seleccionado' : `los ${selectedCount} cortes seleccionados`}. No se puede deshacer.
+            Esta acción eliminará permanentemente{' '}
+            {selectedCount === 1 ? 'el corte seleccionado' : `los ${selectedCount} cortes seleccionados`}. No se puede
+            deshacer.
           </Text>
         </Modal.Section>
       </Modal>

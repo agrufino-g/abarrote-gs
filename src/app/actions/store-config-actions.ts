@@ -6,8 +6,12 @@ import { db } from '@/db';
 import { storeConfig } from '@/db/schema';
 import { eq, getTableColumns } from 'drizzle-orm';
 import type { StoreConfig, TicketDesignConfig, CustomerDisplayMessageStyle } from '@/types';
-import { DEFAULT_STORE_CONFIG, DEFAULT_TICKET_DESIGN, DEFAULT_TICKET_DESIGN_PROVEEDOR, DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE } from '@/types';
-import { numVal } from './_helpers';
+import {
+  DEFAULT_STORE_CONFIG,
+  DEFAULT_TICKET_DESIGN,
+  DEFAULT_TICKET_DESIGN_PROVEEDOR,
+  DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE,
+} from '@/types';
 import { validateSchema, saveStoreConfigSchema } from '@/lib/validation/schemas';
 import { cache } from '@/infrastructure/redis';
 import { emitDomainEvent } from '@/domain/events';
@@ -39,24 +43,66 @@ function isUndefinedColumnError(error: unknown): boolean {
 
 /** Core columns present since the initial migration (safe fallback for un-migrated DBs). */
 const CORE_DB_COLUMNS = new Set([
-  'storeName', 'legalName', 'address', 'city', 'postalCode', 'phone',
-  'rfc', 'regimenFiscal', 'regimenDescription', 'ivaRate', 'pricesIncludeIva',
-  'currency', 'lowStockThreshold', 'expirationWarningDays', 'printReceipts',
-  'autoBackup', 'ticketFooter', 'ticketServicePhone', 'ticketVigencia',
-  'storeNumber', 'ticketBarcodeFormat', 'enableNotifications',
-  'telegramToken', 'telegramChatId', 'printerIp', 'cashDrawerPort', 'scalePort',
-  'loyaltyEnabled', 'pointsPerPeso', 'pointsValue', 'logoUrl',
-  'customerDisplayEnabled', 'customerDisplayWelcome', 'customerDisplayFarewell',
-  'customerDisplayPromoText', 'customerDisplayPromoImage',
-  'customerDisplayIdleAnimation', 'customerDisplayTransitionSpeed',
-  'customerDisplayPromoAnimation', 'customerDisplayShowClock',
-  'customerDisplayTheme', 'customerDisplayIdleCarousel', 'customerDisplayCarouselInterval',
-  'customerDisplayLogo', 'customerDisplayFontScale', 'customerDisplayAutoReturnSec',
-  'customerDisplayAccentColor', 'customerDisplaySoundEnabled', 'customerDisplayOrientation',
+  'storeName',
+  'legalName',
+  'address',
+  'city',
+  'postalCode',
+  'phone',
+  'rfc',
+  'regimenFiscal',
+  'regimenDescription',
+  'ivaRate',
+  'pricesIncludeIva',
+  'currency',
+  'lowStockThreshold',
+  'expirationWarningDays',
+  'printReceipts',
+  'autoBackup',
+  'ticketFooter',
+  'ticketServicePhone',
+  'ticketVigencia',
+  'storeNumber',
+  'ticketBarcodeFormat',
+  'enableNotifications',
+  'telegramToken',
+  'telegramChatId',
+  'printerIp',
+  'cashDrawerPort',
+  'scalePort',
+  'loyaltyEnabled',
+  'pointsPerPeso',
+  'pointsValue',
+  'logoUrl',
+  'customerDisplayEnabled',
+  'customerDisplayWelcome',
+  'customerDisplayFarewell',
+  'customerDisplayPromoText',
+  'customerDisplayPromoImage',
+  'customerDisplayIdleAnimation',
+  'customerDisplayTransitionSpeed',
+  'customerDisplayPromoAnimation',
+  'customerDisplayShowClock',
+  'customerDisplayTheme',
+  'customerDisplayIdleCarousel',
+  'customerDisplayCarouselInterval',
+  'customerDisplayLogo',
+  'customerDisplayFontScale',
+  'customerDisplayAutoReturnSec',
+  'customerDisplayAccentColor',
+  'customerDisplaySoundEnabled',
+  'customerDisplayOrientation',
   'customerDisplayMessageStyle',
+  'serviciosProvider',
+  'serviciosApiKey',
+  'serviciosApiSecret',
+  'serviciosSandbox',
 ]);
 
-function parseTicketDesign(raw: string | null | undefined, defaults: TicketDesignConfig = DEFAULT_TICKET_DESIGN): TicketDesignConfig {
+function parseTicketDesign(
+  raw: string | null | undefined,
+  defaults: TicketDesignConfig = DEFAULT_TICKET_DESIGN,
+): TicketDesignConfig {
   if (!raw) return { ...defaults };
   try {
     const parsed = JSON.parse(raw);
@@ -68,7 +114,13 @@ function parseTicketDesign(raw: string | null | undefined, defaults: TicketDesig
 
 function parseMessageStyle(raw: string | null | undefined): CustomerDisplayMessageStyle {
   const defaults = DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE;
-  if (!raw) return { ...defaults, welcome: { ...defaults.welcome }, farewell: { ...defaults.farewell }, promo: { ...defaults.promo } };
+  if (!raw)
+    return {
+      ...defaults,
+      welcome: { ...defaults.welcome },
+      farewell: { ...defaults.farewell },
+      promo: { ...defaults.promo },
+    };
   try {
     const parsed = JSON.parse(raw);
     return {
@@ -77,7 +129,12 @@ function parseMessageStyle(raw: string | null | undefined): CustomerDisplayMessa
       promo: { ...defaults.promo, ...(parsed.promo ?? {}) },
     };
   } catch {
-    return { ...defaults, welcome: { ...defaults.welcome }, farewell: { ...defaults.farewell }, promo: { ...defaults.promo } };
+    return {
+      ...defaults,
+      welcome: { ...defaults.welcome },
+      farewell: { ...defaults.farewell },
+      promo: { ...defaults.promo },
+    };
   }
 }
 
@@ -133,6 +190,11 @@ function mapStoreConfigRow(row: any): StoreConfig {
     clipEnabled: row.clipEnabled ?? DEFAULT_STORE_CONFIG.clipEnabled,
     clipApiKey: row.clipApiKey ?? undefined,
     clipSerialNumber: row.clipSerialNumber ?? undefined,
+    // Servicios provider
+    serviciosProvider: row.serviciosProvider ?? 'local',
+    serviciosApiKey: row.serviciosApiKey ?? undefined,
+    serviciosApiSecret: row.serviciosApiSecret ?? undefined,
+    serviciosSandbox: row.serviciosSandbox ?? true,
     customerDisplayEnabled: row.customerDisplayEnabled ?? DEFAULT_STORE_CONFIG.customerDisplayEnabled,
     customerDisplayWelcome: row.customerDisplayWelcome ?? DEFAULT_STORE_CONFIG.customerDisplayWelcome,
     customerDisplayFarewell: row.customerDisplayFarewell ?? DEFAULT_STORE_CONFIG.customerDisplayFarewell,
@@ -142,12 +204,15 @@ function mapStoreConfigRow(row: any): StoreConfig {
     autoCorteTime: (row.autoCorteTime as string) ?? DEFAULT_STORE_CONFIG.autoCorteTime,
     defaultStartingFund: Number(row.defaultStartingFund) || DEFAULT_STORE_CONFIG.defaultStartingFund,
     customerDisplayIdleAnimation: row.customerDisplayIdleAnimation ?? DEFAULT_STORE_CONFIG.customerDisplayIdleAnimation,
-    customerDisplayTransitionSpeed: row.customerDisplayTransitionSpeed ?? DEFAULT_STORE_CONFIG.customerDisplayTransitionSpeed,
-    customerDisplayPromoAnimation: row.customerDisplayPromoAnimation ?? DEFAULT_STORE_CONFIG.customerDisplayPromoAnimation,
+    customerDisplayTransitionSpeed:
+      row.customerDisplayTransitionSpeed ?? DEFAULT_STORE_CONFIG.customerDisplayTransitionSpeed,
+    customerDisplayPromoAnimation:
+      row.customerDisplayPromoAnimation ?? DEFAULT_STORE_CONFIG.customerDisplayPromoAnimation,
     customerDisplayShowClock: row.customerDisplayShowClock ?? DEFAULT_STORE_CONFIG.customerDisplayShowClock,
     customerDisplayTheme: row.customerDisplayTheme ?? DEFAULT_STORE_CONFIG.customerDisplayTheme,
     customerDisplayIdleCarousel: row.customerDisplayIdleCarousel ?? DEFAULT_STORE_CONFIG.customerDisplayIdleCarousel,
-    customerDisplayCarouselInterval: row.customerDisplayCarouselInterval ?? DEFAULT_STORE_CONFIG.customerDisplayCarouselInterval,
+    customerDisplayCarouselInterval:
+      row.customerDisplayCarouselInterval ?? DEFAULT_STORE_CONFIG.customerDisplayCarouselInterval,
     customerDisplayLogo: row.customerDisplayLogo ?? DEFAULT_STORE_CONFIG.customerDisplayLogo,
     customerDisplayFontScale: row.customerDisplayFontScale ?? DEFAULT_STORE_CONFIG.customerDisplayFontScale,
     customerDisplayAutoReturnSec: row.customerDisplayAutoReturnSec ?? DEFAULT_STORE_CONFIG.customerDisplayAutoReturnSec,
@@ -156,7 +221,13 @@ function mapStoreConfigRow(row: any): StoreConfig {
     customerDisplayOrientation: row.customerDisplayOrientation ?? DEFAULT_STORE_CONFIG.customerDisplayOrientation,
     customerDisplayMessageStyle: parseMessageStyle(row.customerDisplayMessageStyle),
     ticketDesignVenta: parseTicketDesign(row.ticketDesignVenta),
-    ticketDesignCorte: parseTicketDesign(row.ticketDesignCorte, { ...DEFAULT_TICKET_DESIGN, headerNote: 'CORTE DE CAJA', showItemCount: false, showDiscount: false, showUnitDetail: false }),
+    ticketDesignCorte: parseTicketDesign(row.ticketDesignCorte, {
+      ...DEFAULT_TICKET_DESIGN,
+      headerNote: 'CORTE DE CAJA',
+      showItemCount: false,
+      showDiscount: false,
+      showUnitDetail: false,
+    }),
     ticketDesignProveedor: parseTicketDesign(row.ticketDesignProveedor, DEFAULT_TICKET_DESIGN_PROVEEDOR),
   };
 }
@@ -179,58 +250,61 @@ async function _fetchStoreConfig(): Promise<StoreConfig> {
     if (!isUndefinedColumnError(error)) throw error;
 
     // Fallback: select only core columns that are guaranteed to exist
-    const rows = await db.select({
-      id: storeConfig.id,
-      storeName: storeConfig.storeName,
-      legalName: storeConfig.legalName,
-      address: storeConfig.address,
-      city: storeConfig.city,
-      postalCode: storeConfig.postalCode,
-      phone: storeConfig.phone,
-      rfc: storeConfig.rfc,
-      regimenFiscal: storeConfig.regimenFiscal,
-      regimenDescription: storeConfig.regimenDescription,
-      ivaRate: storeConfig.ivaRate,
-      pricesIncludeIva: storeConfig.pricesIncludeIva,
-      currency: storeConfig.currency,
-      lowStockThreshold: storeConfig.lowStockThreshold,
-      expirationWarningDays: storeConfig.expirationWarningDays,
-      printReceipts: storeConfig.printReceipts,
-      autoBackup: storeConfig.autoBackup,
-      ticketFooter: storeConfig.ticketFooter,
-      ticketServicePhone: storeConfig.ticketServicePhone,
-      ticketVigencia: storeConfig.ticketVigencia,
-      storeNumber: storeConfig.storeNumber,
-      ticketBarcodeFormat: storeConfig.ticketBarcodeFormat,
-      enableNotifications: storeConfig.enableNotifications,
-      telegramToken: storeConfig.telegramToken,
-      telegramChatId: storeConfig.telegramChatId,
-      printerIp: storeConfig.printerIp,
-      cashDrawerPort: storeConfig.cashDrawerPort,
-      scalePort: storeConfig.scalePort,
-      loyaltyEnabled: storeConfig.loyaltyEnabled,
-      pointsPerPeso: storeConfig.pointsPerPeso,
-      pointsValue: storeConfig.pointsValue,
-      logoUrl: storeConfig.logoUrl,
-      customerDisplayEnabled: storeConfig.customerDisplayEnabled,
-      customerDisplayWelcome: storeConfig.customerDisplayWelcome,
-      customerDisplayFarewell: storeConfig.customerDisplayFarewell,
-      customerDisplayPromoText: storeConfig.customerDisplayPromoText,
-      customerDisplayPromoImage: storeConfig.customerDisplayPromoImage,
-      customerDisplayIdleAnimation: storeConfig.customerDisplayIdleAnimation,
-      customerDisplayTransitionSpeed: storeConfig.customerDisplayTransitionSpeed,
-      customerDisplayPromoAnimation: storeConfig.customerDisplayPromoAnimation,
-      customerDisplayShowClock: storeConfig.customerDisplayShowClock,
-      customerDisplayTheme: storeConfig.customerDisplayTheme,
-      customerDisplayIdleCarousel: storeConfig.customerDisplayIdleCarousel,
-      customerDisplayCarouselInterval: storeConfig.customerDisplayCarouselInterval,
-      customerDisplayLogo: storeConfig.customerDisplayLogo,
-      customerDisplayFontScale: storeConfig.customerDisplayFontScale,
-      customerDisplayAutoReturnSec: storeConfig.customerDisplayAutoReturnSec,
-      customerDisplayAccentColor: storeConfig.customerDisplayAccentColor,
-      customerDisplaySoundEnabled: storeConfig.customerDisplaySoundEnabled,
-      customerDisplayOrientation: storeConfig.customerDisplayOrientation,
-    }).from(storeConfig).limit(1);
+    const rows = await db
+      .select({
+        id: storeConfig.id,
+        storeName: storeConfig.storeName,
+        legalName: storeConfig.legalName,
+        address: storeConfig.address,
+        city: storeConfig.city,
+        postalCode: storeConfig.postalCode,
+        phone: storeConfig.phone,
+        rfc: storeConfig.rfc,
+        regimenFiscal: storeConfig.regimenFiscal,
+        regimenDescription: storeConfig.regimenDescription,
+        ivaRate: storeConfig.ivaRate,
+        pricesIncludeIva: storeConfig.pricesIncludeIva,
+        currency: storeConfig.currency,
+        lowStockThreshold: storeConfig.lowStockThreshold,
+        expirationWarningDays: storeConfig.expirationWarningDays,
+        printReceipts: storeConfig.printReceipts,
+        autoBackup: storeConfig.autoBackup,
+        ticketFooter: storeConfig.ticketFooter,
+        ticketServicePhone: storeConfig.ticketServicePhone,
+        ticketVigencia: storeConfig.ticketVigencia,
+        storeNumber: storeConfig.storeNumber,
+        ticketBarcodeFormat: storeConfig.ticketBarcodeFormat,
+        enableNotifications: storeConfig.enableNotifications,
+        telegramToken: storeConfig.telegramToken,
+        telegramChatId: storeConfig.telegramChatId,
+        printerIp: storeConfig.printerIp,
+        cashDrawerPort: storeConfig.cashDrawerPort,
+        scalePort: storeConfig.scalePort,
+        loyaltyEnabled: storeConfig.loyaltyEnabled,
+        pointsPerPeso: storeConfig.pointsPerPeso,
+        pointsValue: storeConfig.pointsValue,
+        logoUrl: storeConfig.logoUrl,
+        customerDisplayEnabled: storeConfig.customerDisplayEnabled,
+        customerDisplayWelcome: storeConfig.customerDisplayWelcome,
+        customerDisplayFarewell: storeConfig.customerDisplayFarewell,
+        customerDisplayPromoText: storeConfig.customerDisplayPromoText,
+        customerDisplayPromoImage: storeConfig.customerDisplayPromoImage,
+        customerDisplayIdleAnimation: storeConfig.customerDisplayIdleAnimation,
+        customerDisplayTransitionSpeed: storeConfig.customerDisplayTransitionSpeed,
+        customerDisplayPromoAnimation: storeConfig.customerDisplayPromoAnimation,
+        customerDisplayShowClock: storeConfig.customerDisplayShowClock,
+        customerDisplayTheme: storeConfig.customerDisplayTheme,
+        customerDisplayIdleCarousel: storeConfig.customerDisplayIdleCarousel,
+        customerDisplayCarouselInterval: storeConfig.customerDisplayCarouselInterval,
+        customerDisplayLogo: storeConfig.customerDisplayLogo,
+        customerDisplayFontScale: storeConfig.customerDisplayFontScale,
+        customerDisplayAutoReturnSec: storeConfig.customerDisplayAutoReturnSec,
+        customerDisplayAccentColor: storeConfig.customerDisplayAccentColor,
+        customerDisplaySoundEnabled: storeConfig.customerDisplaySoundEnabled,
+        customerDisplayOrientation: storeConfig.customerDisplayOrientation,
+      })
+      .from(storeConfig)
+      .limit(1);
 
     if (rows.length === 0) {
       await db.insert(storeConfig).values({ id: 'main' });
@@ -244,7 +318,12 @@ async function _saveStoreConfig(data: Partial<StoreConfig>): Promise<StoreConfig
   const user = await requireOwner();
 
   /** Build a dbValues object containing only keys present in the given column set. */
-  const JSON_FIELDS = new Set(['ticketDesignVenta', 'ticketDesignCorte', 'ticketDesignProveedor', 'customerDisplayMessageStyle']);
+  const JSON_FIELDS = new Set([
+    'ticketDesignVenta',
+    'ticketDesignCorte',
+    'ticketDesignProveedor',
+    'customerDisplayMessageStyle',
+  ]);
 
   // Pre-serialize JSON fields so Zod sees strings, not objects
   const serialized: Record<string, unknown> = { ...data };

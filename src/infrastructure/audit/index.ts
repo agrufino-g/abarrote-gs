@@ -25,7 +25,16 @@ import { logger, getRequestContext } from '@/lib/logger';
 // Types
 // ══════════════════════════════════════════════════════════════
 
-type AuditAction = 'create' | 'update' | 'delete' | 'restore' | 'login' | 'logout' | 'export' | 'bulk_delete' | 'config_change';
+type AuditAction =
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'restore'
+  | 'login'
+  | 'logout'
+  | 'export'
+  | 'bulk_delete'
+  | 'config_change';
 
 type AuditEntity =
   | 'product'

@@ -31,15 +31,7 @@ export interface SyncEngineConfig {
   readonly circuitBreakerCooldownMs: number;
 }
 
-export type SyncDomain =
-  | 'sales'
-  | 'products'
-  | 'inventory'
-  | 'customers'
-  | 'finance'
-  | 'config'
-  | 'roles'
-  | 'all';
+export type SyncDomain = 'sales' | 'products' | 'inventory' | 'customers' | 'finance' | 'config' | 'roles' | 'all';
 
 interface BroadcastMessage {
   type: 'MUTATION' | 'FULL_REFRESH' | 'PING';
@@ -97,9 +89,7 @@ export class SyncEngine {
 
   constructor(config?: Partial<SyncEngineConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.tabId = typeof crypto !== 'undefined'
-      ? crypto.randomUUID()
-      : `tab-${Date.now()}`;
+    this.tabId = typeof crypto !== 'undefined' ? crypto.randomUUID() : `tab-${Date.now()}`;
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────
@@ -116,7 +106,7 @@ export class SyncEngine {
     this.startPolling();
 
     this.emitStatus();
-    
+
     // NOTE: Initial data load is NOT done here anymore.
     // The consumer (useSyncEngine) is responsible for calling forceRefresh()
     // AFTER confirming the user is authenticated. This prevents race conditions

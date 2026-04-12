@@ -28,9 +28,7 @@ export default function AuthPage() {
   return (
     <>
       <Toaster position="top-right" theme="light" />
-      <AuthLayout>
-        {renderAuthForm()}
-      </AuthLayout>
+      <AuthLayout>{renderAuthForm()}</AuthLayout>
     </>
   );
 }

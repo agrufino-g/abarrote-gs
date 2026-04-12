@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
     const { sendNotificationDirect } = await import('@/infrastructure/qstash/handlers');
     await sendNotificationDirect(
       `<b>REPORTE DE STOCK CRÍTICO</b>\n\n` +
-      `Producto: ${escapeHTML(payload.productName)}\n` +
-      `Stock actual: ${payload.currentStock}\n` +
-      `Mínimo sugerido: ${payload.minStock}`,
+        `Producto: ${escapeHTML(payload.productName)}\n` +
+        `Stock actual: ${payload.currentStock}\n` +
+        `Mínimo sugerido: ${payload.minStock}`,
     );
 
     return NextResponse.json({ success: true });
@@ -50,8 +50,5 @@ export async function POST(request: NextRequest) {
 
 function escapeHTML(text: string): string {
   if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

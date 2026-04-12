@@ -13,7 +13,7 @@ describe('Soft Delete Infrastructure', () => {
         id: { name: 'id' },
         deletedAt: { name: 'deleted_at' },
       };
-      
+
       // Should not throw and should return a SQL expression
       const result = isNotDeleted(mockTable as Parameters<typeof isNotDeleted>[0]);
       expect(result).toBeTruthy();
@@ -26,7 +26,7 @@ describe('Soft Delete Infrastructure', () => {
         id: { name: 'id' },
         deletedAt: { name: 'deleted_at' },
       };
-      
+
       const result = isDeleted(mockTable as Parameters<typeof isDeleted>[0]);
       expect(result).toBeTruthy();
     });
@@ -35,7 +35,7 @@ describe('Soft Delete Infrastructure', () => {
   describe('module exports', () => {
     it('should export all expected functions', async () => {
       const mod = await import('@/infrastructure/soft-delete');
-      
+
       expect(typeof mod.isNotDeleted).toBe('function');
       expect(typeof mod.isDeleted).toBe('function');
       expect(typeof mod.softDelete).toBe('function');
@@ -51,10 +51,10 @@ describe('Soft Delete Infrastructure', () => {
         id: { name: 'id' },
         deletedAt: { name: 'deleted_at' },
       };
-      
+
       const notDeletedSql = isNotDeleted(mockTable as Parameters<typeof isNotDeleted>[0]);
       const deletedSql = isDeleted(mockTable as Parameters<typeof isDeleted>[0]);
-      
+
       // They should produce different SQL conditions
       expect(notDeletedSql).not.toEqual(deletedSql);
     });

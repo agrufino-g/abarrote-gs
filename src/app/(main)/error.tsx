@@ -5,20 +5,13 @@ import { Page, Banner, Button, BlockStack, Text, InlineStack, Box } from '@shopi
 
 /**
  * Dashboard layout error boundary.
- * 
+ *
  * Catches errors in all dashboard sub-routes while preserving
  * the navigation shell. More contextual than the root error.tsx.
  */
-export default function DashboardError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function DashboardError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     if (error.digest) {
-      // eslint-disable-next-line no-console
       console.error(`[DashboardError] digest=${error.digest}`);
     }
   }, [error.digest]);
@@ -49,7 +42,9 @@ export default function DashboardError({
 
         <InlineStack gap="200">
           <Button onClick={reset}>Reintentar</Button>
-          <Button url="/dashboard" variant="plain">Volver al inicio</Button>
+          <Button url="/dashboard" variant="plain">
+            Volver al inicio
+          </Button>
         </InlineStack>
       </BlockStack>
     </Page>

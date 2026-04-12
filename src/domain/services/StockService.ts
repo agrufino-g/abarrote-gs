@@ -1,4 +1,4 @@
-import { Quantity, StockLevel, StockStatus } from '../value-objects';
+import { Quantity, StockStatus } from '../value-objects';
 import { Product, SaleItem } from '../entities';
 
 /**
@@ -26,7 +26,7 @@ export interface StockAdjustmentResult {
 
 /**
  * Stock Service
- * 
+ *
  * Domain service for stock management.
  * Encapsulates business rules for inventory operations.
  *
@@ -84,9 +84,7 @@ export class StockService {
    * Calculate stock adjustments for a sale
    * Returns list of product IDs and deltas to apply
    */
-  static calculateSaleAdjustments(
-    items: readonly SaleItem[],
-  ): Map<string, number> {
+  static calculateSaleAdjustments(items: readonly SaleItem[]): Map<string, number> {
     const adjustments = new Map<string, number>();
 
     for (const item of items) {
@@ -102,9 +100,7 @@ export class StockService {
    * Calculate stock adjustments for a return/cancellation
    * Returns list of product IDs and deltas to apply (positive = add back)
    */
-  static calculateReturnAdjustments(
-    items: readonly SaleItem[],
-  ): Map<string, number> {
+  static calculateReturnAdjustments(items: readonly SaleItem[]): Map<string, number> {
     const adjustments = new Map<string, number>();
 
     for (const item of items) {
@@ -119,18 +115,15 @@ export class StockService {
   /**
    * Apply adjustment to a product and check if alert should trigger
    */
-  static applyAdjustment(
-    product: Product,
-    delta: number,
-  ): StockAdjustmentResult {
+  static applyAdjustment(product: Product, delta: number): StockAdjustmentResult {
     const previousStock = product.stockLevel.currentStock;
     const previousStatus = product.stockLevel.status;
-    
+
     const adjusted = product.adjustStock(delta);
     const newStatus = adjusted.stockLevel.status;
-    
+
     // Alert triggered if status worsened
-    const alertTriggered = 
+    const alertTriggered =
       (previousStatus === 'ok' && newStatus !== 'ok') ||
       (previousStatus === 'low' && newStatus === 'critical') ||
       (previousStatus !== 'out_of_stock' && newStatus === 'out_of_stock');
@@ -153,8 +146,8 @@ export class StockService {
    */
   static generateAlerts(products: Product[]): StockAlert[] {
     return products
-      .filter(p => p.needsReorder())
-      .map(p => ({
+      .filter((p) => p.needsReorder())
+      .map((p) => ({
         productId: p.id,
         productName: p.name,
         currentStock: p.stockLevel.currentStock,
@@ -200,14 +193,14 @@ export class StockService {
    * Find products expiring within N days
    */
   static findExpiring(products: Product[], days: number): Product[] {
-    return products.filter(p => p.expiresWithin(days));
+    return products.filter((p) => p.expiresWithin(days));
   }
 
   /**
    * Find expired products
    */
   static findExpired(products: Product[]): Product[] {
-    return products.filter(p => p.isExpired());
+    return products.filter((p) => p.isExpired());
   }
 
   // ─────────────────────────────────────────────────────────────────────
@@ -221,13 +214,13 @@ export class StockService {
     products: Product[],
   ): Array<{ productId: string; name: string; suggestedQuantity: number; estimatedCost: number }> {
     return products
-      .filter(p => p.needsReorder())
-      .map(p => ({
+      .filter((p) => p.needsReorder())
+      .map((p) => ({
         productId: p.id,
         name: p.name,
         suggestedQuantity: p.stockLevel.unitsToReorder(),
         estimatedCost: p.costPrice.toPesos() * p.stockLevel.unitsToReorder(),
       }))
-      .filter(s => s.suggestedQuantity > 0);
+      .filter((s) => s.suggestedQuantity > 0);
   }
 }

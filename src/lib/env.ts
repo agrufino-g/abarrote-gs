@@ -102,16 +102,12 @@ const envSchema = z.object({
 function validateEnv() {
   // Strip empty strings from process.env — Zod .optional() allows undefined
   // but not "", and many deployment platforms set unset vars to "".
-  const cleaned = Object.fromEntries(
-    Object.entries(process.env).filter(([, v]) => v !== ''),
-  );
+  const cleaned = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== ''));
 
   const result = envSchema.safeParse(cleaned);
 
   if (!result.success) {
-    const formatted = result.error.issues
-      .map((i) => `  ✗ ${i.path.join('.')}: ${i.message}`)
-      .join('\n');
+    const formatted = result.error.issues.map((i) => `  ✗ ${i.path.join('.')}: ${i.message}`).join('\n');
 
     // In test environment, just warn — don't crash test runners
     if (process.env.NODE_ENV === 'test') {
@@ -120,7 +116,11 @@ function validateEnv() {
       const urlFields = ['BASE_URL', 'NEXT_PUBLIC_APP_URL', 'CFDI_PAC_URL'];
       for (const field of urlFields) {
         if (testCleaned[field]) {
-          try { new URL(testCleaned[field] as string); } catch { delete testCleaned[field]; }
+          try {
+            new URL(testCleaned[field] as string);
+          } catch {
+            delete testCleaned[field];
+          }
         }
       }
       return envSchema.parse({
@@ -131,8 +131,8 @@ function validateEnv() {
 
     throw new Error(
       `\n══════════════════════════════════════════════\n` +
-      `  Environment validation failed:\n${formatted}\n` +
-      `══════════════════════════════════════════════\n`
+        `  Environment validation failed:\n${formatted}\n` +
+        `══════════════════════════════════════════════\n`,
     );
   }
 
@@ -184,10 +184,15 @@ export function isMercadoPagoConfigured(): boolean {
 
 /** Returns the resolved base URL for webhook registrations */
 export function getBaseUrl(): string {
-  return env.BASE_URL ?? env.NEXT_PUBLIC_APP_URL ?? (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : 'http://localhost:3000');
+  return (
+    env.BASE_URL ?? env.NEXT_PUBLIC_APP_URL ?? (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : 'http://localhost:3000')
+  );
 }
 
 /** Returns the resolved public app URL for customer-facing links */
 export function getAppUrl(): string {
-  return env.NEXT_PUBLIC_APP_URL ?? (env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : getBaseUrl());
+  return (
+    env.NEXT_PUBLIC_APP_URL ??
+    (env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : getBaseUrl())
+  );
 }

@@ -18,7 +18,7 @@ import { getBaseUrl } from '@/lib/env';
 export type JobType = 'notification' | 'payment-poll' | 'daily-report' | 'stock-alert';
 
 const JOB_ROUTES: Record<JobType, string> = {
-  'notification': '/api/jobs/notification',
+  notification: '/api/jobs/notification',
   'payment-poll': '/api/jobs/payment-poll',
   'daily-report': '/api/jobs/daily-report',
   'stock-alert': '/api/jobs/stock-alert',

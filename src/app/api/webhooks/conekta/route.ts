@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { db } from '@/db';
-import { paymentCharges, paymentProviderConnections } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { decrypt } from '@/lib/crypto';
+import { paymentCharges } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 import { idempotencyCheck } from '@/infrastructure/redis';
 import { env } from '@/lib/env';
@@ -23,10 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Verify signature (Conekta uses HMAC SHA-256 in the digest header)
-    const expectedDigest = crypto
-      .createHmac('sha256', webhookKey)
-      .update(body)
-      .digest('hex');
+    const expectedDigest = crypto.createHmac('sha256', webhookKey).update(body).digest('hex');
 
     if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedDigest))) {
       logger.warn('Conekta webhook signature mismatch', { action: 'conekta_webhook_invalid_sig' });
@@ -60,7 +56,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const idempotencyKey = `conekta_webhook:${event.type}:${event.data?.object?.id}`;
     const isNew = await idempotencyCheck(idempotencyKey, { ttlMs: 86_400_000 });
     if (!isNew) {
-      logger.info('Conekta webhook duplicate skipped', { action: 'conekta_webhook_duplicate', orderId: event.data?.object?.id });
+      logger.info('Conekta webhook duplicate skipped', {
+        action: 'conekta_webhook_duplicate',
+        orderId: event.data?.object?.id,
+      });
       return NextResponse.json({ received: true, duplicate: true });
     }
 

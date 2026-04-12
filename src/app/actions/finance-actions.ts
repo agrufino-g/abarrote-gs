@@ -1,7 +1,15 @@
 'use server';
 
 import { requirePermission, validateId } from '@/lib/auth/guard';
-import { validateSchema, createGastoSchema, updateGastoSchema, createProveedorSchema, updateProveedorSchema, createPedidoSchema, updatePedidoStatusSchema, idSchema } from '@/lib/validation/schemas';
+import {
+  validateSchema,
+  createGastoSchema,
+  updateGastoSchema,
+  createProveedorSchema,
+  updateProveedorSchema,
+  updatePedidoStatusSchema,
+  idSchema,
+} from '@/lib/validation/schemas';
 import { db } from '@/db';
 import { gastos, proveedores, pedidos, pedidoItems, products } from '@/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
@@ -9,7 +17,7 @@ import type { Gasto, GastoCategoria, Proveedor, PedidoRecord } from '@/types';
 import { numVal } from './_helpers';
 import { withLogging } from '@/lib/errors';
 import { isNotDeleted, softDelete } from '@/infrastructure/soft-delete';
-import { withRateLimit, STRICT } from '@/infrastructure/redis';
+import { withRateLimit } from '@/infrastructure/redis';
 
 // ==================== GASTOS ====================
 
@@ -89,9 +97,7 @@ async function _fetchProveedores(): Promise<Proveedor[]> {
   }));
 }
 
-async function _createProveedor(
-  data: Omit<Proveedor, 'id' | 'ultimoPedido'>
-): Promise<Proveedor> {
+async function _createProveedor(data: Omit<Proveedor, 'id' | 'ultimoPedido'>): Promise<Proveedor> {
   await requirePermission('suppliers.edit');
   validateSchema(createProveedorSchema, data, 'createProveedor');
   const id = `prov-${crypto.randomUUID()}`;
@@ -140,9 +146,12 @@ async function _fetchPedidos(): Promise<PedidoRecord[]> {
   const rows = await db.select().from(pedidos).orderBy(desc(pedidos.fecha)).limit(50);
   if (rows.length === 0) return [];
 
-  const pedidoIds = rows.map(r => r.id);
-  const allItems = await db.select().from(pedidoItems).where(sql`${pedidoItems.pedidoId} IN ${pedidoIds}`);
-  
+  const pedidoIds = rows.map((r) => r.id);
+  const allItems = await db
+    .select()
+    .from(pedidoItems)
+    .where(sql`${pedidoItems.pedidoId} IN ${pedidoIds}`);
+
   const itemsByPedidoId = new Map<string, typeof allItems>();
   for (const item of allItems) {
     const list = itemsByPedidoId.get(item.pedidoId) || [];
@@ -153,7 +162,7 @@ async function _fetchPedidos(): Promise<PedidoRecord[]> {
   return rows.map((row) => ({
     id: row.id,
     proveedor: row.proveedor,
-    productos: (itemsByPedidoId.get(row.id) || []).map(item => ({
+    productos: (itemsByPedidoId.get(row.id) || []).map((item) => ({
       productId: item.productId,
       productName: item.productName,
       cantidad: item.cantidad,
@@ -164,9 +173,7 @@ async function _fetchPedidos(): Promise<PedidoRecord[]> {
   }));
 }
 
-async function _createPedido(
-  data: Omit<PedidoRecord, 'id' | 'fecha' | 'estado'>
-): Promise<PedidoRecord> {
+async function _createPedido(data: Omit<PedidoRecord, 'id' | 'fecha' | 'estado'>): Promise<PedidoRecord> {
   await requirePermission('suppliers.edit');
   const id = `pedido-${crypto.randomUUID()}`;
   const now = new Date();
@@ -226,9 +233,15 @@ export const createGasto = withRateLimit('finance.createGasto', withLogging('fin
 export const updateGasto = withLogging('finance.updateGasto', _updateGasto);
 export const deleteGasto = withRateLimit('finance.deleteGasto', withLogging('finance.deleteGasto', _deleteGasto));
 export const fetchProveedores = withLogging('finance.fetchProveedores', _fetchProveedores);
-export const createProveedor = withRateLimit('finance.createProveedor', withLogging('finance.createProveedor', _createProveedor));
+export const createProveedor = withRateLimit(
+  'finance.createProveedor',
+  withLogging('finance.createProveedor', _createProveedor),
+);
 export const updateProveedor = withLogging('finance.updateProveedor', _updateProveedor);
-export const deleteProveedor = withRateLimit('finance.deleteProveedor', withLogging('finance.deleteProveedor', _deleteProveedor));
+export const deleteProveedor = withRateLimit(
+  'finance.deleteProveedor',
+  withLogging('finance.deleteProveedor', _deleteProveedor),
+);
 export const fetchPedidos = withLogging('finance.fetchPedidos', _fetchPedidos);
 export const createPedido = withRateLimit('finance.createPedido', withLogging('finance.createPedido', _createPedido));
 export const updatePedidoStatus = withLogging('finance.updatePedidoStatus', _updatePedidoStatus);

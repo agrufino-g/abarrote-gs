@@ -4,16 +4,7 @@ import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import {
-  Card,
-  FormLayout,
-  TextField,
-  Button,
-  BlockStack,
-  Box,
-  Text,
-  Icon,
-} from '@shopify/polaris';
+import { Card, FormLayout, TextField, Button, BlockStack, Box, Text, Icon } from '@shopify/polaris';
 import { ArrowLeftIcon, EmailIcon } from '@shopify/polaris-icons';
 import { useToast } from '@/components/notifications/ToastProvider';
 
@@ -23,25 +14,28 @@ export function ForgotPasswordForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    if (!email) {
-      toast.showError('Ingresa tu correo electrónico');
-      return;
-    }
+      if (!email) {
+        toast.showError('Ingresa tu correo electrónico');
+        return;
+      }
 
-    setIsLoading(true);
-    try {
-      await sendPasswordResetEmail(auth, email);
-      setEmailSent(true);
-      toast.showSuccess('Correo de recuperación enviado');
-    } catch {
-      toast.showError('Error al enviar el correo. Verifica que la dirección sea correcta.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email, toast]);
+      setIsLoading(true);
+      try {
+        await sendPasswordResetEmail(auth, email);
+        setEmailSent(true);
+        toast.showSuccess('Correo de recuperación enviado');
+      } catch {
+        toast.showError('Error al enviar el correo. Verifica que la dirección sea correcta.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [email, toast],
+  );
 
   const handleResend = useCallback(async () => {
     setIsLoading(true);
@@ -55,7 +49,7 @@ export function ForgotPasswordForm() {
     }
   }, [email, toast]);
 
-  const containerStyle: React.CSSProperties = {
+  const _containerStyle: React.CSSProperties = {
     minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
@@ -63,7 +57,7 @@ export function ForgotPasswordForm() {
     backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), url('/backgrounds/login_bg.png')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
-    padding: '24px'
+    padding: '24px',
   };
 
   if (emailSent) {
@@ -72,16 +66,18 @@ export function ForgotPasswordForm() {
         <Card>
           <BlockStack gap="600">
             <BlockStack gap="400" align="center">
-              <div style={{
-                backgroundColor: 'var(--p-color-bg-surface-secondary)',
-                padding: '16px',
-                borderRadius: '50%',
-                width: '64px',
-                height: '64px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+              <div
+                style={{
+                  backgroundColor: 'var(--p-color-bg-surface-secondary)',
+                  padding: '16px',
+                  borderRadius: '50%',
+                  width: '64px',
+                  height: '64px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 <div style={{ width: '32px', height: '32px' }}>
                   <Icon source={EmailIcon} tone="primary" />
                 </div>
@@ -123,21 +119,23 @@ export function ForgotPasswordForm() {
       <Card>
         <BlockStack gap="600">
           <BlockStack gap="400" align="center">
-            <div style={{
-              padding: '24px 0 12px 0',
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <img 
-                src="/login-brand.svg" 
-                alt="Logo" 
-                style={{ 
-                  width: '200px', 
-                  height: 'auto'
-                }} 
+            <div
+              style={{
+                padding: '24px 0 12px 0',
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <img
+                src="/login-brand.svg"
+                alt="Logo"
+                style={{
+                  width: '200px',
+                  height: 'auto',
+                }}
               />
             </div>
             <BlockStack gap="100" align="center">
@@ -163,13 +161,7 @@ export function ForgotPasswordForm() {
               />
 
               <Box paddingBlockStart="300">
-                <Button
-                  variant="primary"
-                  submit
-                  fullWidth
-                  loading={isLoading}
-                  size="large"
-                >
+                <Button variant="primary" submit fullWidth loading={isLoading} size="large">
                   Enviar instrucciones
                 </Button>
               </Box>

@@ -9,11 +9,7 @@
  * 2. Cache invalidation — clears stale cache on mutations
  */
 
-import {
-  onDomainEvent,
-  onAnyDomainEvent,
-  type DomainEvent,
-} from '@/domain/events';
+import { onDomainEvent, onAnyDomainEvent, type DomainEvent } from '@/domain/events';
 import { auditLog } from '@/infrastructure/audit';
 import { cacheInvalidatePattern } from '@/infrastructure/redis';
 import { logger } from '@/lib/logger';

@@ -1,18 +1,18 @@
 /**
  * Enterprise Rate Limiting System
- * 
+ *
  * Provides tiered rate limiting with:
  * - Per-action configuration
  * - Role-based limits (admin, owner, user)
  * - Brute force protection for sensitive operations
  * - IP-based blocking
  * - Sliding window algorithm
- * 
+ *
  * @example
  * // Basic usage
  * const result = await checkTieredRateLimit('sales.create', userId, ip);
  * if (result.blocked) throw new RateLimitError(result);
- * 
+ *
  * @example
  * // HOF wrapper
  * export const createSale = withRateLimit('sales.create', _createSale);
@@ -90,7 +90,7 @@ const READ_HEAVY: RateLimitTier = { limit: 100, windowMs: 60_000 };
 
 /**
  * Rate limit configurations by action pattern.
- * 
+ *
  * Patterns support wildcards:
  * - `sales.*` matches all sales actions
  * - `*.create` matches all create actions
@@ -114,7 +114,7 @@ const ACTION_CONFIGS: Record<string, TieredRateLimitConfig> = {
     admin: { limit: 10, windowMs: 60_000 },
     owner: { limit: 10, windowMs: 60_000 },
   },
-  
+
   // ── Sales (high volume) ──
   'sales.create': {
     default: STRICT,
@@ -315,13 +315,13 @@ function getTierForRole(config: TieredRateLimitConfig, role: RoleTier): RateLimi
  */
 export function roleIdToTier(roleId: string | undefined): RoleTier {
   if (!roleId) return 'default';
-  
+
   const lower = roleId.toLowerCase();
   if (lower.includes('owner') || lower.includes('propietario')) return 'owner';
   if (lower.includes('admin') || lower.includes('administrador')) return 'admin';
   if (lower.includes('staff') || lower.includes('empleado') || lower.includes('cajero')) return 'staff';
   if (lower.includes('user') || lower.includes('usuario')) return 'user';
-  
+
   return 'user'; // Default authenticated users to 'user' tier
 }
 
@@ -337,13 +337,9 @@ export class RateLimitError extends AppError {
   constructor(result: TieredRateLimitResult) {
     const retryAfterMs = result.reset.getTime() - Date.now();
     const retryAfterSec = Math.ceil(retryAfterMs / 1000);
-    
-    super(
-      'RATE_LIMIT_EXCEEDED',
-      `Demasiadas solicitudes. Intenta de nuevo en ${retryAfterSec} segundos.`,
-      429,
-    );
-    
+
+    super('RATE_LIMIT_EXCEEDED', `Demasiadas solicitudes. Intenta de nuevo en ${retryAfterSec} segundos.`, 429);
+
     this.retryAfterMs = retryAfterMs;
     this.remaining = result.remaining;
     this.tier = result.tier;
@@ -364,7 +360,7 @@ export class RateLimitError extends AppError {
 
 /**
  * Check tiered rate limit for an action.
- * 
+ *
  * @param action - Action identifier (e.g., 'sales.create')
  * @param identifier - User ID or unique identifier
  * @param options - Optional IP for additional IP-based limiting
@@ -404,7 +400,7 @@ export async function checkTieredRateLimit(
       tier,
       remaining: userResult.remaining,
     });
-    
+
     return {
       ...userResult,
       tier: tier as TieredRateLimitResult['tier'],
@@ -425,7 +421,7 @@ export async function checkTieredRateLimit(
         ip: options.ip,
         remaining: ipResult.remaining,
       });
-      
+
       return {
         ...ipResult,
         tier: 'ip',
@@ -443,11 +439,11 @@ export async function checkTieredRateLimit(
 
 /**
  * Higher-order function to wrap server actions with rate limiting.
- * 
+ *
  * @param action - Action identifier for rate limit config lookup
  * @param fn - The server action function to wrap
  * @param options - Optional configuration
- * 
+ *
  * @example
  * const _createSale = async (data: SaleData) => { ... };
  * export const createSale = withRateLimit('sales.create', _createSale);
@@ -498,14 +494,11 @@ export function withRateLimit<Args extends unknown[], Return>(
 /**
  * Check brute force protection for sensitive operations.
  * Uses very strict limits and longer windows.
- * 
+ *
  * @param operation - Operation name (e.g., 'login', 'pin')
  * @param identifier - User identifier or IP
  */
-export async function checkBruteForce(
-  operation: string,
-  identifier: string,
-): Promise<TieredRateLimitResult> {
+export async function checkBruteForce(operation: string, identifier: string): Promise<TieredRateLimitResult> {
   const action = `auth.${operation}`;
   return checkTieredRateLimit(action, identifier, { roleId: undefined });
 }
@@ -524,12 +517,4 @@ export function resetRateLimit(action: string, identifier: string): void {
 // EXPORTS
 // ══════════════════════════════════════════════════════════════
 
-export {
-  STANDARD,
-  RELAXED,
-  STRICT,
-  VERY_STRICT,
-  BRUTE_FORCE,
-  BULK,
-  READ_HEAVY,
-};
+export { STANDARD, RELAXED, STRICT, VERY_STRICT, BRUTE_FORCE, BULK, READ_HEAVY };

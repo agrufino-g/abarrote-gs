@@ -1,18 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Button,
-  TextField,
-  Banner,
-  Box,
-  Divider,
-  Link,
-} from '@shopify/polaris';
+import { Card, Text, BlockStack, InlineStack, Button, TextField, Banner, Box, Divider } from '@shopify/polaris';
 import { generateMPPaymentLink, type MPPaymentLink } from '@/app/actions/mercadopago-actions';
 import { formatCurrency } from '@/lib/utils';
 
@@ -74,10 +63,12 @@ export function MPPaymentLinkPanel() {
   return (
     <Card>
       <BlockStack gap="400">
-        <Text variant="headingMd" as="h3">Link de cobro / QR</Text>
+        <Text variant="headingMd" as="h3">
+          Link de cobro / QR
+        </Text>
         <Text variant="bodySm" as="p" tone="subdued">
-          Genera un link de pago que puedes compartir por WhatsApp, SMS o mostrar como QR. El
-          cliente paga directo desde MercadoPago.
+          Genera un link de pago que puedes compartir por WhatsApp, SMS o mostrar como QR. El cliente paga directo desde
+          MercadoPago.
         </Text>
 
         <Divider />
@@ -109,11 +100,7 @@ export function MPPaymentLinkPanel() {
               showCharacterCount
             />
             <InlineStack align="end">
-              <Button
-                variant="primary"
-                onClick={handleGenerate}
-                loading={loading}
-              >
+              <Button variant="primary" onClick={handleGenerate} loading={loading}>
                 Generar link de cobro
               </Button>
             </InlineStack>
@@ -122,19 +109,16 @@ export function MPPaymentLinkPanel() {
           <BlockStack gap="400">
             <Banner tone="success">
               <p>
-                Link generado por <strong>{formatCurrency(parseFloat(amount))}</strong> —{' '}
-                {description}
+                Link generado por <strong>{formatCurrency(parseFloat(amount))}</strong> — {description}
               </p>
             </Banner>
 
             <Card>
               <BlockStack gap="200">
-                <Text variant="bodySm" as="p" tone="subdued">Link de pago</Text>
-                <Box
-                  padding="300"
-                  background="bg-surface-secondary"
-                  borderRadius="200"
-                >
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Link de pago
+                </Text>
+                <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                   <Text variant="bodySm" as="p" breakWord>
                     {generatedLink.initPoint}
                   </Text>

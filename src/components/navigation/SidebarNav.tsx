@@ -34,7 +34,14 @@ interface SidebarNavProps {
 }
 
 const SALES_PATHS = ['/dashboard/sales', '/dashboard/sales/corte', '/dashboard/sales/pagos-mp'];
-const PRODUCT_PATHS = ['/dashboard/products', '/dashboard/products/inventory', '/dashboard/products/priority', '/dashboard/products/audit', '/dashboard/products/pedidos', '/dashboard/products/mermas'];
+const PRODUCT_PATHS = [
+  '/dashboard/products',
+  '/dashboard/products/inventory',
+  '/dashboard/products/priority',
+  '/dashboard/products/audit',
+  '/dashboard/products/pedidos',
+  '/dashboard/products/mermas',
+];
 const CUSTOMER_PATHS = ['/dashboard/customers', '/dashboard/customers/fiado'];
 const FINANCE_PATHS = ['/dashboard/finance/expenses', '/dashboard/finance/suppliers'];
 const ANALYTICS_PATHS = ['/dashboard/analytics', '/dashboard/analytics/reports'];
@@ -46,11 +53,10 @@ export function SidebarNav({ onSelect, badges }: SidebarNavProps) {
   const mpEnabled = useDashboardStore((s) => s.storeConfig.mpEnabled);
 
   const isPath = (path: string) => pathname === path;
-  const isAnyPath = (paths: string[]) => paths.some(p => pathname === p);
+  const isAnyPath = (paths: string[]) => paths.some((p) => pathname === p);
 
   /** Show all items while permissions are still loading */
-  const can = (...keys: Parameters<typeof hasAnyPermission>) =>
-    !isLoaded || hasAnyPermission(...keys);
+  const can = (...keys: Parameters<typeof hasAnyPermission>) => !isLoaded || hasAnyPermission(...keys);
 
   // Main navigation items — filtered by permissions
   const mainItems = [];
@@ -170,14 +176,6 @@ export function SidebarNav({ onSelect, badges }: SidebarNavProps) {
         onClick: () => onSelect('suppliers'),
       });
     }
-    if (can('pedidos.view')) {
-      subNav.push({
-        url: '#',
-        label: 'Pedidos a Proveedor',
-        matches: isPath('/dashboard/products/pedidos'),
-        onClick: () => onSelect('pedidos'),
-      });
-    }
     const isSel = isAnyPath(FINANCE_PATHS);
     adminItems.push({
       url: '#',
@@ -272,15 +270,9 @@ export function SidebarNav({ onSelect, badges }: SidebarNavProps) {
 
   return (
     <Navigation location={pathname}>
-      {mainItems.length > 0 && (
-        <Navigation.Section items={mainItems} fill />
-      )}
-      {adminItems.length > 0 && (
-        <Navigation.Section title="Administración Financiera" separator items={adminItems} />
-      )}
-      {systemItems.length > 0 && (
-        <Navigation.Section title="Sistema" separator items={systemItems} />
-      )}
+      {mainItems.length > 0 && <Navigation.Section items={mainItems} fill />}
+      {adminItems.length > 0 && <Navigation.Section title="Administración Financiera" separator items={adminItems} />}
+      {systemItems.length > 0 && <Navigation.Section title="Sistema" separator items={systemItems} />}
     </Navigation>
   );
 }

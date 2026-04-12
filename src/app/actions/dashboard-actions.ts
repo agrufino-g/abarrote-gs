@@ -20,14 +20,18 @@ import { parseError, withLogging } from '@/lib/errors';
 // ==================== FULL DASHBOARD FETCH ====================
 
 /** Safely resolve a promise, returning data and any error that occurred without crashing Promise.all */
-async function safe<T>(promise: Promise<T>, fallback: T, label: string): Promise<{ data: T; error: { title: string; description: string } | null }> {
+async function safe<T>(
+  promise: Promise<T>,
+  fallback: T,
+  label: string,
+): Promise<{ data: T; error: { title: string; description: string } | null }> {
   try {
     const data = await promise;
     return { data, error: null };
   } catch (error) {
     const parsed = parseError(error);
     const nested = error as { cause?: { message?: string; code?: string } };
-    
+
     // Log the error locally for server observability
     logger.error(`Dashboard unexpected error for "${label}"`, {
       label,
@@ -37,12 +41,12 @@ async function safe<T>(promise: Promise<T>, fallback: T, label: string): Promise
       code: nested?.cause?.code,
     });
 
-    return { 
-      data: fallback, 
+    return {
+      data: fallback,
       error: {
         title: `Error cargando ${label}`,
-        description: parsed.description
-      } 
+        description: parsed.description,
+      },
     };
   }
 }
@@ -83,15 +87,32 @@ async function _fetchDashboardFromDB() {
   ]);
 
   const [
-    kpiDataReq, allProductsReq, inventoryAlertsReq, salesDataReq, 
-    saleRecordsListReq, mermaRecordsListReq, pedidosListReq, clientesListReq, 
-    fiadoListReq, gastosListReq, proveedoresListReq, cortesHistoryListReq, 
-    inventoryAuditsListReq, storeConfigDataReq, devolucionesListReq, 
-    cashMovementsListReq, loyaltyTransactionsListReq, hourlySalesListReq, categoriesListReq
+    kpiDataReq,
+    allProductsReq,
+    inventoryAlertsReq,
+    salesDataReq,
+    saleRecordsListReq,
+    mermaRecordsListReq,
+    pedidosListReq,
+    clientesListReq,
+    fiadoListReq,
+    gastosListReq,
+    proveedoresListReq,
+    cortesHistoryListReq,
+    inventoryAuditsListReq,
+    storeConfigDataReq,
+    devolucionesListReq,
+    cashMovementsListReq,
+    loyaltyTransactionsListReq,
+    hourlySalesListReq,
+    categoriesListReq,
   ] = results;
 
   // Extract all non-null errors to report them to Sileo UI
-  const partialErrors = results.map(r => r.error).filter(e => e !== null) as { title: string; description: string }[];
+  const partialErrors = results.map((r) => r.error).filter((e) => e !== null) as {
+    title: string;
+    description: string;
+  }[];
 
   return {
     kpiData: kpiDataReq.data,
@@ -113,7 +134,7 @@ async function _fetchDashboardFromDB() {
     loyaltyTransactions: loyaltyTransactionsListReq.data,
     hourlySalesData: hourlySalesListReq.data,
     categories: categoriesListReq.data,
-    isOffline: allProductsReq.data.length === 0 && partialErrors.length > 5, 
+    isOffline: allProductsReq.data.length === 0 && partialErrors.length > 5,
     partialErrors, // Nuevo: el frontend ahora sabrá exactamente QUÉ falló y POR QUÉ
   };
 }

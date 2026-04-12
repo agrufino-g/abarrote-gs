@@ -7,7 +7,7 @@ export type StockStatus = 'ok' | 'low' | 'critical' | 'out_of_stock';
 
 /**
  * StockLevel Value Object
- * 
+ *
  * Represents the stock state of a product with business rules for alerts.
  * Encapsulates current stock, minimum threshold, and derived status.
  *
@@ -27,10 +27,7 @@ export class StockLevel {
   // ─────────────────────────────────────────────────────────────────────
 
   static of(currentStock: number, minStock: number): StockLevel {
-    return new StockLevel(
-      Quantity.of(currentStock),
-      Quantity.of(minStock),
-    );
+    return new StockLevel(Quantity.of(currentStock), Quantity.of(minStock));
   }
 
   static fromQuantities(current: Quantity, minimum: Quantity): StockLevel {
@@ -52,16 +49,16 @@ export class StockLevel {
     if (this.current.isZero()) {
       return 'out_of_stock';
     }
-    
+
     const halfMin = this.minimum.value * 0.5;
     if (this.current.value < halfMin) {
       return 'critical';
     }
-    
+
     if (this.current.isLessThanOrEqual(this.minimum)) {
       return 'low';
     }
-    
+
     return 'ok';
   }
 
@@ -113,9 +110,8 @@ export class StockLevel {
    * Create new StockLevel after adjustment
    */
   adjust(delta: number): StockLevel {
-    const newCurrent = delta >= 0
-      ? this.current.add(Quantity.of(delta))
-      : this.current.subtractSafe(Quantity.of(Math.abs(delta)));
+    const newCurrent =
+      delta >= 0 ? this.current.add(Quantity.of(delta)) : this.current.subtractSafe(Quantity.of(Math.abs(delta)));
     return new StockLevel(newCurrent, this.minimum);
   }
 

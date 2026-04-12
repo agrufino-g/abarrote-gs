@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  Card,
-  BlockStack,
-  Text,
-  IndexTable,
-  Button,
-} from '@shopify/polaris';
+import { Card, BlockStack, Text, IndexTable, Button } from '@shopify/polaris';
 import { DeleteIcon } from '@shopify/polaris-icons';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { formatCurrency } from '@/lib/utils';
@@ -24,7 +18,9 @@ export function SaleItemsTable({ items, allProducts, onRemove }: SaleItemsTableP
   return (
     <Card>
       <BlockStack gap="200">
-        <Text as="h3" variant="headingSm">Productos en venta ({items.length})</Text>
+        <Text as="h3" variant="headingSm">
+          Productos en venta ({items.length})
+        </Text>
         <IndexTable
           resourceName={{ singular: 'producto', plural: 'productos' }}
           itemCount={items.length}
@@ -47,15 +43,21 @@ export function SaleItemsTable({ items, allProducts, onRemove }: SaleItemsTableP
                   <OptimizedImage source={productInfo?.imageUrl} alt={item.productName} size="small" />
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" variant="bodyMd" fontWeight="semibold">{item.productName}</Text>
+                  <Text as="span" variant="bodyMd" fontWeight="semibold">
+                    {item.productName}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" variant="bodySm" tone="subdued">{item.sku}</Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    {item.sku}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>{item.quantity}</IndexTable.Cell>
                 <IndexTable.Cell>{formatCurrency(item.unitPrice)}</IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" fontWeight="semibold">{formatCurrency(item.subtotal)}</Text>
+                  <Text as="span" fontWeight="semibold">
+                    {formatCurrency(item.subtotal)}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
                   <Button

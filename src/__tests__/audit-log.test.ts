@@ -61,7 +61,17 @@ describe('Audit Logging', () => {
   });
 
   it('should accept all valid action types', () => {
-    const actions = ['create', 'update', 'delete', 'restore', 'login', 'logout', 'export', 'bulk_delete', 'config_change'] as const;
+    const actions = [
+      'create',
+      'update',
+      'delete',
+      'restore',
+      'login',
+      'logout',
+      'export',
+      'bulk_delete',
+      'config_change',
+    ] as const;
 
     for (const action of actions) {
       auditLog({

@@ -1,10 +1,26 @@
 import type {
-  DashboardState, KPIData, InventoryAlert, SalesData,
-  StoreConfig, SaleRecord, SaleItem, CorteCaja, Cliente,
-  MermaRecord, PedidoRecord, Product, Gasto, Proveedor,
-  RoleDefinition, UserRoleRecord, PermissionKey, InventoryAudit,
-  Devolucion, DevolucionItem, CashMovement, LoyaltyTransaction,
-  HourlySalesData, ProductCategory,
+  DashboardState,
+  KPIData,
+  InventoryAlert,
+  SalesData,
+  StoreConfig,
+  SaleRecord,
+  SaleItem,
+  CorteCaja,
+  Cliente,
+  MermaRecord,
+  PedidoRecord,
+  Product,
+  Gasto,
+  Proveedor,
+  RoleDefinition,
+  UserRoleRecord,
+  PermissionKey,
+  Devolucion,
+  DevolucionItem,
+  CashMovement,
+  HourlySalesData,
+  ProductCategory,
 } from '@/types';
 
 // Re-export for convenience
@@ -17,7 +33,12 @@ export interface SalesSlice {
   cancelSale: (id: string) => Promise<void>;
   deleteSales: (ids: string[]) => Promise<void>;
   deleteCortes: (ids: string[]) => Promise<void>;
-  createCorteCaja: (data: { cajero: string; efectivoContado: number; fondoInicial: number; notas: string }) => Promise<CorteCaja>;
+  createCorteCaja: (data: {
+    cajero: string;
+    efectivoContado: number;
+    fondoInicial: number;
+    notas: string;
+  }) => Promise<CorteCaja>;
   checkMidnightCorte: () => Promise<void>;
   registerDevolucion: (data: {
     saleId: string;
@@ -52,7 +73,12 @@ export interface InventorySlice {
   createInventoryAudit: (data: { title: string; auditor: string; notes: string }) => Promise<string>;
   completeInventoryAudit: (id: string) => Promise<void>;
   // Categorias
-  createCategory: (data: { id?: string; name: string; description: string | null; icon: string | null }) => Promise<void>;
+  createCategory: (data: {
+    id?: string;
+    name: string;
+    description: string | null;
+    icon: string | null;
+  }) => Promise<void>;
   updateCategory: (id: string, data: Partial<ProductCategory>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
 }
@@ -61,7 +87,13 @@ export interface CustomerSlice {
   addCliente: (cliente: Omit<Cliente, 'id' | 'balance' | 'createdAt' | 'lastTransaction'>) => Promise<void>;
   updateCliente: (id: string, data: Partial<Cliente>) => Promise<void>;
   deleteCliente: (id: string) => Promise<void>;
-  registerFiado: (clienteId: string, amount: number, description: string, saleFolio?: string, items?: SaleItem[]) => Promise<void>;
+  registerFiado: (
+    clienteId: string,
+    amount: number,
+    description: string,
+    saleFolio?: string,
+    items?: SaleItem[],
+  ) => Promise<void>;
   registerAbono: (clienteId: string, amount: number, description: string) => Promise<void>;
 }
 
@@ -82,13 +114,25 @@ export interface RoleSlice {
   userRoles: UserRoleRecord[];
   currentUserRole: UserRoleRecord | null;
   fetchRoleDefinitions: () => Promise<void>;
-  createRoleDefinition: (data: { name: string; description: string; permissions: PermissionKey[] }, createdByUid: string) => Promise<RoleDefinition>;
-  updateRoleDefinition: (id: string, data: { name?: string; description?: string; permissions?: PermissionKey[] }) => Promise<void>;
+  createRoleDefinition: (
+    data: { name: string; description: string; permissions: PermissionKey[] },
+    createdByUid: string,
+  ) => Promise<RoleDefinition>;
+  updateRoleDefinition: (
+    id: string,
+    data: { name?: string; description?: string; permissions?: PermissionKey[] },
+  ) => Promise<void>;
   deleteRoleDefinition: (id: string) => Promise<void>;
   fetchRoles: () => Promise<void>;
   ensureOwnerRole: (firebaseUid: string, email: string, displayName: string) => Promise<UserRoleRecord>;
-  assignRole: (data: { firebaseUid: string; email: string; displayName: string; roleId: string }, assignedByUid: string) => Promise<void>;
-  createUserWithRole: (data: { email: string; password?: string; displayName: string; roleId: string; pinCode?: string }, assignedByUid: string) => Promise<void>;
+  assignRole: (
+    data: { firebaseUid: string; email: string; displayName: string; roleId: string },
+    assignedByUid: string,
+  ) => Promise<void>;
+  createUserWithRole: (
+    data: { email: string; password?: string; displayName: string; roleId: string; pinCode?: string },
+    assignedByUid: string,
+  ) => Promise<void>;
   updateRole: (firebaseUid: string, newRoleId: string, assignedByUid: string) => Promise<void>;
   updateUserPin: (firebaseUid: string, pinCode: string) => Promise<void>;
   removeRole: (firebaseUid: string) => Promise<void>;
@@ -96,8 +140,14 @@ export interface RoleSlice {
   generateGlobalId: (firebaseUid: string) => Promise<string>;
   deactivateUser: (firebaseUid: string) => Promise<void>;
   reactivateUser: (firebaseUid: string) => Promise<void>;
-  updateUserProfile: (firebaseUid: string, data: { displayName?: string; avatarUrl?: string }) => Promise<UserRoleRecord>;
-  authorizePin: (pinCode: string, requiredPermission: PermissionKey) => Promise<{ success: boolean; authorizedByUid?: string; userDisplayName?: string; error?: string }>;
+  updateUserProfile: (
+    firebaseUid: string,
+    data: { displayName?: string; avatarUrl?: string },
+  ) => Promise<UserRoleRecord>;
+  authorizePin: (
+    pinCode: string,
+    requiredPermission: PermissionKey,
+  ) => Promise<{ success: boolean; authorizedByUid?: string; userDisplayName?: string; error?: string }>;
 }
 
 export interface CoreSlice extends DashboardState {
@@ -106,6 +156,10 @@ export interface CoreSlice extends DashboardState {
   openProductDetail: (product: Product) => void;
   closeProductDetail: () => void;
   storeConfig: StoreConfig;
+  // Multi-tienda
+  activeStoreId: string;
+  stores: Array<{ id: string; name: string }>;
+  switchStore: (storeId: string) => void;
   setKPIData: (data: KPIData) => void;
   setInventoryAlerts: (alerts: InventoryAlert[]) => void;
   setSalesData: (data: SalesData[]) => void;
@@ -120,5 +174,7 @@ export interface CoreSlice extends DashboardState {
 export type DashboardStore = CoreSlice & SalesSlice & InventorySlice & CustomerSlice & FinanceSlice & RoleSlice;
 
 /** Zustand set/get helpers, typed to the full store */
-export type StoreSet = (partial: Partial<DashboardStore> | ((state: DashboardStore) => Partial<DashboardStore>)) => void;
+export type StoreSet = (
+  partial: Partial<DashboardStore> | ((state: DashboardStore) => Partial<DashboardStore>),
+) => void;
 export type StoreGet = () => DashboardStore;

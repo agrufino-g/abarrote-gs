@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/daily-report",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/token-maintenance",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/loyalty-expire",
+      "schedule": "0 3 * * 1"
     }
   ],
   "functions": {

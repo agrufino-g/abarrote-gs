@@ -8,19 +8,16 @@ import {
   Badge,
   BlockStack,
   InlineStack,
-  TextField,
   Button,
-  Select,
   Box,
   Icon,
   IndexFilters,
   useSetIndexFiltersMode,
-  IndexFiltersProps,
   ChoiceList,
   ButtonGroup,
   InlineGrid,
 } from '@shopify/polaris';
-import { ExportIcon, SearchIcon, ReceiptIcon, RefreshIcon } from '@shopify/polaris-icons';
+import { ReceiptIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/components/notifications/ToastProvider';
@@ -34,7 +31,10 @@ import type { RangeOption } from '@/components/sales/DateRangeFilter';
 import type { SaleRecord } from '@/types';
 
 function paymentBadge(method: string) {
-  const styles: Record<string, { tone: any, label: string }> = {
+  const styles: Record<
+    string,
+    { tone: 'success' | 'info' | 'attention' | 'warning' | 'critical' | 'magic' | 'new' | undefined; label: string }
+  > = {
     efectivo: { tone: 'success', label: 'Efectivo' },
     tarjeta: { tone: 'info', label: 'Tarjeta' },
     tarjeta_web: { tone: 'info', label: 'MP Web' },
@@ -44,9 +44,7 @@ function paymentBadge(method: string) {
     puntos: { tone: 'magic', label: 'Puntos' },
   };
   const s = styles[method] || { tone: 'subdued', label: method };
-  return (
-    <Badge tone={s.tone}>{s.label}</Badge>
-  );
+  return <Badge tone={s.tone}>{s.label}</Badge>;
 }
 
 export function SalesHistory() {
@@ -94,17 +92,25 @@ export function SalesHistory() {
     const now = new Date().toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
 
     const paymentLabels: Record<string, string> = {
-      efectivo: 'Efectivo', tarjeta: 'Tarjeta bancaria', tarjeta_manual: 'Tarjeta (manual)',
-      tarjeta_web: 'Mercado Pago Web', transferencia: 'Transferencia',
-      fiado: 'Crédito cliente', puntos: 'Puntos de lealtad',
+      efectivo: 'Efectivo',
+      tarjeta: 'Tarjeta bancaria',
+      tarjeta_manual: 'Tarjeta (manual)',
+      tarjeta_web: 'Mercado Pago Web',
+      transferencia: 'Transferencia',
+      fiado: 'Crédito cliente',
+      puntos: 'Puntos de lealtad',
     };
 
-    const itemsHtml = selectedSale.items.map((item) => `
+    const itemsHtml = selectedSale.items
+      .map(
+        (item) => `
       <div class="item-name">${item.productName}</div>
       <div class="item-detail">
         <span>${item.quantity} pza × $${item.unitPrice.toFixed(2)}</span>
         <span>$${item.subtotal.toFixed(2)}</span>
-      </div>`).join('');
+      </div>`,
+      )
+      .join('');
 
     const logoHtml = storeConfig.logoUrl
       ? `<div class="logo-area"><img src="${storeConfig.logoUrl}" alt="${storeConfig.storeName}"/></div>`
@@ -135,12 +141,16 @@ export function SalesHistory() {
 
     const templateVars: Record<string, string> = {
       storeName: storeConfig.storeName || storeConfig.legalName || 'Tienda',
-      folio: selectedSale.folio, fecha: `${dateStr} ${timeStr}`,
+      folio: selectedSale.folio,
+      fecha: `${dateStr} ${timeStr}`,
       cajero: selectedSale.cajero || '—',
       metodoPago: paymentLabels[selectedSale.paymentMethod] || selectedSale.paymentMethod,
-      items: selectedSale.items.map((item) =>
-        `<div class="item-name">${item.productName}</div><div class="item-detail"><span>${item.quantity} pza × $${item.unitPrice.toFixed(2)}</span><span>$${item.subtotal.toFixed(2)}</span></div>`
-      ).join(''),
+      items: selectedSale.items
+        .map(
+          (item) =>
+            `<div class="item-name">${item.productName}</div><div class="item-detail"><span>${item.quantity} pza × $${item.unitPrice.toFixed(2)}</span><span>$${item.subtotal.toFixed(2)}</span></div>`,
+        )
+        .join(''),
       total: `$${selectedSale.total.toFixed(2)}`,
       footer: storeConfig.ticketFooter || '¡Gracias por su compra!',
     };
@@ -168,9 +178,12 @@ export function SalesHistory() {
         fecha: `${dateStr} ${timeStr}`,
         cajero: selectedSale.cajero || '—',
         metodoPago: paymentLabels[selectedSale.paymentMethod] || selectedSale.paymentMethod,
-        items: selectedSale.items.map(i => ({
-          name: i.productName, qty: i.quantity, unit: 'pza',
-          unitPrice: i.unitPrice, subtotal: i.subtotal,
+        items: selectedSale.items.map((i) => ({
+          name: i.productName,
+          qty: i.quantity,
+          unit: 'pza',
+          unitPrice: i.unitPrice,
+          subtotal: i.subtotal,
         })),
         subtotal,
         iva,
@@ -262,17 +275,12 @@ export function SalesHistory() {
       <Card padding="0">
         <Box padding="400" borderBlockEndWidth="025" borderColor="border">
           <InlineGrid columns="1fr auto">
-            <Text as="h2" variant="headingMd">Historial de ventas</Text>
+            <Text as="h2" variant="headingMd">
+              Historial de ventas
+            </Text>
             <InlineStack gap="200">
-              <Button
-                onClick={() => window.location.reload()}
-              >
-                Actualizar
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => setIsExportOpen(true)}
-              >
+              <Button onClick={() => window.location.reload()}>Actualizar</Button>
+              <Button variant="primary" onClick={() => setIsExportOpen(true)}>
                 Exportar
               </Button>
             </InlineStack>
@@ -295,7 +303,7 @@ export function SalesHistory() {
           }}
           tabs={[]}
           selected={0}
-          onSelect={() => { }}
+          onSelect={() => {}}
           filters={searchFilters}
           appliedFilters={appliedFilters}
           onClearAll={() => {
@@ -314,8 +322,12 @@ export function SalesHistory() {
               <BlockStack gap="300" inlineAlign="center">
                 <Icon source={ReceiptIcon} tone="subdued" />
                 <BlockStack gap="100" inlineAlign="center">
-                  <Text as="p" variant="bodyMd" fontWeight="semibold">Sin ventas registradas</Text>
-                  <Text as="p" variant="bodySm" tone="subdued">Registra una venta para verla aquí.</Text>
+                  <Text as="p" variant="bodyMd" fontWeight="semibold">
+                    Sin ventas registradas
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Registra una venta para verla aquí.
+                  </Text>
                 </BlockStack>
               </BlockStack>
             </Box>
@@ -341,22 +353,30 @@ export function SalesHistory() {
                   return (
                     <IndexTable.Row id={sale.id} key={sale.id} position={idx}>
                       <IndexTable.Cell>
-                        <Badge tone="info" size="small">{'#' + sale.folio}</Badge>
+                        <Badge tone="info" size="small">
+                          {'#' + sale.folio}
+                        </Badge>
                       </IndexTable.Cell>
                       <IndexTable.Cell>
                         <BlockStack gap="050">
-                          <Text as="span" variant="bodySm">{d.toLocaleDateString('es-MX')}</Text>
-                          <Text as="span" variant="bodySm" tone="subdued">{d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</Text>
+                          <Text as="span" variant="bodySm">
+                            {d.toLocaleDateString('es-MX')}
+                          </Text>
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                          </Text>
                         </BlockStack>
                       </IndexTable.Cell>
                       <IndexTable.Cell>{sale.cajero}</IndexTable.Cell>
                       <IndexTable.Cell>{sale.items.length} prod.</IndexTable.Cell>
                       <IndexTable.Cell>
-                        <Text as="span" fontWeight="bold" variant="bodyMd">{formatCurrency(sale.total)}</Text>
+                        <Text as="span" fontWeight="bold" variant="bodyMd">
+                          {formatCurrency(sale.total)}
+                        </Text>
                       </IndexTable.Cell>
                       <IndexTable.Cell>{paymentBadge(sale.paymentMethod)}</IndexTable.Cell>
                       <IndexTable.Cell>
-                        {devolucionesStore.some((d: any) => d.saleId === sale.id) ? (
+                        {devolucionesStore.some((d: { saleId?: string }) => d.saleId === sale.id) ? (
                           <Badge tone="warning">Devuelto</Badge>
                         ) : (
                           <Badge tone="success">Pagado</Badge>
@@ -364,7 +384,9 @@ export function SalesHistory() {
                       </IndexTable.Cell>
                       <IndexTable.Cell>
                         <ButtonGroup variant="segmented">
-                          <Button size="slim" onClick={() => handleViewSale(sale)}>Ver</Button>
+                          <Button size="slim" onClick={() => handleViewSale(sale)}>
+                            Ver
+                          </Button>
                           <Button
                             size="slim"
                             onClick={() => {
@@ -389,7 +411,10 @@ export function SalesHistory() {
         <SaleDetailModal
           open={detailOpen}
           sale={selectedSale}
-          onClose={() => { setDetailOpen(false); setSelectedSale(null); }}
+          onClose={() => {
+            setDetailOpen(false);
+            setSelectedSale(null);
+          }}
           onCancel={handleCancelSale}
           onReturn={() => setDevolucionOpen(true)}
           onPrint={handlePrint}
@@ -412,14 +437,14 @@ export function SalesHistory() {
         title="Exportar ventas"
         exportName="ventas"
         onExport={(format) => {
-          const exportData = filteredSales.map(s => ({
-            "Folio": s.folio,
-            "Fecha": new Date(s.date).toLocaleDateString('es-MX'),
-            "Hora": new Date(s.date).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-            "Cajero": s.cajero,
-            "Total Artículos": s.items.length,
-            "Total": s.total,
-            "Método": s.paymentMethod,
+          const exportData = filteredSales.map((s) => ({
+            Folio: s.folio,
+            Fecha: new Date(s.date).toLocaleDateString('es-MX'),
+            Hora: new Date(s.date).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+            Cajero: s.cajero,
+            'Total Artículos': s.items.length,
+            Total: s.total,
+            Método: s.paymentMethod,
           }));
           const filename = `Ventas_${new Date().toISOString().split('T')[0]}`;
           if (format === 'pdf') {

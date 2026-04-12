@@ -8,7 +8,7 @@
 import { fetchStoreConfig } from './store-config-actions';
 import { logger } from '@/lib/logger';
 import { publishJob } from '@/infrastructure/qstash';
-import { telegramBreaker, CircuitOpenError } from '@/infrastructure/circuit-breaker';
+import { telegramBreaker } from '@/infrastructure/circuit-breaker';
 import { isFeatureEnabled } from '@/infrastructure/feature-flags';
 
 /**
@@ -16,10 +16,7 @@ import { isFeatureEnabled } from '@/infrastructure/feature-flags';
  */
 export function escapeHTML(text: string): string {
   if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /**

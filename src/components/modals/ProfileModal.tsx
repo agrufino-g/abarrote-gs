@@ -126,14 +126,19 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
   }, [user, showSuccess, showError]);
 
   const handleDropZoneDrop = useCallback(
-    (_dropFiles: File[], acceptedFiles: File[], _rejectedFiles: File[]) =>
-      setFile(acceptedFiles[0]),
+    (_dropFiles: File[], acceptedFiles: File[], _rejectedFiles: File[]) => setFile(acceptedFiles[0]),
     [],
   );
 
   const initials = useMemo(() => {
     if (displayName) {
-      return displayName.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      return displayName
+        .split(' ')
+        .filter(Boolean)
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
     }
     return user?.email?.charAt(0).toUpperCase() || 'U';
   }, [displayName, user?.email]);
@@ -220,33 +225,26 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
           loading: saving,
           disabled: !file,
         }}
-        secondaryActions={[{ content: 'Regresar', onAction: () => { setFile(null); setView('overview'); } }]}
+        secondaryActions={[
+          {
+            content: 'Regresar',
+            onAction: () => {
+              setFile(null);
+              setView('overview');
+            },
+          },
+        ]}
       >
         <Modal.Section>
           <BlockStack gap="400">
             <InlineStack align="center">
-              <Avatar
-                size="xl"
-                name={displayName}
-                initials={initials}
-                source={previewSource}
-              />
+              <Avatar size="xl" name={displayName} initials={initials} source={previewSource} />
             </InlineStack>
-            <DropZone
-              onDrop={handleDropZoneDrop}
-              variableHeight
-              accept="image/*"
-              type="image"
-              disabled={saving}
-            >
+            <DropZone onDrop={handleDropZoneDrop} variableHeight accept="image/*" type="image" disabled={saving}>
               {file ? (
                 <Box padding="300">
                   <InlineStack gap="300" blockAlign="center">
-                    <Thumbnail
-                      size="small"
-                      alt={file.name}
-                      source={window.URL.createObjectURL(file)}
-                    />
+                    <Thumbnail size="small" alt={file.name} source={window.URL.createObjectURL(file)} />
                     <BlockStack gap="050">
                       <Text as="span" variant="bodySm" fontWeight="medium">
                         {file.name}
@@ -258,10 +256,7 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
                   </InlineStack>
                 </Box>
               ) : (
-                <DropZone.FileUpload
-                  actionTitle="Seleccionar imagen"
-                  actionHint="JPG, PNG o GIF — máximo 2 MB"
-                />
+                <DropZone.FileUpload actionTitle="Seleccionar imagen" actionHint="JPG, PNG o GIF — máximo 2 MB" />
               )}
             </DropZone>
           </BlockStack>
@@ -283,7 +278,8 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
         <Modal.Section>
           <BlockStack gap="300">
             <Text as="p" variant="bodySm" tone="subdued">
-              Vincula proveedores de autenticación adicionales a tu cuenta. Podrás iniciar sesión con cualquiera de ellos.
+              Vincula proveedores de autenticación adicionales a tu cuenta. Podrás iniciar sesión con cualquiera de
+              ellos.
             </Text>
 
             <Box borderStyle="solid" borderWidth="025" borderColor="border" borderRadius="300">
@@ -295,8 +291,12 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
                       <Icon source={LockIcon} tone="success" />
                     </Box>
                     <BlockStack gap="050">
-                      <Text as="span" variant="bodyMd" fontWeight="semibold">Correo electrónico</Text>
-                      <Text as="span" variant="bodySm" tone="subdued">{user?.email}</Text>
+                      <Text as="span" variant="bodyMd" fontWeight="semibold">
+                        Correo electrónico
+                      </Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        {user?.email}
+                      </Text>
                     </BlockStack>
                   </InlineStack>
                   <Badge tone="success">Principal</Badge>
@@ -317,7 +317,9 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
                       <Icon source={LinkIcon} tone={hasMicrosoft ? 'success' : 'subdued'} />
                     </Box>
                     <BlockStack gap="050">
-                      <Text as="span" variant="bodyMd" fontWeight="semibold">Microsoft</Text>
+                      <Text as="span" variant="bodyMd" fontWeight="semibold">
+                        Microsoft
+                      </Text>
                       <Text as="span" variant="bodySm" tone="subdued">
                         {hasMicrosoft ? 'Cuenta vinculada' : 'No vinculada'}
                       </Text>
@@ -349,22 +351,16 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
 
   // ─── Main overview view ───
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      title="Mi perfil"
-    >
+    <Modal open={open} onClose={handleClose} title="Mi perfil">
       {/* ── Hero: Avatar + Identity ── */}
       <Modal.Section>
         <BlockStack gap="400">
           <InlineStack gap="400" blockAlign="center" wrap={false}>
-            <div style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }} onClick={() => setView('edit-photo')}>
-              <Avatar
-                size="xl"
-                name={displayName}
-                initials={initials}
-                source={previewSource}
-              />
+            <div
+              style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
+              onClick={() => setView('edit-photo')}
+            >
+              <Avatar size="xl" name={displayName} initials={initials} source={previewSource} />
               <div
                 style={{
                   position: 'absolute',
@@ -395,9 +391,7 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
               </Text>
               <InlineStack gap="200" blockAlign="center">
                 <Badge tone={getRoleTone()}>{roleName}</Badge>
-                {currentUserRole?.employeeNumber && (
-                  <Badge tone="info">{currentUserRole.employeeNumber}</Badge>
-                )}
+                {currentUserRole?.employeeNumber && <Badge tone="info">{currentUserRole.employeeNumber}</Badge>}
               </InlineStack>
             </BlockStack>
           </InlineStack>
@@ -407,7 +401,9 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
       {/* ── Personal Information ── */}
       <Modal.Section>
         <BlockStack gap="300">
-          <Text variant="headingSm" as="h3">Información personal</Text>
+          <Text variant="headingSm" as="h3">
+            Información personal
+          </Text>
 
           <Box borderStyle="solid" borderWidth="025" borderColor="border" borderRadius="300">
             {/* Name row */}
@@ -415,7 +411,9 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
               role="button"
               tabIndex={0}
               onClick={() => setView('edit-name')}
-              onKeyDown={(e) => { if (e.key === 'Enter') setView('edit-name'); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') setView('edit-name');
+              }}
               style={{ cursor: 'pointer' }}
             >
               <Box padding="300">
@@ -425,8 +423,12 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
                       <Icon source={PersonIcon} tone="success" />
                     </Box>
                     <BlockStack gap="050">
-                      <Text as="span" variant="bodySm" tone="subdued">Nombre completo</Text>
-                      <Text as="span" variant="bodyMd" fontWeight="semibold">{displayName || '—'}</Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        Nombre completo
+                      </Text>
+                      <Text as="span" variant="bodyMd" fontWeight="semibold">
+                        {displayName || '—'}
+                      </Text>
                     </BlockStack>
                   </InlineStack>
                   <Icon source={ChevronRightIcon} tone="subdued" />
@@ -444,8 +446,12 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
                     <Icon source={LockIcon} tone="success" />
                   </Box>
                   <BlockStack gap="050">
-                    <Text as="span" variant="bodySm" tone="subdued">Correo electrónico</Text>
-                    <Text as="span" variant="bodyMd" fontWeight="semibold">{user?.email || '—'}</Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      Correo electrónico
+                    </Text>
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">
+                      {user?.email || '—'}
+                    </Text>
                   </BlockStack>
                 </InlineStack>
                 <Badge tone="info">Verificado</Badge>
@@ -466,7 +472,9 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
                     <Icon source={HashtagIcon} tone={currentUserRole?.employeeNumber ? 'success' : 'subdued'} />
                   </Box>
                   <BlockStack gap="050">
-                    <Text as="span" variant="bodySm" tone="subdued">Número de empleado</Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      Número de empleado
+                    </Text>
                     <Text as="span" variant="bodyMd" fontWeight="semibold">
                       {currentUserRole?.employeeNumber || 'Sin asignar'}
                     </Text>
@@ -481,7 +489,9 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
       {/* ── Account & Security ── */}
       <Modal.Section>
         <BlockStack gap="300">
-          <Text variant="headingSm" as="h3">Cuenta y seguridad</Text>
+          <Text variant="headingSm" as="h3">
+            Cuenta y seguridad
+          </Text>
 
           <Box borderStyle="solid" borderWidth="025" borderColor="border" borderRadius="300">
             {/* Role */}
@@ -492,8 +502,12 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
                     <Icon source={PersonIcon} tone="success" />
                   </Box>
                   <BlockStack gap="050">
-                    <Text as="span" variant="bodySm" tone="subdued">Rol en el sistema</Text>
-                    <Text as="span" variant="bodyMd" fontWeight="semibold">{roleName}</Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      Rol en el sistema
+                    </Text>
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">
+                      {roleName}
+                    </Text>
                   </BlockStack>
                 </InlineStack>
                 <Badge tone={getRoleTone()}>{roleName}</Badge>
@@ -507,7 +521,9 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
               role="button"
               tabIndex={0}
               onClick={() => setView('link-accounts')}
-              onKeyDown={(e) => { if (e.key === 'Enter') setView('link-accounts'); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') setView('link-accounts');
+              }}
               style={{ cursor: 'pointer' }}
             >
               <Box padding="300">
@@ -521,8 +537,12 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
                       <Icon source={LinkIcon} tone={authProvider !== 'Email' ? 'success' : 'subdued'} />
                     </Box>
                     <BlockStack gap="050">
-                      <Text as="span" variant="bodySm" tone="subdued">Cuentas vinculadas</Text>
-                      <Text as="span" variant="bodyMd" fontWeight="semibold">{authProvider}</Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        Cuentas vinculadas
+                      </Text>
+                      <Text as="span" variant="bodyMd" fontWeight="semibold">
+                        {authProvider}
+                      </Text>
                     </BlockStack>
                   </InlineStack>
                   <InlineStack gap="200" blockAlign="center">
@@ -543,8 +563,12 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
                     <Icon source={ClockIcon} tone="success" />
                   </Box>
                   <BlockStack gap="050">
-                    <Text as="span" variant="bodySm" tone="subdued">Miembro desde</Text>
-                    <Text as="span" variant="bodyMd" fontWeight="semibold">{memberSince}</Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      Miembro desde
+                    </Text>
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">
+                      {memberSince}
+                    </Text>
                   </BlockStack>
                 </InlineStack>
               </InlineStack>

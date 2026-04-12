@@ -1,16 +1,16 @@
 /**
  * Enterprise Structured Logger
- * 
+ *
  * Features:
  * - JSON output compatible with Vercel, Datadog, Splunk, etc.
  * - Correlation IDs for distributed tracing
  * - Request context propagation via AsyncLocalStorage
  * - Automatic timing for async operations
- * 
+ *
  * @example
  * // Basic logging
  * logger.info('User created', { userId: 'u-123' });
- * 
+ *
  * // With request context
  * withRequestContext({ requestId: 'req-abc' }, async () => {
  *   logger.info('Processing'); // Auto-includes requestId
@@ -45,18 +45,26 @@ interface RequestContext {
 // ASYNC LOCAL STORAGE FOR REQUEST CONTEXT
 // ══════════════════════════════════════════════════════════════
 //
-// AsyncLocalStorage is Node.js-only. This module is imported in
-// three runtimes: Node.js (server actions), Edge (proxy.ts), and
-// Browser (via store chain). We use a universal no-op stub.
-// Correlation IDs are propagated via x-request-id header instead,
+// Uses real AsyncLocalStorage in Node.js (server actions, Vitest)
+// and falls back to a no-op stub in Edge/Browser runtimes.
+// Correlation IDs are also propagated via x-request-id header,
 // read by the action factory from next/headers.
 
 type ALS<T> = { getStore(): T | undefined; run<R>(store: T, fn: () => R): R };
 
-const requestContextStorage: ALS<RequestContext> = {
-  getStore: () => undefined,
-  run: <R>(_store: RequestContext, fn: () => R) => fn(),
-};
+let requestContextStorage: ALS<RequestContext>;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { AsyncLocalStorage } = require('node:async_hooks') as {
+    AsyncLocalStorage: new () => ALS<RequestContext>;
+  };
+  requestContextStorage = new AsyncLocalStorage();
+} catch {
+  requestContextStorage = {
+    getStore: () => undefined,
+    run: <R>(_store: RequestContext, fn: () => R) => fn(),
+  };
+}
 
 /**
  * Get current request context (if any)
@@ -68,10 +76,7 @@ export function getRequestContext(): RequestContext | undefined {
 /**
  * Run code with request context that auto-propagates to all logs
  */
-export function withRequestContext<T>(
-  context: Partial<RequestContext>,
-  fn: () => T,
-): T {
+export function withRequestContext<T>(context: Partial<RequestContext>, fn: () => T): T {
   const existing = getRequestContext();
   const merged: RequestContext = {
     requestId: context.requestId ?? existing?.requestId ?? generateRequestId(),
@@ -80,7 +85,7 @@ export function withRequestContext<T>(
     userId: context.userId ?? existing?.userId,
     startTime: context.startTime ?? existing?.startTime ?? Date.now(),
   };
-  
+
   return requestContextStorage.run(merged, fn);
 }
 
@@ -110,10 +115,10 @@ function shouldLog(level: LogLevel): boolean {
 
 function log(level: LogLevel, message: string, ctx?: LogContext): void {
   if (!shouldLog(level)) return;
-  
+
   // Merge request context
   const requestContext = getRequestContext();
-  
+
   const entry = {
     level,
     message,
@@ -133,9 +138,7 @@ function log(level: LogLevel, message: string, ctx?: LogContext): void {
   };
 
   // Remove undefined values for cleaner output
-  const cleaned = Object.fromEntries(
-    Object.entries(entry).filter(([, v]) => v !== undefined),
-  );
+  const cleaned = Object.fromEntries(Object.entries(entry).filter(([, v]) => v !== undefined));
 
   if (level === 'error') {
     console.error(JSON.stringify(cleaned));
@@ -174,12 +177,12 @@ export const logger = {
   async withTiming<T>(action: string, fn: () => Promise<T>, ctx?: LogContext): Promise<T> {
     const start = Date.now();
     const requestContext = getRequestContext();
-    
+
     try {
       const result = await fn();
-      log('info', `${action} completed`, { 
-        ...ctx, 
-        action, 
+      log('info', `${action} completed`, {
+        ...ctx,
+        action,
         duration: Date.now() - start,
         requestId: requestContext?.requestId,
       });
@@ -203,7 +206,7 @@ export const logger = {
   startSpan(name: string): { end: (ctx?: LogContext) => void } {
     const start = Date.now();
     const spanId = Math.random().toString(36).slice(2, 10);
-    
+
     return {
       end: (ctx?: LogContext) => {
         log('info', `${name}`, {
@@ -225,24 +228,16 @@ export const logger = {
  */
 export function extractRequestId(headers: Headers): string {
   return (
-    headers.get('x-request-id') ??
-    headers.get('x-correlation-id') ??
-    headers.get('x-trace-id') ??
-    generateRequestId()
+    headers.get('x-request-id') ?? headers.get('x-correlation-id') ?? headers.get('x-trace-id') ?? generateRequestId()
   );
 }
 
 /**
  * Log an incoming request
  */
-export function logRequest(
-  method: string,
-  path: string,
-  headers: Headers,
-  ctx?: LogContext,
-): void {
+export function logRequest(method: string, path: string, headers: Headers, ctx?: LogContext): void {
   const requestId = extractRequestId(headers);
-  
+
   withRequestContext({ requestId }, () => {
     logger.info(`${method} ${path}`, {
       ...ctx,
@@ -257,15 +252,9 @@ export function logRequest(
 /**
  * Log a completed response
  */
-export function logResponse(
-  method: string,
-  path: string,
-  status: number,
-  durationMs: number,
-  ctx?: LogContext,
-): void {
+export function logResponse(method: string, path: string, status: number, durationMs: number, ctx?: LogContext): void {
   const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info';
-  
+
   logger[level](`${method} ${path} ${status}`, {
     ...ctx,
     method,

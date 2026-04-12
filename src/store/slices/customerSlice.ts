@@ -24,7 +24,7 @@ export const createCustomerSlice = (set: StoreSet, get: StoreGet): CustomerSlice
     try {
       await dbUpdateCliente(id, data);
       const state = get();
-      set({ clientes: state.clientes.map(c => c.id === id ? { ...c, ...data } : c) });
+      set({ clientes: state.clientes.map((c) => (c.id === id ? { ...c, ...data } : c)) });
     } catch (error) {
       console.error('[store:customer] updateCliente failed', error);
       throw error;
@@ -36,8 +36,8 @@ export const createCustomerSlice = (set: StoreSet, get: StoreGet): CustomerSlice
       await dbDeleteCliente(id);
       const state = get();
       set({
-        clientes: state.clientes.filter(c => c.id !== id),
-        fiadoTransactions: state.fiadoTransactions.filter(t => t.clienteId !== id),
+        clientes: state.clientes.filter((c) => c.id !== id),
+        fiadoTransactions: state.fiadoTransactions.filter((t) => t.clienteId !== id),
       });
     } catch (error) {
       console.error('[store:customer] deleteCliente failed', error);
@@ -48,10 +48,7 @@ export const createCustomerSlice = (set: StoreSet, get: StoreGet): CustomerSlice
   registerFiado: async (clienteId, amount, description, saleFolio, items) => {
     try {
       await dbCreateFiado(clienteId, amount, description, saleFolio, items);
-      const [clientes, fiadoTxns] = await Promise.all([
-        fetchClientes(),
-        fetchFiadoTransactions(),
-      ]);
+      const [clientes, fiadoTxns] = await Promise.all([fetchClientes(), fetchFiadoTransactions()]);
       set({ clientes, fiadoTransactions: fiadoTxns });
     } catch (error) {
       console.error('[store:customer] registerFiado failed', error);
@@ -61,10 +58,7 @@ export const createCustomerSlice = (set: StoreSet, get: StoreGet): CustomerSlice
   registerAbono: async (clienteId, amount, description) => {
     try {
       await dbCreateAbono(clienteId, amount, description);
-      const [clientes, fiadoTxns] = await Promise.all([
-        fetchClientes(),
-        fetchFiadoTransactions(),
-      ]);
+      const [clientes, fiadoTxns] = await Promise.all([fetchClientes(), fetchFiadoTransactions()]);
       set({ clientes, fiadoTransactions: fiadoTxns });
     } catch (error) {
       console.error('[store:customer] registerAbono failed', error);

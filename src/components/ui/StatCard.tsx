@@ -26,7 +26,7 @@ export function StatCard({
   changeLabel = 'vs ayer',
   subtitle,
   badge,
-  tone,
+  tone: _tone,
 }: StatCardProps) {
   const formattedValue =
     typeof value === 'string'
@@ -39,32 +39,37 @@ export function StatCard({
             ? formatNumber(value)
             : String(value);
 
-  const changeTone = (v: number): BadgeProps['tone'] =>
-    v > 0 ? 'success' : v < 0 ? 'critical' : 'warning';
+  const changeTone = (v: number): BadgeProps['tone'] => (v > 0 ? 'success' : v < 0 ? 'critical' : 'warning');
 
   return (
     <Card>
       <BlockStack gap="200">
-          <InlineStack align="space-between" blockAlign="center">
-            <Text as="p" variant="bodySm" tone="subdued">{label}</Text>
-            {icon}
-          </InlineStack>
+        <InlineStack align="space-between" blockAlign="center">
+          <Text as="p" variant="bodySm" tone="subdued">
+            {label}
+          </Text>
+          {icon}
+        </InlineStack>
+        <InlineStack gap="200" blockAlign="center">
+          <Text as="p" variant="headingLg" fontWeight="bold">
+            {formattedValue}
+          </Text>
+          {badge && <Badge tone={badge.tone}>{badge.content}</Badge>}
+        </InlineStack>
+        {change !== undefined && (
           <InlineStack gap="200" blockAlign="center">
-            <Text as="p" variant="headingLg" fontWeight="bold">{formattedValue}</Text>
-            {badge && <Badge tone={badge.tone}>{badge.content}</Badge>}
+            <Badge tone={changeTone(change)}>{`${change > 0 ? '+' : ''}${change}%`}</Badge>
+            <Text as="span" variant="bodySm" tone="subdued">
+              {changeLabel}
+            </Text>
           </InlineStack>
-          {change !== undefined && (
-            <InlineStack gap="200" blockAlign="center">
-              <Badge tone={changeTone(change)}>
-                {`${change > 0 ? '+' : ''}${change}%`}
-              </Badge>
-              <Text as="span" variant="bodySm" tone="subdued">{changeLabel}</Text>
-            </InlineStack>
-          )}
-          {subtitle && (
-            <Text as="p" variant="bodySm" tone="subdued">{subtitle}</Text>
-          )}
-        </BlockStack>
+        )}
+        {subtitle && (
+          <Text as="p" variant="bodySm" tone="subdued">
+            {subtitle}
+          </Text>
+        )}
+      </BlockStack>
     </Card>
   );
 }

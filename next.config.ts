@@ -40,7 +40,15 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
   transpilePackages: ['@shopify/polaris', '@shopify/polaris-icons'],
-  serverExternalPackages: ['firebase-admin', 'firebase-admin/app', 'firebase-admin/auth', 'mercadopago', 'jspdf', 'jspdf-autotable', 'fflate'],
+  serverExternalPackages: [
+    'firebase-admin',
+    'firebase-admin/app',
+    'firebase-admin/auth',
+    'mercadopago',
+    'jspdf',
+    'jspdf-autotable',
+    'fflate',
+  ],
   compress: true,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
@@ -88,4 +96,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-

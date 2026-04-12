@@ -1,16 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Button,
-  Banner,
-  Divider,
-  Layout,
-} from '@shopify/polaris';
+import { Card, Text, BlockStack, InlineStack, Button, Banner, Divider, Layout } from '@shopify/polaris';
 import { PrintIcon } from '@shopify/polaris-icons';
 
 // ─── Template variable docs ───────────────────────────────────────────────────
@@ -63,27 +54,30 @@ export function TicketTemplateSection({ label, description, value, onChange, sam
   const [previewOpen, setPreviewOpen] = useState(false);
   const hasTemplate = !!value;
 
-  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.endsWith('.html') && file.type !== 'text/html') {
-      alert('Solo se aceptan archivos .html');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const content = ev.target?.result as string;
-      onChange(content);
-    };
-    reader.readAsText(file, 'utf-8');
-    // Reset input so same file can be re-uploaded
-    e.target.value = '';
-  }, [onChange]);
+  const handleFileUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.name.endsWith('.html') && file.type !== 'text/html') {
+        alert('Solo se aceptan archivos .html');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const content = ev.target?.result as string;
+        onChange(content);
+      };
+      reader.readAsText(file, 'utf-8');
+      // Reset input so same file can be re-uploaded
+      e.target.value = '';
+    },
+    [onChange],
+  );
 
   const handleDownloadSample = useCallback(() => {
-    const sampleRows = sampleVars.map(v =>
-      `  <div class="row"><span class="label">${v.desc}</span><span class="val">${v.var}</span></div>`
-    ).join('\n');
+    const _sampleRows = sampleVars
+      .map((v) => `  <div class="row"><span class="label">${v.desc}</span><span class="val">${v.var}</span></div>`)
+      .join('\n');
     const sample = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -147,29 +141,37 @@ export function TicketTemplateSection({ label, description, value, onChange, sam
         <BlockStack gap="400">
           {/* Variable reference table */}
           <BlockStack gap="200">
-            <Text as="h3" variant="headingSm">Variables disponibles</Text>
+            <Text as="h3" variant="headingSm">
+              Variables disponibles
+            </Text>
             <Text as="p" variant="bodySm" tone="subdued">
               Usa estas variables en tu plantilla HTML y serán reemplazadas automáticamente al imprimir.
             </Text>
-            <div style={{
-              background: '#f6f6f7',
-              borderRadius: '8px',
-              padding: '10px 12px',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: '4px 16px',
-            }}>
+            <div
+              style={{
+                background: '#f6f6f7',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: '4px 16px',
+              }}
+            >
               {sampleVars.map((sv) => (
                 <div key={sv.var} style={{ display: 'flex', gap: '8px', alignItems: 'baseline', fontSize: '12px' }}>
-                  <code style={{
-                    fontFamily: 'ui-monospace, monospace',
-                    background: '#e3e5e7',
-                    borderRadius: '4px',
-                    padding: '1px 5px',
-                    fontSize: '11px',
-                    color: '#1a1a1a',
-                    whiteSpace: 'nowrap',
-                  }}>{sv.var}</code>
+                  <code
+                    style={{
+                      fontFamily: 'ui-monospace, monospace',
+                      background: '#e3e5e7',
+                      borderRadius: '4px',
+                      padding: '1px 5px',
+                      fontSize: '11px',
+                      color: '#1a1a1a',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {sv.var}
+                  </code>
                   <span style={{ color: '#6d7175', fontSize: '11px' }}>{sv.desc}</span>
                 </div>
               ))}
@@ -187,16 +189,10 @@ export function TicketTemplateSection({ label, description, value, onChange, sam
               style={{ display: 'none' }}
               onChange={handleFileUpload}
             />
-            <Button
-              variant="primary"
-              icon={PrintIcon}
-              onClick={() => fileInputRef.current?.click()}
-            >
+            <Button variant="primary" icon={PrintIcon} onClick={() => fileInputRef.current?.click()}>
               {hasTemplate ? 'Reemplazar plantilla' : 'Subir plantilla (.html)'}
             </Button>
-            <Button onClick={handleDownloadSample}>
-              Descargar plantilla de ejemplo
-            </Button>
+            <Button onClick={handleDownloadSample}>Descargar plantilla de ejemplo</Button>
             {hasTemplate && (
               <>
                 <Button onClick={handlePreview}>Vista previa</Button>
@@ -221,30 +217,56 @@ export function TicketTemplateSection({ label, description, value, onChange, sam
 
       {/* Preview modal */}
       {previewOpen && value && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(0,0,0,0.55)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }} onClick={() => setPreviewOpen(false)}>
-          <div style={{
-            background: '#fff', borderRadius: '12px',
-            width: '420px', maxHeight: '85vh',
-            overflow: 'hidden', display: 'flex', flexDirection: 'column',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-          }} onClick={(e) => e.stopPropagation()}>
-            <div style={{
-              padding: '16px 20px', borderBottom: '1px solid #e1e3e5',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <Text as="h2" variant="headingMd">Vista previa de plantilla</Text>
-              <Button variant="plain" onClick={() => setPreviewOpen(false)}>Cerrar</Button>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={() => setPreviewOpen(false)}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '12px',
+              width: '420px',
+              maxHeight: '85vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid #e1e3e5',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Text as="h2" variant="headingMd">
+                Vista previa de plantilla
+              </Text>
+              <Button variant="plain" onClick={() => setPreviewOpen(false)}>
+                Cerrar
+              </Button>
             </div>
             <div style={{ flex: 1, overflow: 'auto', padding: '16px', background: '#f9fafb' }}>
               <iframe
                 srcDoc={value}
                 style={{
-                  width: '100%', minHeight: '500px', border: 'none',
-                  background: '#fff', borderRadius: '4px',
+                  width: '100%',
+                  minHeight: '500px',
+                  border: 'none',
+                  background: '#fff',
+                  borderRadius: '4px',
                   boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
                 }}
                 title="Vista previa del ticket"

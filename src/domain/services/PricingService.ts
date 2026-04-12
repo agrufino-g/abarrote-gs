@@ -1,5 +1,5 @@
-import { Money, Quantity } from '../value-objects';
-import { SaleItem, Sale, DiscountType } from '../entities';
+import { Money } from '../value-objects';
+import { Sale, DiscountType } from '../entities';
 
 /**
  * Promotion Rule Interface
@@ -10,20 +10,24 @@ export interface PromotionRule {
   readonly name: string;
   readonly type: 'percentage' | 'fixed' | 'buy_x_get_y' | 'bundle';
   readonly value: number;
+  /** For buy_x_get_y: the quantity X that triggers the free item */
+  readonly triggerQty?: number;
   readonly minPurchase?: number;
   readonly maxDiscount?: number;
   readonly categoryId?: string;
   readonly productIds?: string[];
+  /** For bundle: product IDs that must ALL be present for the bundle discount */
+  readonly bundleProductIds?: string[];
   readonly startDate?: Date;
   readonly endDate?: Date;
 }
 
 /**
  * Pricing Service
- * 
+ *
  * Domain service for pricing calculations.
  * Stateless - pure functions that encapsulate pricing business rules.
- * 
+ *
  * Responsibilities:
  * - Calculate discounts
  * - Apply promotions
@@ -71,18 +75,14 @@ export class PricingService {
   /**
    * Calculate discount amount from percentage or fixed
    */
-  static calculateDiscount(
-    subtotal: Money,
-    discountValue: number,
-    type: DiscountType,
-  ): Money {
+  static calculateDiscount(subtotal: Money, discountValue: number, type: DiscountType): Money {
     if (type === 'percent') {
       if (discountValue < 0 || discountValue > 100) {
         throw new Error('PricingService: Percentage must be between 0 and 100');
       }
       return subtotal.percentage(discountValue);
     }
-    
+
     // Fixed amount
     const discount = Money.fromPesos(discountValue);
     if (discount.isGreaterThan(subtotal)) {
@@ -113,9 +113,7 @@ export class PricingService {
 
     // Check product/category restrictions
     if (promotion.productIds && promotion.productIds.length > 0) {
-      const hasProduct = sale.items.some(i => 
-        promotion.productIds!.includes(i.productId),
-      );
+      const hasProduct = sale.items.some((i) => promotion.productIds!.includes(i.productId));
       if (!hasProduct) {
         return { discount: Money.zero(), appliedPromotion: null };
       }
@@ -130,14 +128,46 @@ export class PricingService {
       case 'fixed':
         discount = Money.fromPesos(promotion.value);
         break;
-      case 'buy_x_get_y':
-        // Simplified: value = X, get Y-th free
-        // Would need more complex logic for real implementation
-        discount = Money.zero();
+      case 'buy_x_get_y': {
+        // Buy X items, get the cheapest one free.
+        // value = how many free items; triggerQty = how many to buy (default X=2, get 1 free)
+        const triggerQty = promotion.triggerQty ?? 2;
+        const freeQty = promotion.value; // number of free items
+
+        // Filter eligible items (by productIds if specified, otherwise all)
+        const eligible = promotion.productIds?.length
+          ? sale.items.filter((i) => promotion.productIds!.includes(i.productId))
+          : sale.items;
+
+        // Flatten to individual units and sort by unit price ascending (cheapest first)
+        const units: Money[] = [];
+        for (const item of eligible) {
+          for (let u = 0; u < item.quantity.value; u++) {
+            units.push(item.unitPrice);
+          }
+        }
+        units.sort((a, b) => a.toPesos() - b.toPesos());
+
+        if (units.length >= triggerQty + freeQty) {
+          // The cheapest N items are free
+          discount = units.slice(0, freeQty).reduce((sum, price) => sum.add(price), Money.zero());
+        } else {
+          discount = Money.zero();
+        }
         break;
-      case 'bundle':
-        discount = Money.fromPesos(promotion.value);
+      }
+      case 'bundle': {
+        // All bundleProductIds must be in the sale for the fixed discount to apply.
+        const bundleIds = promotion.bundleProductIds ?? promotion.productIds ?? [];
+        if (bundleIds.length === 0) {
+          discount = Money.zero();
+          break;
+        }
+        const saleProductIds = new Set(sale.items.map((i) => i.productId));
+        const allPresent = bundleIds.every((pid) => saleProductIds.has(pid));
+        discount = allPresent ? Money.fromPesos(promotion.value) : Money.zero();
         break;
+      }
       default:
         discount = Money.zero();
     }
@@ -151,6 +181,29 @@ export class PricingService {
     }
 
     return { discount, appliedPromotion: promotion };
+  }
+
+  /**
+   * Apply the best promotion from a list (conflict resolution).
+   * Evaluates all eligible promotions and picks the one that gives the customer
+   * the highest discount (greedy best-for-customer strategy).
+   */
+  static applyBestPromotion(
+    sale: Sale,
+    promotions: PromotionRule[],
+  ): { discount: Money; appliedPromotion: PromotionRule | null } {
+    let bestDiscount = Money.zero();
+    let bestPromotion: PromotionRule | null = null;
+
+    for (const promo of promotions) {
+      const result = PricingService.applyPromotion(sale, promo);
+      if (result.appliedPromotion && result.discount.isGreaterThan(bestDiscount)) {
+        bestDiscount = result.discount;
+        bestPromotion = result.appliedPromotion;
+      }
+    }
+
+    return { discount: bestDiscount, appliedPromotion: bestPromotion };
   }
 
   // ─────────────────────────────────────────────────────────────────────
@@ -199,6 +252,67 @@ export class PricingService {
     return Money.fromPesos(points * valuePerPoint);
   }
 
+  /**
+   * Validate and calculate a point redemption at checkout.
+   * Enforces business rules:
+   *  - Customer must have enough points
+   *  - Minimum redemption threshold (default 100 points)
+   *  - Cannot redeem more than sale total
+   *  - Maximum redemption cap (default 50% of sale total)
+   */
+  static validateRedemption(
+    requestedPoints: number,
+    availablePoints: number,
+    saleTotal: Money,
+    opts: {
+      valuePerPoint?: number;
+      minRedeemPoints?: number;
+      maxRedeemPercent?: number;
+    } = {},
+  ): { valid: boolean; pointsToRedeem: number; discount: Money; reason?: string } {
+    const valuePerPoint = opts.valuePerPoint ?? 0.1;
+    const minRedeemPoints = opts.minRedeemPoints ?? 100;
+    const maxRedeemPercent = opts.maxRedeemPercent ?? 50;
+
+    if (requestedPoints <= 0) {
+      return {
+        valid: false,
+        pointsToRedeem: 0,
+        discount: Money.zero(),
+        reason: 'La cantidad de puntos debe ser mayor a 0',
+      };
+    }
+    if (requestedPoints < minRedeemPoints) {
+      return {
+        valid: false,
+        pointsToRedeem: 0,
+        discount: Money.zero(),
+        reason: `Mínimo ${minRedeemPoints} puntos para canjear`,
+      };
+    }
+    if (requestedPoints > availablePoints) {
+      return { valid: false, pointsToRedeem: 0, discount: Money.zero(), reason: 'Puntos insuficientes' };
+    }
+
+    const maxDiscount = saleTotal.percentage(maxRedeemPercent);
+    let discount = PricingService.calculatePointsValue(requestedPoints, valuePerPoint);
+
+    // Cap discount to max allowed percentage of sale total
+    let pointsToRedeem = requestedPoints;
+    if (discount.isGreaterThan(maxDiscount)) {
+      discount = maxDiscount;
+      pointsToRedeem = Math.ceil(maxDiscount.toPesos() / valuePerPoint);
+    }
+
+    // Cap discount to sale total
+    if (discount.isGreaterThan(saleTotal)) {
+      discount = saleTotal;
+      pointsToRedeem = Math.ceil(saleTotal.toPesos() / valuePerPoint);
+    }
+
+    return { valid: true, pointsToRedeem, discount };
+  }
+
   // ─────────────────────────────────────────────────────────────────────
   // Card Surcharges
   // ─────────────────────────────────────────────────────────────────────
@@ -206,11 +320,7 @@ export class PricingService {
   /**
    * Calculate card surcharge (if applicable)
    */
-  static calculateCardSurcharge(
-    total: Money,
-    surchargePercent: number,
-    applyToTotal = true,
-  ): Money {
+  static calculateCardSurcharge(total: Money, surchargePercent: number, applyToTotal = true): Money {
     if (surchargePercent <= 0) return Money.zero();
     return applyToTotal ? total.percentage(surchargePercent) : Money.zero();
   }

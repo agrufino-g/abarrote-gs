@@ -58,7 +58,11 @@ function getRelativeTime(dateStr: string): string {
   return `hace ${days}d`;
 }
 
-function StockBar({ current, minimum, severity }: {
+function StockBar({
+  current,
+  minimum,
+  severity,
+}: {
   current: number;
   minimum: number;
   severity: InventoryAlert['severity'];
@@ -70,12 +74,20 @@ function StockBar({ current, minimum, severity }: {
       <div style={{ width: 80 }}>
         <ProgressBar size="small" tone={tone} progress={ratio} />
       </div>
-      <Text as="span" variant="bodyXs" tone="subdued">{current}/{minimum}</Text>
+      <Text as="span" variant="bodyXs" tone="subdued">
+        {current}/{minimum}
+      </Text>
     </InlineStack>
   );
 }
 
-function MetricCard({ label, value, tone, subtitle, icon }: {
+function MetricCard({
+  label,
+  value,
+  tone,
+  subtitle,
+  icon,
+}: {
   label: string;
   value: number | string;
   tone: 'success' | 'critical' | 'attention' | 'info';
@@ -86,43 +98,52 @@ function MetricCard({ label, value, tone, subtitle, icon }: {
     <Card>
       <BlockStack gap="200">
         <InlineStack align="space-between">
-          <Text as="p" variant="bodySm" tone="subdued" fontWeight="medium">{label.toUpperCase()}</Text>
+          <Text as="p" variant="bodySm" tone="subdued" fontWeight="medium">
+            {label.toUpperCase()}
+          </Text>
           <div style={{ color: `var(--p-color-icon-${tone})` }}>
             <Icon source={icon} tone="inherit" />
           </div>
         </InlineStack>
         <BlockStack gap="050">
-          <Text as="h2" variant="heading2xl" fontWeight="bold">{value}</Text>
-          {subtitle && <Text as="p" variant="bodyXs" tone="subdued">{subtitle}</Text>}
+          <Text as="h2" variant="heading2xl" fontWeight="bold">
+            {value}
+          </Text>
+          {subtitle && (
+            <Text as="p" variant="bodyXs" tone="subdued">
+              {subtitle}
+            </Text>
+          )}
         </BlockStack>
       </BlockStack>
     </Card>
   );
 }
 
-export function NotificationsCenter({
-  alerts,
-  storeConfig,
-  onProductClick,
-  onOpenSettings,
-}: NotificationsCenterProps) {
+export function NotificationsCenter({ alerts, storeConfig, onProductClick, onOpenSettings }: NotificationsCenterProps) {
   const [queryValue, setQueryValue] = useState('');
   const [selectedTab, setSelectedTab] = useState(0);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
-  const counts = useMemo(() => ({
-    all: alerts.length,
-    critical: alerts.filter((a) => a.severity === 'critical').length,
-    warning: alerts.filter((a) => a.severity === 'warning').length,
-    info: alerts.filter((a) => a.severity === 'info').length,
-  }), [alerts]);
+  const counts = useMemo(
+    () => ({
+      all: alerts.length,
+      critical: alerts.filter((a) => a.severity === 'critical').length,
+      warning: alerts.filter((a) => a.severity === 'warning').length,
+      info: alerts.filter((a) => a.severity === 'info').length,
+    }),
+    [alerts],
+  );
 
-  const tabs = useMemo(() => [
-    { id: 'all', content: `Todas (${counts.all})`, panelID: 'panel-all' },
-    { id: 'critical', content: `Críticas (${counts.critical})`, panelID: 'panel-critical' },
-    { id: 'warning', content: `Advertencias (${counts.warning})`, panelID: 'panel-warning' },
-    { id: 'info', content: `Info (${counts.info})`, panelID: 'panel-info' },
-  ], [counts]);
+  const tabs = useMemo(
+    () => [
+      { id: 'all', content: `Todas (${counts.all})`, panelID: 'panel-all' },
+      { id: 'critical', content: `Críticas (${counts.critical})`, panelID: 'panel-critical' },
+      { id: 'warning', content: `Advertencias (${counts.warning})`, panelID: 'panel-warning' },
+      { id: 'info', content: `Info (${counts.info})`, panelID: 'panel-info' },
+    ],
+    [counts],
+  );
 
   const severityFromTab = useMemo<'all' | InventoryAlert['severity']>(() => {
     const map = ['all', 'critical', 'warning', 'info'] as const;
@@ -151,29 +172,17 @@ export function NotificationsCenter({
       });
   }, [alerts, severityFromTab, typeFilter, queryValue]);
 
-  const isConnected = !!(
-    storeConfig.enableNotifications &&
-    storeConfig.telegramToken &&
-    storeConfig.telegramChatId
-  );
+  const isConnected = !!(storeConfig.enableNotifications && storeConfig.telegramToken && storeConfig.telegramChatId);
 
   const rowMarkup = filteredAlerts.map((alert, index) => {
-    const badgeTone = alert.severity === 'critical'
-      ? 'critical'
-      : alert.severity === 'warning'
-      ? 'warning'
-      : 'info';
-    const rowTone = alert.severity === 'critical'
-      ? 'critical'
-      : alert.severity === 'warning'
-      ? 'warning'
-      : undefined;
+    const badgeTone = alert.severity === 'critical' ? 'critical' : alert.severity === 'warning' ? 'warning' : 'info';
+    const rowTone = alert.severity === 'critical' ? 'critical' : alert.severity === 'warning' ? 'warning' : undefined;
 
     return (
       <IndexTable.Row id={alert.id} key={alert.id} position={index} tone={rowTone}>
         {/* Severity indicator */}
         <IndexTable.Cell>
-          <Badge tone={badgeTone as any}>
+          <Badge tone={badgeTone}>
             {alert.severity === 'critical' ? 'Crítica' : alert.severity === 'warning' ? 'Advertencia' : 'Info'}
           </Badge>
         </IndexTable.Cell>
@@ -186,10 +195,14 @@ export function NotificationsCenter({
             </Button>
             <InlineStack gap="100" wrap>
               {alert.product.category && (
-                <Text as="span" variant="bodyXs" tone="subdued">{alert.product.category}</Text>
+                <Text as="span" variant="bodyXs" tone="subdued">
+                  {alert.product.category}
+                </Text>
               )}
               {alert.product.sku && (
-                <Text as="span" variant="bodyXs" tone="subdued">· SKU {alert.product.sku}</Text>
+                <Text as="span" variant="bodyXs" tone="subdued">
+                  · SKU {alert.product.sku}
+                </Text>
               )}
             </InlineStack>
           </BlockStack>
@@ -202,22 +215,22 @@ export function NotificationsCenter({
 
         {/* Stock level bar */}
         <IndexTable.Cell>
-          <StockBar
-            current={alert.product.currentStock}
-            minimum={alert.product.minStock}
-            severity={alert.severity}
-          />
+          <StockBar current={alert.product.currentStock} minimum={alert.product.minStock} severity={alert.severity} />
         </IndexTable.Cell>
 
         {/* Message */}
         <IndexTable.Cell>
-          <Text as="span" variant="bodySm" tone="subdued">{alert.message}</Text>
+          <Text as="span" variant="bodySm" tone="subdued">
+            {alert.message}
+          </Text>
         </IndexTable.Cell>
 
         {/* Relative time */}
         <IndexTable.Cell>
           <Tooltip content={new Date(alert.createdAt).toLocaleString('es-MX')}>
-            <Text as="span" variant="bodyXs" tone="subdued">{getRelativeTime(alert.createdAt)}</Text>
+            <Text as="span" variant="bodyXs" tone="subdued">
+              {getRelativeTime(alert.createdAt)}
+            </Text>
           </Tooltip>
         </IndexTable.Cell>
       </IndexTable.Row>
@@ -231,15 +244,18 @@ export function NotificationsCenter({
         <BlockStack gap="400">
           <Banner tone="info" title="Sistema de Notificaciones en Beta">
             <p>
-              Este centro de control está en fase Beta. Estamos priorizando las <strong>notificaciones vía Telegram</strong> para una gestión más inmediata.
-              {!isConnected && " Actualmente Telegram no está configurado."}
+              Este centro de control está en fase Beta. Estamos priorizando las{' '}
+              <strong>notificaciones vía Telegram</strong> para una gestión más inmediata.
+              {!isConnected && ' Actualmente Telegram no está configurado.'}
             </p>
           </Banner>
 
           <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="100">
               <InlineStack gap="200" blockAlign="center">
-                <Text as="h1" variant="headingLg">Gestión de Alertas</Text>
+                <Text as="h1" variant="headingLg">
+                  Gestión de Alertas
+                </Text>
                 <Badge tone="attention">Beta</Badge>
               </InlineStack>
               <Text as="p" variant="bodyMd" tone="subdued">
@@ -300,7 +316,7 @@ export function NotificationsCenter({
                   autoComplete="off"
                   value={queryValue}
                   onChange={setQueryValue}
-                  prefix={<Icon source={SearchIcon} tone="subdued" /> as any}
+                  prefix={<Icon source={SearchIcon} tone="subdued" />}
                   placeholder="Buscar por producto, SKU, categoría o mensaje…"
                   clearButton
                   onClearButtonClick={() => setQueryValue('')}
@@ -328,7 +344,10 @@ export function NotificationsCenter({
           {!isConnected && (
             <Box paddingInline="400" paddingBlockEnd="300">
               <Banner tone="warning" title="Canal externo no configurado">
-                <p>Las alertas críticas no se enviarán a supervisión. Configura Telegram para recibir avisos en tiempo real.</p>
+                <p>
+                  Las alertas críticas no se enviarán a supervisión. Configura Telegram para recibir avisos en tiempo
+                  real.
+                </p>
               </Banner>
             </Box>
           )}

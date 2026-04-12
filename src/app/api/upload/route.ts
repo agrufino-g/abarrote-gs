@@ -28,11 +28,11 @@ const ALLOWED_PATH_PREFIXES = ['products/', 'avatars/', 'logos/', 'receipts/', '
 function validateUploadPath(rawPath: string): string | null {
   // Normalize: remove leading slashes, collapse double dots, NUL bytes
   const normalized = rawPath
-    .replace(/\0/g, '')           // strip NUL bytes
-    .replace(/^\/+/, '')          // strip leading slashes
-    .replace(/\.\./g, '')         // strip path traversal
-    .replace(/%2e/gi, '')         // strip URL-encoded dots
-    .replace(/%2f/gi, '/');       // normalize encoded slashes
+    .replace(/\0/g, '') // strip NUL bytes
+    .replace(/^\/+/, '') // strip leading slashes
+    .replace(/\.\./g, '') // strip path traversal
+    .replace(/%2e/gi, '') // strip URL-encoded dots
+    .replace(/%2f/gi, '/'); // normalize encoded slashes
 
   // Must start with an allowed prefix
   const isAllowed = ALLOWED_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix));

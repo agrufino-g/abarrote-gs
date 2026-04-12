@@ -14,7 +14,7 @@ import {
   InlineGrid,
   Banner,
 } from '@shopify/polaris';
-import { RefreshIcon, OrderIcon } from '@shopify/polaris-icons';
+import { OrderIcon } from '@shopify/polaris-icons';
 import { fetchReorderSuggestions, createAutoReorderPedido } from '@/app/actions/analytics-advanced-actions';
 import { formatCurrency } from '@/lib/utils';
 import type { ReorderSuggestion } from '@/types';
@@ -37,7 +37,9 @@ export function SmartReorderView() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleAutoOrder = async (supplierName: string) => {
     setCreating(supplierName);
@@ -60,35 +62,47 @@ export function SmartReorderView() {
     suppliers.get(key)!.push(s);
   }
 
-  const urgencyTone = (u: string) =>
-    u === 'critical' ? 'critical' : u === 'warning' ? 'warning' : 'info';
+  const urgencyTone = (u: string) => (u === 'critical' ? 'critical' : u === 'warning' ? 'warning' : 'info');
 
-  const urgencyLabel = (u: string) =>
-    u === 'critical' ? 'Urgente' : u === 'warning' ? 'Pronto' : 'Normal';
+  const urgencyLabel = (u: string) => (u === 'critical' ? 'Urgente' : u === 'warning' ? 'Pronto' : 'Normal');
 
   const totalCost = suggestions.reduce((s, r) => s + r.estimatedCost, 0);
 
   return (
     <BlockStack gap="400">
-      {toast && <Banner tone="success" onDismiss={() => setToast(null)}>{toast}</Banner>}
+      {toast && (
+        <Banner tone="success" onDismiss={() => setToast(null)}>
+          {toast}
+        </Banner>
+      )}
 
       {/* Summary */}
       <InlineGrid columns={3} gap="400">
         <Card>
           <BlockStack gap="100">
-            <Text variant="bodySm" as="p" tone="subdued">Productos por reordenar</Text>
-            <Text variant="headingLg" as="p">{suggestions.length}</Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              Productos por reordenar
+            </Text>
+            <Text variant="headingLg" as="p">
+              {suggestions.length}
+            </Text>
           </BlockStack>
         </Card>
         <Card>
           <BlockStack gap="100">
-            <Text variant="bodySm" as="p" tone="subdued">Costo estimado total</Text>
-            <Text variant="headingLg" as="p">{formatCurrency(totalCost)}</Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              Costo estimado total
+            </Text>
+            <Text variant="headingLg" as="p">
+              {formatCurrency(totalCost)}
+            </Text>
           </BlockStack>
         </Card>
         <Card>
           <BlockStack gap="100">
-            <Text variant="bodySm" as="p" tone="subdued">Urgentes</Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              Urgentes
+            </Text>
             <Text variant="headingLg" as="p" tone="critical">
               {suggestions.filter((s) => s.urgency === 'critical').length}
             </Text>
@@ -98,7 +112,13 @@ export function SmartReorderView() {
 
       {/* Per supplier sections */}
       {loading && suggestions.length === 0 ? (
-        <Card><Box padding="800"><InlineStack align="center"><Spinner /></InlineStack></Box></Card>
+        <Card>
+          <Box padding="800">
+            <InlineStack align="center">
+              <Spinner />
+            </InlineStack>
+          </Box>
+        </Card>
       ) : (
         Array.from(suppliers.entries()).map(([supplier, items]) => {
           const supplierCost = items.reduce((s, r) => s + r.estimatedCost, 0);
@@ -107,7 +127,9 @@ export function SmartReorderView() {
               <BlockStack gap="300">
                 <InlineStack align="space-between">
                   <BlockStack gap="100">
-                    <Text variant="headingMd" as="h3">{supplier}</Text>
+                    <Text variant="headingMd" as="h3">
+                      {supplier}
+                    </Text>
                     <Text variant="bodySm" as="p" tone="subdued">
                       {items.length} productos — Costo est.: {formatCurrency(supplierCost)}
                     </Text>
@@ -142,7 +164,9 @@ export function SmartReorderView() {
                   {items.map((item, i) => (
                     <IndexTable.Row id={item.productId} key={item.productId} position={i}>
                       <IndexTable.Cell>
-                        <Text variant="bodyMd" as="span" fontWeight="semibold">{item.productName}</Text>
+                        <Text variant="bodyMd" as="span" fontWeight="semibold">
+                          {item.productName}
+                        </Text>
                       </IndexTable.Cell>
                       <IndexTable.Cell>
                         <Text as="span" alignment="end" tone={item.currentStock === 0 ? 'critical' : undefined}>
@@ -150,10 +174,14 @@ export function SmartReorderView() {
                         </Text>
                       </IndexTable.Cell>
                       <IndexTable.Cell>
-                        <Text as="span" alignment="end">{item.minStock}</Text>
+                        <Text as="span" alignment="end">
+                          {item.minStock}
+                        </Text>
                       </IndexTable.Cell>
                       <IndexTable.Cell>
-                        <Text as="span" alignment="end">{item.avgDailySales}</Text>
+                        <Text as="span" alignment="end">
+                          {item.avgDailySales}
+                        </Text>
                       </IndexTable.Cell>
                       <IndexTable.Cell>
                         <Text as="span" alignment="end" tone={item.daysUntilStockout <= 3 ? 'critical' : undefined}>
@@ -161,10 +189,14 @@ export function SmartReorderView() {
                         </Text>
                       </IndexTable.Cell>
                       <IndexTable.Cell>
-                        <Text as="span" alignment="end" fontWeight="bold">{item.suggestedQuantity}</Text>
+                        <Text as="span" alignment="end" fontWeight="bold">
+                          {item.suggestedQuantity}
+                        </Text>
                       </IndexTable.Cell>
                       <IndexTable.Cell>
-                        <Text as="span" alignment="end">{formatCurrency(item.estimatedCost)}</Text>
+                        <Text as="span" alignment="end">
+                          {formatCurrency(item.estimatedCost)}
+                        </Text>
                       </IndexTable.Cell>
                       <IndexTable.Cell>
                         <Badge tone={urgencyTone(item.urgency)}>{urgencyLabel(item.urgency)}</Badge>
@@ -179,9 +211,7 @@ export function SmartReorderView() {
       )}
 
       {!loading && suggestions.length === 0 && (
-        <Banner tone="success">
-          Todos los productos están bien abastecidos. No hay sugerencias de reorden.
-        </Banner>
+        <Banner tone="success">Todos los productos están bien abastecidos. No hay sugerencias de reorden.</Banner>
       )}
     </BlockStack>
   );

@@ -1,10 +1,10 @@
 /**
  * Folio Value Object
- * 
+ *
  * Represents a unique sale identifier following business rules:
  * - Format: YYYYMMDD-NNNN (date + sequential number)
  * - Offline folios: OFF-TIMESTAMP (temporary until synced)
- * 
+ *
  * @example
  * const folio = Folio.generate('20260404', 42);
  * console.log(folio.toString()); // "20260404-0042"

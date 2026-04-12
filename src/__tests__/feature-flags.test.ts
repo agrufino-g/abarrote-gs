@@ -181,9 +181,7 @@ describe('Feature Flags', () => {
       const flag = createTestFlag({ rolloutPercentage: 50 });
 
       // With 50% rollout, across many users we should see both true and false
-      const results = Array.from({ length: 100 }, (_, i) =>
-        evaluateFlag(flag, { userId: `user-${i}` }),
-      );
+      const results = Array.from({ length: 100 }, (_, i) => evaluateFlag(flag, { userId: `user-${i}` }));
 
       const trueCount = results.filter(Boolean).length;
       const falseCount = results.length - trueCount;
@@ -196,9 +194,7 @@ describe('Feature Flags', () => {
     it('should return true for all users at 100%', () => {
       const flag = createTestFlag({ rolloutPercentage: 100 });
 
-      const results = Array.from({ length: 50 }, (_, i) =>
-        evaluateFlag(flag, { userId: `user-${i}` }),
-      );
+      const results = Array.from({ length: 50 }, (_, i) => evaluateFlag(flag, { userId: `user-${i}` }));
 
       expect(results.every(Boolean)).toBe(true);
     });
@@ -206,9 +202,7 @@ describe('Feature Flags', () => {
     it('should return false for all users at 0% without targeting', () => {
       const flag = createTestFlag({ rolloutPercentage: 0 });
 
-      const results = Array.from({ length: 50 }, (_, i) =>
-        evaluateFlag(flag, { userId: `user-${i}` }),
-      );
+      const results = Array.from({ length: 50 }, (_, i) => evaluateFlag(flag, { userId: `user-${i}` }));
 
       expect(results.every((r) => !r)).toBe(true);
     });

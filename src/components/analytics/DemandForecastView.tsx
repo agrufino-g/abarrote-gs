@@ -16,7 +16,6 @@ import {
 } from '@shopify/polaris';
 import { RefreshIcon } from '@shopify/polaris-icons';
 import { fetchDemandForecast } from '@/app/actions/analytics-advanced-actions';
-import { formatCurrency } from '@/lib/utils';
 import type { ForecastProduct } from '@/types';
 
 export function DemandForecastView() {
@@ -35,13 +34,15 @@ export function DemandForecastView() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const atRisk = products.filter((p) => p.daysOfStock <= 7);
   const trending = products.filter((p) => p.trend === 'up');
   const declining = products.filter((p) => p.trend === 'down');
 
-  const trendIcon = (t: string) => t === 'up' ? '📈' : t === 'down' ? '📉' : '➡️';
+  const trendIcon = (t: string) => (t === 'up' ? '📈' : t === 'down' ? '📉' : '➡️');
   const trendTone = (t: string): 'success' | 'critical' | 'info' =>
     t === 'up' ? 'success' : t === 'down' ? 'critical' : 'info';
 
@@ -54,26 +55,42 @@ export function DemandForecastView() {
       <InlineGrid columns={4} gap="400">
         <Card>
           <BlockStack gap="100">
-            <Text variant="bodySm" as="p" tone="subdued">Productos analizados</Text>
-            <Text variant="headingLg" as="p">{products.length}</Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              Productos analizados
+            </Text>
+            <Text variant="headingLg" as="p">
+              {products.length}
+            </Text>
           </BlockStack>
         </Card>
         <Card>
           <BlockStack gap="100">
-            <Text variant="bodySm" as="p" tone="subdued">Riesgo desabasto (≤7d)</Text>
-            <Text variant="headingLg" as="p" tone="critical">{atRisk.length}</Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              Riesgo desabasto (≤7d)
+            </Text>
+            <Text variant="headingLg" as="p" tone="critical">
+              {atRisk.length}
+            </Text>
           </BlockStack>
         </Card>
         <Card>
           <BlockStack gap="100">
-            <Text variant="bodySm" as="p" tone="subdued">Tendencia al alza</Text>
-            <Text variant="headingLg" as="p">{trending.length}</Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              Tendencia al alza
+            </Text>
+            <Text variant="headingLg" as="p">
+              {trending.length}
+            </Text>
           </BlockStack>
         </Card>
         <Card>
           <BlockStack gap="100">
-            <Text variant="bodySm" as="p" tone="subdued">Tendencia a la baja</Text>
-            <Text variant="headingLg" as="p">{declining.length}</Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              Tendencia a la baja
+            </Text>
+            <Text variant="headingLg" as="p">
+              {declining.length}
+            </Text>
           </BlockStack>
         </Card>
       </InlineGrid>
@@ -87,14 +104,20 @@ export function DemandForecastView() {
       {/* Controls */}
       <Card>
         <InlineStack align="end">
-          <Button icon={RefreshIcon} onClick={load} loading={loading}>Recalcular</Button>
+          <Button icon={RefreshIcon} onClick={load} loading={loading}>
+            Recalcular
+          </Button>
         </InlineStack>
       </Card>
 
       {/* Forecast table */}
       <Card padding="0">
         {loading && products.length === 0 ? (
-          <Box padding="800"><InlineStack align="center"><Spinner /></InlineStack></Box>
+          <Box padding="800">
+            <InlineStack align="center">
+              <Spinner />
+            </InlineStack>
+          </Box>
         ) : (
           <IndexTable
             resourceName={{ singular: 'producto', plural: 'productos' }}
@@ -115,9 +138,13 @@ export function DemandForecastView() {
             {products.map((p, i) => (
               <IndexTable.Row id={p.productId} key={p.productId} position={i}>
                 <IndexTable.Cell>
-                  <Text variant="bodyMd" as="span" fontWeight="semibold">{p.productName}</Text>
+                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                    {p.productName}
+                  </Text>
                   <br />
-                  <Text variant="bodySm" as="span" tone="subdued">{p.category}</Text>
+                  <Text variant="bodySm" as="span" tone="subdued">
+                    {p.category}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
                   <Text as="span" alignment="end" tone={p.daysOfStock <= 7 ? 'critical' : undefined}>
@@ -125,7 +152,9 @@ export function DemandForecastView() {
                   </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{p.avgDailySales}</Text>
+                  <Text as="span" alignment="end">
+                    {p.avgDailySales}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
                   <Text as="span" alignment="end" tone={p.daysOfStock <= 7 ? 'critical' : undefined}>
@@ -138,10 +167,14 @@ export function DemandForecastView() {
                   </Badge>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end" fontWeight="bold">{p.forecastNextWeek} uds</Text>
+                  <Text as="span" alignment="end" fontWeight="bold">
+                    {p.forecastNextWeek} uds
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{p.forecastNextMonth} uds</Text>
+                  <Text as="span" alignment="end">
+                    {p.forecastNextMonth} uds
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
                   <Badge tone={confidenceTone(p.confidence)}>

@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  Card,
-  BlockStack,
-  InlineStack,
-  Text,
-  Box,
-  Button,
-  TextField,
-  Icon,
-} from '@shopify/polaris';
+import { Card, BlockStack, InlineStack, Text, Box, Button, TextField, Icon } from '@shopify/polaris';
 import { BarcodeIcon } from '@shopify/polaris-icons';
 import { CameraScanner } from '@/components/scanner/CameraScanner';
 
@@ -31,26 +22,26 @@ export function BarcodeScannerCard({
       <BlockStack gap="300">
         <InlineStack gap="200" blockAlign="center">
           <Icon source={BarcodeIcon} />
-          <Text as="h3" variant="headingSm">Escanear código de barras</Text>
+          <Text as="h3" variant="headingSm">
+            Escanear código de barras
+          </Text>
         </InlineStack>
 
-        <CameraScanner
-          onScan={onScan}
-          continuous
-          buttonLabel="Escanear productos con camara"
-        />
+        <CameraScanner onScan={onScan} continuous buttonLabel="Escanear productos con camara" />
 
         <InlineStack gap="200" align="end" blockAlign="end">
           <Box minWidth="350px">
-            <div onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                if (e.repeat || !barcodeInput.trim()) return;
-                const code = barcodeInput;
-                onBarcodeInputChange('');
-                onScan(code);
-              }
-            }}>
+            <div
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (e.repeat || !barcodeInput.trim()) return;
+                  const code = barcodeInput;
+                  onBarcodeInputChange('');
+                  onScan(code);
+                }
+              }}
+            >
               <TextField
                 label="Código de barras"
                 value={barcodeInput}

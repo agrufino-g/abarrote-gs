@@ -2,13 +2,7 @@
 
 import { Page, Banner, Button, BlockStack } from '@shopify/polaris';
 
-export default function DashboardError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function DashboardError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <Page title="Error" fullWidth>
       <BlockStack gap="400">

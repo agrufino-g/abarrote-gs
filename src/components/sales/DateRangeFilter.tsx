@@ -35,7 +35,10 @@ function fmtDisplay(d: Date) {
 function nodeContains(root: Node, desc: Node): boolean {
   if (root === desc) return true;
   let p = desc.parentNode;
-  while (p) { if (p === root) return true; p = p.parentNode; }
+  while (p) {
+    if (p === root) return true;
+    p = p.parentNode;
+  }
   return false;
 }
 
@@ -50,23 +53,35 @@ export interface DateRangeFilterProps {
 }
 
 export function DateRangeFilter({ activeDateRange, onApply, onClear }: DateRangeFilterProps) {
-  const today     = useMemo(() => new Date(new Date().setHours(0, 0, 0, 0)), []);
+  const today = useMemo(() => new Date(new Date().setHours(0, 0, 0, 0)), []);
   const yesterday = useMemo(() => new Date(new Date(today).setDate(today.getDate() - 1)), [today]);
 
-  const ranges: RangeOption[] = useMemo(() => [
-    { title: 'Hoy',             alias: 'today',     period: { since: today,     until: today } },
-    { title: 'Ayer',            alias: 'yesterday',  period: { since: yesterday, until: yesterday } },
-    { title: 'Últimos 7 días',  alias: 'last7',      period: { since: new Date(new Date(today).setDate(today.getDate() - 6)), until: today } },
-    { title: 'Últimos 30 días', alias: 'last30',     period: { since: new Date(new Date(today).setDate(today.getDate() - 29)), until: today } },
-  ], [today, yesterday]);
+  const ranges: RangeOption[] = useMemo(
+    () => [
+      { title: 'Hoy', alias: 'today', period: { since: today, until: today } },
+      { title: 'Ayer', alias: 'yesterday', period: { since: yesterday, until: yesterday } },
+      {
+        title: 'Últimos 7 días',
+        alias: 'last7',
+        period: { since: new Date(new Date(today).setDate(today.getDate() - 6)), until: today },
+      },
+      {
+        title: 'Últimos 30 días',
+        alias: 'last30',
+        period: { since: new Date(new Date(today).setDate(today.getDate() - 29)), until: today },
+      },
+    ],
+    [today, yesterday],
+  );
 
   const [popoverActive, setPopoverActive] = useState(false);
-  const [pendingRange,  setPendingRange]  = useState<RangeOption | null>(null);
-  const [inputValues,   setInputValues]   = useState<{ since: string; until: string }>({ since: '', until: '' });
-  const [{ month, year }, setCalDate]     = useState({ month: today.getMonth(), year: today.getFullYear() });
+  const [pendingRange, setPendingRange] = useState<RangeOption | null>(null);
+  const [inputValues, setInputValues] = useState<{ since: string; until: string }>({ since: '', until: '' });
+  const [{ month, year }, setCalDate] = useState({ month: today.getMonth(), year: today.getFullYear() });
   const datePickerRef = useRef<HTMLDivElement>(null);
 
   // sync inputs when pending range changes
+  /* eslint-disable react-hooks/set-state-in-effect -- derived state from range selection */
   useEffect(() => {
     if (!pendingRange) return;
     setInputValues({ since: fmtDate(pendingRange.period.since), until: fmtDate(pendingRange.period.until) });
@@ -80,12 +95,13 @@ export function DateRangeFilter({ activeDateRange, onApply, onClear }: DateRange
       setPendingRange(activeDateRange ?? ranges[0]);
     }
   }, [popoverActive]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleStartInput(value: string) {
-    setInputValues(p => ({ ...p, since: value }));
+    setInputValues((p) => ({ ...p, since: value }));
     if (!isValidDate(value)) return;
     const newSince = parseDate(value);
-    setPendingRange(prev => {
+    setPendingRange((prev) => {
       const until = prev?.period.until ?? newSince;
       const period = newSince <= until ? { since: newSince, until } : { since: newSince, until: newSince };
       return { alias: 'custom', title: 'Personalizado', period };
@@ -93,10 +109,10 @@ export function DateRangeFilter({ activeDateRange, onApply, onClear }: DateRange
   }
 
   function handleEndInput(value: string) {
-    setInputValues(p => ({ ...p, until: value }));
+    setInputValues((p) => ({ ...p, until: value }));
     if (!isValidDate(value)) return;
     const newUntil = parseDate(value);
-    setPendingRange(prev => {
+    setPendingRange((prev) => {
       const since = prev?.period.since ?? newUntil;
       const period = newUntil >= since ? { since, until: newUntil } : { since: newUntil, until: newUntil };
       return { alias: 'custom', title: 'Personalizado', period };
@@ -104,13 +120,17 @@ export function DateRangeFilter({ activeDateRange, onApply, onClear }: DateRange
   }
 
   function handleCalendarChange({ start, end }: { start: Date; end: Date }) {
-    const found = ranges.find(r => r.period.since.valueOf() === start.valueOf() && r.period.until.valueOf() === end.valueOf());
+    const found = ranges.find(
+      (r) => r.period.since.valueOf() === start.valueOf() && r.period.until.valueOf() === end.valueOf(),
+    );
     setPendingRange(found ?? { alias: 'custom', title: 'Personalizado', period: { since: start, until: end } });
   }
 
   function handleInputBlur({ relatedTarget }: React.FocusEvent) {
-    const within = relatedTarget instanceof Node && datePickerRef.current
-      ? nodeContains(datePickerRef.current, relatedTarget) : false;
+    const within =
+      relatedTarget instanceof Node && datePickerRef.current
+        ? nodeContains(datePickerRef.current, relatedTarget)
+        : false;
     if (!within) return;
   }
 
@@ -124,7 +144,7 @@ export function DateRangeFilter({ activeDateRange, onApply, onClear }: DateRange
   }
 
   // button label
-  const dateButtonLabel = activeDateRange
+  const _dateButtonLabel = activeDateRange
     ? activeDateRange.alias === 'custom'
       ? `${fmtDisplay(activeDateRange.period.since)} → ${fmtDisplay(activeDateRange.period.until)}`
       : activeDateRange.title
@@ -144,7 +164,7 @@ export function DateRangeFilter({ activeDateRange, onApply, onClear }: DateRange
         activator={
           <Button
             icon={CalendarIcon}
-            onClick={() => setPopoverActive(v => !v)}
+            onClick={() => setPopoverActive((v) => !v)}
             tone={activeDateRange ? 'success' : undefined}
           />
         }
@@ -155,10 +175,10 @@ export function DateRangeFilter({ activeDateRange, onApply, onClear }: DateRange
               <Box width="212px" padding="0" paddingBlockEnd="0">
                 <Scrollable style={{ height: '334px' }}>
                   <OptionList
-                    options={ranges.map(r => ({ value: r.alias, label: r.title }))}
+                    options={ranges.map((r) => ({ value: r.alias, label: r.title }))}
                     selected={pendingRange ? [pendingRange.alias] : []}
                     onChange={(vals) => {
-                      const found = ranges.find(r => r.alias === vals[0]);
+                      const found = ranges.find((r) => r.alias === vals[0]);
                       if (found) setPendingRange(found);
                     }}
                   />
@@ -169,28 +189,41 @@ export function DateRangeFilter({ activeDateRange, onApply, onClear }: DateRange
                   <InlineStack gap="200" blockAlign="center">
                     <div style={{ flexGrow: 1 }}>
                       <TextField
-                        role="combobox" label="Desde" labelHidden
+                        role="combobox"
+                        label="Desde"
+                        labelHidden
                         prefix={<Icon source={CalendarIcon} />}
-                        value={inputValues.since} onChange={handleStartInput}
-                        onBlur={handleInputBlur} autoComplete="off"
+                        value={inputValues.since}
+                        onChange={handleStartInput}
+                        onBlur={handleInputBlur}
+                        autoComplete="off"
                       />
                     </div>
                     <Icon source={ArrowRightIcon} />
                     <div style={{ flexGrow: 1 }}>
                       <TextField
-                        role="combobox" label="Hasta" labelHidden
+                        role="combobox"
+                        label="Hasta"
+                        labelHidden
                         prefix={<Icon source={CalendarIcon} />}
-                        value={inputValues.until} onChange={handleEndInput}
-                        onBlur={handleInputBlur} autoComplete="off"
+                        value={inputValues.until}
+                        onChange={handleEndInput}
+                        onBlur={handleInputBlur}
+                        autoComplete="off"
                       />
                     </div>
                   </InlineStack>
                   <DatePicker
-                    month={month} year={year}
-                    selected={pendingRange ? { start: pendingRange.period.since, end: pendingRange.period.until } : undefined}
+                    month={month}
+                    year={year}
+                    selected={
+                      pendingRange ? { start: pendingRange.period.since, end: pendingRange.period.until } : undefined
+                    }
                     onMonthChange={(m, y) => setCalDate({ month: m, year: y })}
                     onChange={({ start, end }) => handleCalendarChange({ start, end })}
-                    multiMonth allowRange weekStartsOn={0}
+                    multiMonth
+                    allowRange
+                    weekStartsOn={0}
                   />
                 </BlockStack>
               </Box>
@@ -201,14 +234,18 @@ export function DateRangeFilter({ activeDateRange, onApply, onClear }: DateRange
           <Popover.Section>
             <InlineStack align="end" gap="200">
               <Button onClick={handleCancel}>Cancelar</Button>
-              <Button variant="primary" onClick={handleApply}>Aplicar</Button>
+              <Button variant="primary" onClick={handleApply}>
+                Aplicar
+              </Button>
             </InlineStack>
           </Popover.Section>
         </Popover.Pane>
       </Popover>
 
       {activeDateRange && (
-        <Button variant="plain" tone="critical" onClick={onClear}>Limpiar</Button>
+        <Button variant="plain" tone="critical" onClick={onClear}>
+          Limpiar
+        </Button>
       )}
     </InlineStack>
   );

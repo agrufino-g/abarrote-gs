@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Text, BlockStack, InlineStack, Button, Box, InlineGrid, Banner, Icon } from '@shopify/polaris';
+import { Modal, Text, BlockStack, InlineStack, Button, Box, InlineGrid, Icon } from '@shopify/polaris';
 import { DeleteIcon, CheckCircleIcon, AlertCircleIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { PermissionKey } from '@/types';
@@ -15,15 +15,15 @@ interface PinPadModalProps {
   minLen?: number;
 }
 
-export function PinPadModal({ 
-  open, 
-  onClose, 
-  onSuccess, 
-  requiredPermission, 
+export function PinPadModal({
+  open,
+  onClose,
+  onSuccess,
+  requiredPermission,
   title = 'Seguridad POS',
   label = 'Ingresa PIN de autorización',
-  masked = true,
-  minLen = 4
+  masked: _masked = true,
+  minLen = 4,
 }: PinPadModalProps) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -33,6 +33,7 @@ export function PinPadModal({
   const authorizePin = useDashboardStore((s) => s.authorizePin);
 
   // Limpiar estado al cerrar
+  /* eslint-disable react-hooks/set-state-in-effect -- intentional reset on close */
   useEffect(() => {
     if (!open) {
       setPin('');
@@ -40,18 +41,19 @@ export function PinPadModal({
       setIsShaking(false);
     }
   }, [open]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleKeyPress = (num: string) => {
     setError('');
     setIsShaking(false);
     if (pin.length < 8) {
-      setPin(prev => prev + num);
+      setPin((prev) => prev + num);
     }
   };
 
   const handleBackspace = () => {
     setError('');
-    setPin(prev => prev.slice(0, -1));
+    setPin((prev) => prev.slice(0, -1));
   };
 
   const handleSubmit = async () => {
@@ -89,25 +91,29 @@ export function PinPadModal({
       title={
         <InlineStack gap="200" blockAlign="center">
           <Icon source={CheckCircleIcon} tone="base" />
-          <Text as="h2" variant="headingMd">{title}</Text>
+          <Text as="h2" variant="headingMd">
+            {title}
+          </Text>
         </InlineStack>
       }
     >
       <Modal.Section>
-        <div style={{
-          transform: isShaking ? 'translateX(0)' : 'none',
-          animation: isShaking ? 'idp-shake 0.4s cubic-bezier(.36,.07,.19,.97) both' : 'none'
-        }}>
+        <div
+          style={{
+            transform: isShaking ? 'translateX(0)' : 'none',
+            animation: isShaking ? 'idp-shake 0.4s cubic-bezier(.36,.07,.19,.97) both' : 'none',
+          }}
+        >
           <BlockStack gap="500" align="center" inlineAlign="center">
             <Text as="p" alignment="center" variant="bodyMd" tone="subdued">
               {label}
             </Text>
 
             {/* Display Estilo Shopify */}
-            <Box 
-              padding="600" 
-              background="bg-surface-tertiary" 
-              borderRadius="300" 
+            <Box
+              padding="600"
+              background="bg-surface-tertiary"
+              borderRadius="300"
               minWidth="260px"
               borderWidth="025"
               borderColor={error ? 'border-critical' : 'transparent'}
@@ -123,7 +129,7 @@ export function PinPadModal({
                       background: i < pin.length ? 'var(--p-color-text)' : 'var(--p-color-text-subdued)',
                       opacity: i < pin.length ? 1 : 0.2,
                       transition: 'all 0.1s ease',
-                      transform: i === pin.length - 1 ? 'scale(1.3)' : 'scale(1)'
+                      transform: i === pin.length - 1 ? 'scale(1.3)' : 'scale(1)',
                     }}
                   />
                 ))}
@@ -133,7 +139,9 @@ export function PinPadModal({
             {error && (
               <InlineStack gap="100" blockAlign="center">
                 <Icon source={AlertCircleIcon} tone="critical" />
-                <Text as="p" variant="bodySm" tone="critical" fontWeight="semibold">{error}</Text>
+                <Text as="p" variant="bodySm" tone="critical" fontWeight="semibold">
+                  {error}
+                </Text>
               </InlineStack>
             )}
 
@@ -141,8 +149,8 @@ export function PinPadModal({
             <Box maxWidth="280px">
               <InlineGrid columns={3} gap="300">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                  <button 
-                    key={num} 
+                  <button
+                    key={num}
                     className="idp-num-btn"
                     onClick={() => handleKeyPress(num.toString())}
                     disabled={loading}
@@ -150,20 +158,24 @@ export function PinPadModal({
                     {num}
                   </button>
                 ))}
-                <button className="idp-num-btn clear" onClick={() => setPin('')} disabled={loading}>C</button>
-                <button className="idp-num-btn" onClick={() => handleKeyPress('0')} disabled={loading}>0</button>
+                <button className="idp-num-btn clear" onClick={() => setPin('')} disabled={loading}>
+                  C
+                </button>
+                <button className="idp-num-btn" onClick={() => handleKeyPress('0')} disabled={loading}>
+                  0
+                </button>
                 <button className="idp-num-btn back" onClick={handleBackspace} disabled={loading}>
-                   <Icon source={DeleteIcon} tone="inherit" />
+                  <Icon source={DeleteIcon} tone="inherit" />
                 </button>
               </InlineGrid>
             </Box>
 
             <div style={{ width: '100%', marginTop: '12px' }}>
-              <Button 
-                size="large" 
-                variant="primary" 
-                fullWidth 
-                onClick={handleSubmit} 
+              <Button
+                size="large"
+                variant="primary"
+                fullWidth
+                onClick={handleSubmit}
                 loading={loading}
                 disabled={pin.length < minLen}
               >

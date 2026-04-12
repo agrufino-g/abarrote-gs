@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  Modal,
-  Text,
-  BlockStack,
-  InlineStack,
-  Badge,
-  Divider,
-  Box,
-  Banner,
-} from '@shopify/polaris';
+import { Modal, Text, BlockStack, InlineStack, Badge, Divider, Box, Banner } from '@shopify/polaris';
 import type { RoleDefinition } from '@/types';
 import { PERMISSION_LABELS, PERMISSION_GROUPS } from '@/types';
 
@@ -19,11 +10,7 @@ interface PermissionsDetailModalProps {
   roleDef: RoleDefinition | null;
 }
 
-export function PermissionsDetailModal({
-  open,
-  onClose,
-  roleDef,
-}: PermissionsDetailModalProps) {
+export function PermissionsDetailModal({ open, onClose, roleDef }: PermissionsDetailModalProps) {
   return (
     <Modal
       open={open}
@@ -43,15 +30,17 @@ export function PermissionsDetailModal({
               </Text>
               <Divider />
               {PERMISSION_GROUPS.map((group) => {
-                const active = group.permissions.filter((p) =>
-                  roleDef.permissions.includes(p)
-                );
+                const active = group.permissions.filter((p) => roleDef.permissions.includes(p));
                 return (
                   <Box key={group.title}>
                     <BlockStack gap="100">
-                      <Text variant="headingSm" as="h4">{group.title}</Text>
+                      <Text variant="headingSm" as="h4">
+                        {group.title}
+                      </Text>
                       {active.length === 0 ? (
-                        <Text variant="bodySm" as="p" tone="subdued">Sin acceso</Text>
+                        <Text variant="bodySm" as="p" tone="subdued">
+                          Sin acceso
+                        </Text>
                       ) : (
                         <InlineStack gap="200" wrap>
                           {group.permissions.map((perm) => {

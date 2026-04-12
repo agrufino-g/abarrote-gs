@@ -51,10 +51,7 @@ const DEFAULT_IDEM_TTL_MS = 300_000;
  * // ... proceed with sale creation
  * ```
  */
-export async function idempotencyCheck(
-  key: string,
-  options?: IdempotencyOptions,
-): Promise<boolean> {
+export async function idempotencyCheck(key: string, options?: IdempotencyOptions): Promise<boolean> {
   const ttlMs = options?.ttlMs ?? DEFAULT_IDEM_TTL_MS;
   const redis = getRedisClient();
 

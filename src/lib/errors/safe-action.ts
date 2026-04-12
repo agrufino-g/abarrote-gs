@@ -7,17 +7,21 @@ export type ActionState<T> =
 
 /**
  * Higher-Order Function (Wrapper) para proteger Server Actions.
- * 
+ *
  * Intercepta cualquier error (validación, DB, red, caídas abruptas),
- * lo loguea para auditoría y lo devuelve en un formato estándar 
+ * lo loguea para auditoría y lo devuelve en un formato estándar
  * que el frontend puede mostrar directamente en Sileo sin romper la UI.
- * 
+ *
  * @param actionFn La Server Action a ejecutar.
  * @param actionName Nombre de la acción para trazabilidad en logs (ej. "createSale").
  */
-export function safeAction<TArgs extends any[], TReturn>(
+export function safeAction<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TArgs extends any[],
+  TReturn,
+>(
   actionName: string,
-  actionFn: (...args: TArgs) => Promise<TReturn>
+  actionFn: (...args: TArgs) => Promise<TReturn>,
 ): (...args: TArgs) => Promise<ActionState<TReturn>> {
   return async (...args: TArgs): Promise<ActionState<TReturn>> => {
     try {
@@ -32,7 +36,7 @@ export function safeAction<TArgs extends any[], TReturn>(
         title: parsed.title,
         description: parsed.description,
         stack: error instanceof Error ? error.stack : undefined,
-        rawError: error instanceof Error ? error.message : String(error)
+        rawError: error instanceof Error ? error.message : String(error),
       });
 
       // Silencing is forbidden. Always return the parsed structured error to the client.

@@ -27,13 +27,28 @@ export function printTicketSurtido(params: {
   templateProveedor?: string;
 }) {
   const {
-    folio, fecha, proveedor, terminosPago, moneda, destino, destinoAddress,
-    notas, lineItems, subtotal, storeName, storeAddress, storePhone, templateProveedor,
+    folio,
+    fecha,
+    proveedor,
+    terminosPago,
+    moneda,
+    destino,
+    destinoAddress,
+    notas,
+    lineItems,
+    subtotal,
+    storeName,
+    storeAddress,
+    storePhone,
+    templateProveedor,
   } = params;
 
   const terminosLabel: Record<string, string> = {
-    inmediato: 'Pago inmediato', net15: 'Neto 15 días', net30: 'Neto 30 días',
-    net60: 'Neto 60 días', contra_entrega: 'Contra entrega',
+    inmediato: 'Pago inmediato',
+    net15: 'Neto 15 días',
+    net30: 'Neto 30 días',
+    net60: 'Neto 60 días',
+    contra_entrega: 'Contra entrega',
   };
 
   const fechaFmt = new Date(fecha).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -41,7 +56,9 @@ export function printTicketSurtido(params: {
   const totalQty = lineItems.reduce((s, l) => s + l.cantidad, 0);
   const now = new Date().toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
 
-  const rows = lineItems.map((item) => `
+  const rows = lineItems
+    .map(
+      (item) => `
     <tr>
       <td class="td-name">
         <span class="prod-name">${item.productName}</span>
@@ -50,7 +67,9 @@ export function printTicketSurtido(params: {
       <td class="td-qty">${item.cantidad}</td>
       <td class="td-price">$${item.precio.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
       <td class="td-total">$${(item.precio * item.cantidad).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-    </tr>`).join('');
+    </tr>`,
+    )
+    .join('');
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -170,10 +189,14 @@ export function printTicketSurtido(params: {
   <div class="totals-row"><span class="t-label">Envío</span><span class="t-value">—</span></div>
   <div class="totals-row main"><span class="t-label">TOTAL</span><span class="t-value">$${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })} ${moneda}</span></div>
 
-  ${notas ? `
+  ${
+    notas
+      ? `
   <hr class="line-thin"/>
   <div class="notes-label">Notas</div>
-  <div class="notes-text">${notas}</div>` : ''}
+  <div class="notes-text">${notas}</div>`
+      : ''
+  }
 
   <hr class="line"/>
 
@@ -202,11 +225,14 @@ export function printTicketSurtido(params: {
     storeAddress: storeAddress,
     storePhone: storePhone,
     impreso: now,
-    items: lineItems.map(item =>
-      `<div class="item-name">${item.productName}${item.sku ? ` <span style="font-size:9px;color:#777">(${item.sku})</span>` : ''}</div>` +
-      `<div class="item-detail"><span>${item.cantidad} × $${item.precio.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>` +
-      `<span>$${(item.precio * item.cantidad).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>`
-    ).join(''),
+    items: lineItems
+      .map(
+        (item) =>
+          `<div class="item-name">${item.productName}${item.sku ? ` <span style="font-size:9px;color:#777">(${item.sku})</span>` : ''}</div>` +
+          `<div class="item-detail"><span>${item.cantidad} × $${item.precio.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>` +
+          `<span>$${(item.precio * item.cantidad).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>`,
+      )
+      .join(''),
   };
 
   printWithIframe(applyTicketTemplate(templateProveedor, templateVars, html));

@@ -45,14 +45,70 @@ export const INVENTORY_TABS = [
 export const BULK_COLUMN_DEFINITIONS: BulkColumnDefinition[] = [
   { key: 'title', label: 'Titulo', group: 'General', inputType: 'text', minWidth: 280, mainTableTitle: 'Producto' },
   { key: 'sku', label: 'SKU', group: 'General', inputType: 'text', minWidth: 170, mainTableTitle: 'SKU' },
-  { key: 'barcode', label: 'Codigo de barras', group: 'General', inputType: 'text', minWidth: 220, mainTableTitle: 'Codigo de barras' },
-  { key: 'category', label: 'Categoria', group: 'General', inputType: 'text', minWidth: 180, mainTableTitle: 'Categoria' },
-  { key: 'unitPrice', label: 'Precio unitario', group: 'Precios', inputType: 'number', minWidth: 170, mainTableTitle: 'Precio unitario' },
-  { key: 'costPrice', label: 'Costo por articulo', group: 'Precios', inputType: 'number', minWidth: 170, mainTableTitle: 'Costo' },
-  { key: 'available', label: 'Disponible', group: 'Inventario', inputType: 'number', minWidth: 160, mainTableTitle: 'Disponible' },
-  { key: 'onHand', label: 'En existencia', group: 'Inventario', inputType: 'number', minWidth: 160, mainTableTitle: 'En existencia' },
-  { key: 'minStock', label: 'Stock minimo', group: 'Inventario', inputType: 'number', minWidth: 150, mainTableTitle: 'Stock minimo' },
-  { key: 'expirationDate', label: 'Caducidad', group: 'Inventario', inputType: 'date', minWidth: 170, mainTableTitle: 'Caducidad' },
+  {
+    key: 'barcode',
+    label: 'Codigo de barras',
+    group: 'General',
+    inputType: 'text',
+    minWidth: 220,
+    mainTableTitle: 'Codigo de barras',
+  },
+  {
+    key: 'category',
+    label: 'Categoria',
+    group: 'General',
+    inputType: 'text',
+    minWidth: 180,
+    mainTableTitle: 'Categoria',
+  },
+  {
+    key: 'unitPrice',
+    label: 'Precio unitario',
+    group: 'Precios',
+    inputType: 'number',
+    minWidth: 170,
+    mainTableTitle: 'Precio unitario',
+  },
+  {
+    key: 'costPrice',
+    label: 'Costo por articulo',
+    group: 'Precios',
+    inputType: 'number',
+    minWidth: 170,
+    mainTableTitle: 'Costo',
+  },
+  {
+    key: 'available',
+    label: 'Disponible',
+    group: 'Inventario',
+    inputType: 'number',
+    minWidth: 160,
+    mainTableTitle: 'Disponible',
+  },
+  {
+    key: 'onHand',
+    label: 'En existencia',
+    group: 'Inventario',
+    inputType: 'number',
+    minWidth: 160,
+    mainTableTitle: 'En existencia',
+  },
+  {
+    key: 'minStock',
+    label: 'Stock minimo',
+    group: 'Inventario',
+    inputType: 'number',
+    minWidth: 150,
+    mainTableTitle: 'Stock minimo',
+  },
+  {
+    key: 'expirationDate',
+    label: 'Caducidad',
+    group: 'Inventario',
+    inputType: 'date',
+    minWidth: 170,
+    mainTableTitle: 'Caducidad',
+  },
 ];
 
 export const INITIAL_VISIBLE_COLUMNS: Record<BulkColumnKey, boolean> = {
@@ -96,9 +152,7 @@ export function parseInventoryGeneralColumns(serializedColumns?: string): Record
 }
 
 export function serializeInventoryGeneralColumns(columns: Record<BulkColumnKey, boolean>): string {
-  const enabledColumns = BULK_COLUMN_DEFINITIONS
-    .map((column) => column.key)
-    .filter((key) => columns[key]);
+  const enabledColumns = BULK_COLUMN_DEFINITIONS.map((column) => column.key).filter((key) => columns[key]);
 
   return JSON.stringify(enabledColumns.length > 0 ? enabledColumns : JSON.parse(INVENTORY_GENERAL_COLUMNS_FALLBACK));
 }

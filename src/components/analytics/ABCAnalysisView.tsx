@@ -12,11 +12,9 @@ import {
   IndexTable,
   useIndexResourceState,
   Spinner,
-  Banner,
   ProgressBar,
   Box,
   InlineGrid,
-  Divider,
 } from '@shopify/polaris';
 import { RefreshIcon } from '@shopify/polaris-icons';
 import { fetchABCAnalysis } from '@/app/actions/analytics-advanced-actions';
@@ -41,17 +39,18 @@ export function ABCAnalysisView() {
     }
   }, [period]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const filtered = data?.products.filter(
-    (p) => filterClass === 'all' || p.classification === filterClass
-  ) ?? [];
+  const filtered = data?.products.filter((p) => filterClass === 'all' || p.classification === filterClass) ?? [];
 
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(filtered as unknown as { [key: string]: unknown }[], { resourceIDResolver: (p) => (p as unknown as ABCProduct).productId });
+  const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(
+    filtered as unknown as { [key: string]: unknown }[],
+    { resourceIDResolver: (p) => (p as unknown as ABCProduct).productId },
+  );
 
-  const classTone = (c: string) =>
-    c === 'A' ? 'success' : c === 'B' ? 'warning' : 'critical';
+  const classTone = (c: string) => (c === 'A' ? 'success' : c === 'B' ? 'warning' : 'critical');
 
   return (
     <BlockStack gap="400">
@@ -65,14 +64,14 @@ export function ABCAnalysisView() {
                   <Text variant="headingMd" as="h3">
                     Clase {cls}
                   </Text>
-                  <Badge tone={classTone(cls) as 'success' | 'info'}>
-                    {`${data.summary[cls].count} productos`}
-                  </Badge>
+                  <Badge tone={classTone(cls) as 'success' | 'info'}>{`${data.summary[cls].count} productos`}</Badge>
                 </InlineStack>
                 <Text variant="bodySm" as="p" tone="subdued">
-                  {cls === 'A' ? 'Top 80% de ingresos — prioridad máxima' :
-                   cls === 'B' ? 'Siguiente 15% — monitoreo regular' :
-                   'Último 5% — candidatos a descontinuar'}
+                  {cls === 'A'
+                    ? 'Top 80% de ingresos — prioridad máxima'
+                    : cls === 'B'
+                      ? 'Siguiente 15% — monitoreo regular'
+                      : 'Último 5% — candidatos a descontinuar'}
                 </Text>
                 <Box>
                   <ProgressBar
@@ -131,7 +130,8 @@ export function ABCAnalysisView() {
 
           {data && (
             <Text variant="bodySm" as="p" tone="subdued">
-              Ingresos totales: {formatCurrency(data.totalRevenue)} en los últimos {data.periodDays} días — {data.products.length} productos analizados
+              Ingresos totales: {formatCurrency(data.totalRevenue)} en los últimos {data.periodDays} días —{' '}
+              {data.products.length} productos analizados
             </Text>
           )}
         </BlockStack>
@@ -140,7 +140,11 @@ export function ABCAnalysisView() {
       {/* Products table */}
       <Card padding="0">
         {loading && !data ? (
-          <Box padding="800"><InlineStack align="center"><Spinner /></InlineStack></Box>
+          <Box padding="800">
+            <InlineStack align="center">
+              <Spinner />
+            </InlineStack>
+          </Box>
         ) : (
           <IndexTable
             resourceName={{ singular: 'producto', plural: 'productos' }}
@@ -159,27 +163,40 @@ export function ABCAnalysisView() {
             ]}
           >
             {filtered.map((p, i) => (
-              <IndexTable.Row id={p.productId} key={p.productId} position={i} selected={selectedResources.includes(p.productId)}>
+              <IndexTable.Row
+                id={p.productId}
+                key={p.productId}
+                position={i}
+                selected={selectedResources.includes(p.productId)}
+              >
                 <IndexTable.Cell>
-                  <Text variant="bodyMd" as="span" fontWeight="semibold">{p.productName}</Text>
+                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                    {p.productName}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>{p.sku}</IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Badge tone={classTone(p.classification)}>
-                    {p.classification}
-                  </Badge>
+                  <Badge tone={classTone(p.classification)}>{p.classification}</Badge>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{formatCurrency(p.totalRevenue)}</Text>
+                  <Text as="span" alignment="end">
+                    {formatCurrency(p.totalRevenue)}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{p.revenuePercentage.toFixed(1)}%</Text>
+                  <Text as="span" alignment="end">
+                    {p.revenuePercentage.toFixed(1)}%
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{p.cumulativePercentage.toFixed(1)}%</Text>
+                  <Text as="span" alignment="end">
+                    {p.cumulativePercentage.toFixed(1)}%
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{p.totalQuantity}</Text>
+                  <Text as="span" alignment="end">
+                    {p.totalQuantity}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
                   <Text as="span" alignment="end" tone={p.currentStock <= 0 ? 'critical' : undefined}>

@@ -1,17 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import {
-  Modal,
-  BlockStack,
-  InlineStack,
-  Text,
-  Button,
-  TextField,
-  Select,
-  Card,
-  Badge,
-} from '@shopify/polaris';
+import { Modal, BlockStack, InlineStack, Text, Button, TextField, Select, Card, Badge } from '@shopify/polaris';
 import { MobileIcon, CashDollarIcon } from '@shopify/polaris-icons';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -51,13 +41,13 @@ export function ServiciosModal({ open, onClose }: ServiciosModalProps) {
   const [montoCustom, setMontoCustom] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const categoriaActual = tipo === 'recarga'
-    ? RECARGAS.find(r => r.value === categoria)
-    : SERVICIOS.find(s => s.value === categoria);
+  const categoriaActual =
+    tipo === 'recarga' ? RECARGAS.find((r) => r.value === categoria) : SERVICIOS.find((s) => s.value === categoria);
 
-  const comision = tipo === 'recarga'
-    ? parseFloat(monto) * 0.03 // 3% comisión en recargas
-    : (SERVICIOS.find(s => s.value === categoria)?.comision || 0);
+  const comision =
+    tipo === 'recarga'
+      ? parseFloat(monto) * 0.03 // 3% comisión en recargas
+      : SERVICIOS.find((s) => s.value === categoria)?.comision || 0;
 
   const total = parseFloat(monto || montoCustom || '0') + comision;
 
@@ -70,7 +60,7 @@ export function ServiciosModal({ open, onClose }: ServiciosModalProps) {
     setLoading(true);
     try {
       const montoFinal = parseFloat(monto || montoCustom);
-      const folio = `SRV-${Date.now()}`;
+      const _folio = `SRV-${Date.now()}`;
 
       // Aquí iría la integración con el proveedor de servicios
       // Por ahora solo registramos localmente
@@ -98,12 +88,24 @@ export function ServiciosModal({ open, onClose }: ServiciosModalProps) {
       setMonto('');
       setMontoCustom('');
       onClose();
-    } catch (error) {
+    } catch (_error) {
       showError('Error al procesar el servicio');
     } finally {
       setLoading(false);
     }
-  }, [tipo, categoria, numeroReferencia, monto, montoCustom, comision, categoriaActual, currentUserRole, showSuccess, showError, onClose]);
+  }, [
+    tipo,
+    categoria,
+    numeroReferencia,
+    monto,
+    montoCustom,
+    comision,
+    categoriaActual,
+    currentUserRole,
+    showSuccess,
+    showError,
+    onClose,
+  ]);
 
   return (
     <Modal
@@ -125,14 +127,22 @@ export function ServiciosModal({ open, onClose }: ServiciosModalProps) {
           <InlineStack gap="300">
             <Button
               variant={tipo === 'recarga' ? 'primary' : 'secondary'}
-              onClick={() => { setTipo('recarga'); setCategoria(''); setMonto(''); }}
+              onClick={() => {
+                setTipo('recarga');
+                setCategoria('');
+                setMonto('');
+              }}
               icon={MobileIcon}
             >
               Recargas
             </Button>
             <Button
               variant={tipo === 'servicio' ? 'primary' : 'secondary'}
-              onClick={() => { setTipo('servicio'); setCategoria(''); setMonto(''); }}
+              onClick={() => {
+                setTipo('servicio');
+                setCategoria('');
+                setMonto('');
+              }}
               icon={CashDollarIcon}
             >
               Pago de Servicios
@@ -166,13 +176,18 @@ export function ServiciosModal({ open, onClose }: ServiciosModalProps) {
           {/* Montos predefinidos (solo recargas) */}
           {tipo === 'recarga' && categoria && (
             <BlockStack gap="200">
-              <Text as="p" variant="bodyMd" fontWeight="semibold">Monto</Text>
+              <Text as="p" variant="bodyMd" fontWeight="semibold">
+                Monto
+              </Text>
               <InlineStack gap="200" wrap>
-                {RECARGAS.find(r => r.value === categoria)?.montos.map(m => (
+                {RECARGAS.find((r) => r.value === categoria)?.montos.map((m) => (
                   <Button
                     key={m}
                     variant={monto === String(m) ? 'primary' : 'secondary'}
-                    onClick={() => { setMonto(String(m)); setMontoCustom(''); }}
+                    onClick={() => {
+                      setMonto(String(m));
+                      setMontoCustom('');
+                    }}
                   >
                     {`$${m}`}
                   </Button>
@@ -186,7 +201,10 @@ export function ServiciosModal({ open, onClose }: ServiciosModalProps) {
             <TextField
               label={tipo === 'recarga' ? 'Otro monto' : 'Monto a pagar'}
               value={montoCustom}
-              onChange={(val) => { setMontoCustom(val); setMonto(''); }}
+              onChange={(val) => {
+                setMontoCustom(val);
+                setMonto('');
+              }}
               type="number"
               prefix="$"
               autoComplete="off"
@@ -199,19 +217,25 @@ export function ServiciosModal({ open, onClose }: ServiciosModalProps) {
             <Card>
               <BlockStack gap="200">
                 <InlineStack align="space-between">
-                  <Text as="span" variant="bodyMd">Monto:</Text>
+                  <Text as="span" variant="bodyMd">
+                    Monto:
+                  </Text>
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
                     {formatCurrency(parseFloat(monto || montoCustom))}
                   </Text>
                 </InlineStack>
                 <InlineStack align="space-between">
-                  <Text as="span" variant="bodyMd">Comisión:</Text>
+                  <Text as="span" variant="bodyMd">
+                    Comisión:
+                  </Text>
                   <Text as="span" variant="bodyMd" tone="subdued">
                     {formatCurrency(comision)}
                   </Text>
                 </InlineStack>
                 <InlineStack align="space-between">
-                  <Text as="span" variant="headingMd">Total a cobrar:</Text>
+                  <Text as="span" variant="headingMd">
+                    Total a cobrar:
+                  </Text>
                   <Text as="span" variant="headingMd" tone="success">
                     {formatCurrency(total)}
                   </Text>

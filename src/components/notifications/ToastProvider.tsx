@@ -17,7 +17,13 @@ interface ToastAction {
 }
 
 interface ToastContextType {
-  showToast: (message: { content: string; description?: string; error?: boolean; duration?: number; action?: ToastAction }) => void;
+  showToast: (message: {
+    content: string;
+    description?: string;
+    error?: boolean;
+    duration?: number;
+    action?: ToastAction;
+  }) => void;
   showSuccess: (content: ToastContent, action?: ToastAction) => void;
   showError: (content: ToastContent) => void;
   showInfo: (content: ToastContent) => void;
@@ -40,22 +46,25 @@ interface ToastProviderProps {
 }
 
 export function ToastProvider({ children }: ToastProviderProps) {
-  const resolveContent = (tc: ToastContent) => 
+  const resolveContent = (tc: ToastContent) =>
     typeof tc === 'string' ? { title: tc } : { title: tc.title, description: tc.description };
 
-  const showToast = useCallback((message: { content: string; description?: string; error?: boolean; duration?: number; action?: ToastAction }) => {
-    const opts = {
-      title: message.content,
-      description: message.description,
-      duration: message.duration ?? 3000,
-      ...(message.action ? { button: { title: message.action.content, onClick: message.action.onAction } } : {}),
-    };
-    if (message.error) {
-      sileo.error(opts);
-    } else {
-      sileo.success(opts);
-    }
-  }, []);
+  const showToast = useCallback(
+    (message: { content: string; description?: string; error?: boolean; duration?: number; action?: ToastAction }) => {
+      const opts = {
+        title: message.content,
+        description: message.description,
+        duration: message.duration ?? 3000,
+        ...(message.action ? { button: { title: message.action.content, onClick: message.action.onAction } } : {}),
+      };
+      if (message.error) {
+        sileo.error(opts);
+      } else {
+        sileo.success(opts);
+      }
+    },
+    [],
+  );
 
   const showSuccess = useCallback((content: ToastContent, action?: ToastAction) => {
     sileo.success({
@@ -89,4 +98,3 @@ export function ToastProvider({ children }: ToastProviderProps) {
     </ToastContext.Provider>
   );
 }
-

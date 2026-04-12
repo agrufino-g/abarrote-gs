@@ -2,7 +2,7 @@ import { Money, Quantity } from '../value-objects';
 
 /**
  * SaleItem Entity
- * 
+ *
  * Represents a single line item in a sale.
  * Immutable once created - modifications create new instances.
  *
@@ -81,12 +81,24 @@ export class SaleItem {
   // Accessors
   // ─────────────────────────────────────────────────────────────────────
 
-  get productId(): string { return this.props.productId; }
-  get productName(): string { return this.props.productName; }
-  get quantity(): Quantity { return this.props.quantity; }
-  get unitPrice(): Money { return this.props.unitPrice; }
-  get costPrice(): Money { return this.props.costPrice; }
-  get discount(): Money { return this.props.discount ?? Money.zero(); }
+  get productId(): string {
+    return this.props.productId;
+  }
+  get productName(): string {
+    return this.props.productName;
+  }
+  get quantity(): Quantity {
+    return this.props.quantity;
+  }
+  get unitPrice(): Money {
+    return this.props.unitPrice;
+  }
+  get costPrice(): Money {
+    return this.props.costPrice;
+  }
+  get discount(): Money {
+    return this.props.discount ?? Money.zero();
+  }
 
   // ─────────────────────────────────────────────────────────────────────
   // Derived Properties (Business Logic)

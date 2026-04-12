@@ -1,15 +1,15 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { Page, Badge, InlineStack, Text } from '@shopify/polaris';
-import { 
-  PlusIcon, 
-  ExportIcon, 
-  ImportIcon, 
-  ViewIcon, 
-  EmailIcon, 
+import { Page, Badge } from '@shopify/polaris';
+import {
+  PlusIcon,
+  ExportIcon,
+  ImportIcon,
+  ViewIcon,
+  EmailIcon,
   SettingsIcon,
-  CollectionIcon 
+  CollectionIcon,
 } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { AllProductsTable } from '@/components/inventory/AllProductsTable';
@@ -38,21 +38,24 @@ export default function ProductsPage() {
     setUpdateProductOpen(true);
   }, []);
 
-  const handleDeleteProducts = useCallback(async (productsToDelete: Product[]) => {
-    const count = productsToDelete.length;
-    const label = count === 1 ? `"${productsToDelete[0].name}"` : `${count} productos`;
-    if (confirm(`¿Estás seguro de eliminar ${label}?`)) {
-      try {
-        await Promise.all(productsToDelete.map((p) => deleteProduct(p.id)));
-        toast.showSuccess(`${count === 1 ? `Producto ${label}` : label} eliminado${count > 1 ? 's' : ''}`);
-        fetchDashboardData();
-      } catch (error) {
-        const parsed = parseError(error);
-        parsed.title = 'Error al eliminar';
-        toast.showError(parsed);
+  const handleDeleteProducts = useCallback(
+    async (productsToDelete: Product[]) => {
+      const count = productsToDelete.length;
+      const label = count === 1 ? `"${productsToDelete[0].name}"` : `${count} productos`;
+      if (confirm(`¿Estás seguro de eliminar ${label}?`)) {
+        try {
+          await Promise.all(productsToDelete.map((p) => deleteProduct(p.id)));
+          toast.showSuccess(`${count === 1 ? `Producto ${label}` : label} eliminado${count > 1 ? 's' : ''}`);
+          fetchDashboardData();
+        } catch (error) {
+          const parsed = parseError(error);
+          parsed.title = 'Error al eliminar';
+          toast.showError(parsed);
+        }
       }
-    }
-  }, [toast, fetchDashboardData]);
+    },
+    [toast, fetchDashboardData],
+  );
 
   return (
     <>
@@ -68,15 +71,15 @@ export default function ProductsPage() {
           onAction: () => setRegisterProductOpen(true),
         }}
         secondaryActions={[
-          { 
-            content: 'Exportar', 
+          {
+            content: 'Exportar',
             icon: ExportIcon,
-            onAction: () => setExportOpen(true) 
+            onAction: () => setExportOpen(true),
           },
-          { 
-            content: 'Importar', 
+          {
+            content: 'Importar',
             icon: ImportIcon,
-            onAction: () => setImportOpen(true) 
+            onAction: () => setImportOpen(true),
           },
           {
             content: 'Categorías',

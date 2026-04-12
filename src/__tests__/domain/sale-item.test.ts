@@ -37,32 +37,37 @@ describe('SaleItem Entity', () => {
 
   describe('invariant validation', () => {
     it('should throw if product ID is empty', () => {
-      expect(() => SaleItem.create({ ...validItemProps(), productId: '' }))
-        .toThrow('SaleItem: Product ID is required');
+      expect(() => SaleItem.create({ ...validItemProps(), productId: '' })).toThrow('SaleItem: Product ID is required');
     });
 
     it('should throw if product ID is whitespace', () => {
-      expect(() => SaleItem.create({ ...validItemProps(), productId: '   ' }))
-        .toThrow('SaleItem: Product ID is required');
+      expect(() => SaleItem.create({ ...validItemProps(), productId: '   ' })).toThrow(
+        'SaleItem: Product ID is required',
+      );
     });
 
     it('should throw if product name is empty', () => {
-      expect(() => SaleItem.create({ ...validItemProps(), productName: '' }))
-        .toThrow('SaleItem: Product name is required');
+      expect(() => SaleItem.create({ ...validItemProps(), productName: '' })).toThrow(
+        'SaleItem: Product name is required',
+      );
     });
 
     it('should throw if quantity is zero', () => {
-      expect(() => SaleItem.create({
-        ...validItemProps(),
-        quantity: Quantity.of(0),
-      })).toThrow('SaleItem: Quantity must be greater than zero');
+      expect(() =>
+        SaleItem.create({
+          ...validItemProps(),
+          quantity: Quantity.of(0),
+        }),
+      ).toThrow('SaleItem: Quantity must be greater than zero');
     });
 
     it('should throw if unit price is zero', () => {
-      expect(() => SaleItem.create({
-        ...validItemProps(),
-        unitPrice: Money.zero(),
-      })).toThrow('SaleItem: Unit price must be positive');
+      expect(() =>
+        SaleItem.create({
+          ...validItemProps(),
+          unitPrice: Money.zero(),
+        }),
+      ).toThrow('SaleItem: Unit price must be positive');
     });
   });
 
@@ -140,7 +145,7 @@ describe('SaleItem Entity', () => {
     it('should create new instance when adding quantity', () => {
       const original = SaleItem.create(validItemProps());
       const updated = original.addQuantity(Quantity.of(2));
-      
+
       expect(updated.quantity.value).toBe(5);
       expect(original.quantity.value).toBe(3);
       expect(updated).not.toBe(original);
@@ -149,7 +154,7 @@ describe('SaleItem Entity', () => {
     it('should create new instance when applying discount', () => {
       const original = SaleItem.create(validItemProps());
       const updated = original.applyDiscount(Money.fromPesos(10));
-      
+
       expect(updated.discount.toPesos()).toBe(10);
       expect(original.discount.toPesos()).toBe(0);
       expect(updated).not.toBe(original);
@@ -157,8 +162,7 @@ describe('SaleItem Entity', () => {
 
     it('should throw if discount exceeds subtotal', () => {
       const item = SaleItem.create(validItemProps());
-      expect(() => item.applyDiscount(Money.fromPesos(100)))
-        .toThrow('SaleItem: Discount cannot exceed subtotal');
+      expect(() => item.applyDiscount(Money.fromPesos(100))).toThrow('SaleItem: Discount cannot exceed subtotal');
     });
   });
 

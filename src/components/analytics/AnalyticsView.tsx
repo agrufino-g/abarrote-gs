@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   Page,
   Layout,
@@ -10,8 +10,6 @@ import {
   Text,
   Badge,
   Divider,
-  Select,
-  TextField,
   Box,
   Icon,
   InlineGrid,
@@ -19,38 +17,145 @@ import {
   ButtonGroup,
   Popover,
   DatePicker,
+  ProgressBar,
+  Tooltip,
 } from '@shopify/polaris';
 import {
-  PlusIcon,
-  MinusIcon,
-  CashDollarIcon,
-  ReceiptIcon,
-  ArrowUpIcon,
   ChartVerticalIcon,
-  CalendarIcon,
+  CalendarCheckIcon,
   RefreshIcon,
-  MaximizeIcon,
-  EditIcon,
-  ChartVerticalFilledIcon
+  ArrowUpIcon,
+  ArrowDownIcon,
+  CashDollarIcon,
+  OrderIcon,
+  CartIcon,
+  PersonIcon,
 } from '@shopify/polaris-icons';
-import { LineChart, BarChart } from '@shopify/polaris-viz';
+import {
+  BarChart,
+  DonutChart,
+  SparkLineChart,
+} from '@shopify/polaris-viz';
 import { useI18n } from '@shopify/react-i18n';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { formatCurrency } from '@/lib/utils';
-import { useEffect } from 'react';
+
+// ═══════════════════════════════════════════════════════════════
+// Styles
+// ═══════════════════════════════════════════════════════════════
+
+const METRIC_COLORS = {
+  revenue: '#1a73e8',
+  profit: '#0d9488',
+  expenses: '#dc2626',
+  average: '#7c3aed',
+  merma: '#ea580c',
+} as const;
+
+// ═══════════════════════════════════════════════════════════════
+// Helper: KPI Card with Sparkline
+// ═══════════════════════════════════════════════════════════════
+
+function KPICard({
+  title,
+  value,
+  subtitle,
+  trend,
+  trendLabel,
+  icon,
+  sparkData,
+  color,
+}: {
+  title: string;
+  value: string;
+  subtitle?: string;
+  trend?: number;
+  trendLabel?: string;
+  icon: typeof CashDollarIcon;
+  sparkData?: { value: number }[];
+  color: string;
+}) {
+  const isPositive = (trend ?? 0) >= 0;
+  return (
+    <Card>
+      <BlockStack gap="300">
+        <InlineStack align="space-between" blockAlign="start">
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: `${color}14`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon source={icon} tone="base" />
+          </div>
+          {trend !== undefined && (
+            <Tooltip content={trendLabel ?? 'vs período anterior'}>
+              <InlineStack gap="050" blockAlign="center">
+                <Icon source={isPositive ? ArrowUpIcon : ArrowDownIcon} tone={isPositive ? 'success' : 'critical'} />
+                <Text as="span" variant="bodySm" tone={isPositive ? 'success' : 'critical'} fontWeight="medium">
+                  {Math.abs(trend).toFixed(1)}%
+                </Text>
+              </InlineStack>
+            </Tooltip>
+          )}
+        </InlineStack>
+
+        <BlockStack gap="050">
+          <Text as="p" variant="bodySm" tone="subdued">
+            {title}
+          </Text>
+          <Text as="h3" variant="headingXl" fontWeight="bold">
+            {value}
+          </Text>
+          {subtitle && (
+            <Text as="p" variant="bodyXs" tone="subdued">
+              {subtitle}
+            </Text>
+          )}
+        </BlockStack>
+
+        {sparkData && sparkData.length > 2 && (
+          <div style={{ height: 36 }}>
+            <SparkLineChart
+              data={[{ data: sparkData.map((d, i) => ({ key: String(i), value: d.value })) }]}
+              accessibilityLabel={`Tendencia de ${title}`}
+            />
+          </div>
+        )}
+      </BlockStack>
+    </Card>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
 
 export function AnalyticsView() {
   const [i18n] = useI18n();
   const [mounted, setMounted] = useState(false);
-  
+
   useEffect(() => {
-    setMounted(true);
+    setMounted(true); // eslint-disable-line react-hooks/set-state-in-effect -- SSR hydration guard
   }, []);
 
   const saleRecords = useDashboardStore((s) => s.saleRecords);
   const products = useDashboardStore((s) => s.products);
   const gastos = useDashboardStore((s) => s.gastos);
   const mermaRecords = useDashboardStore((s) => s.mermaRecords);
+  const clientes = useDashboardStore((s) => s.clientes);
+  const fiadoTransactions = useDashboardStore((s) => s.fiadoTransactions);
+  const devoluciones = useDashboardStore((s) => s.devoluciones);
+  const cortesHistory = useDashboardStore((s) => s.cortesHistory);
+  const cashMovements = useDashboardStore((s) => s.cashMovements);
+  const loyaltyTransactions = useDashboardStore((s) => s.loyaltyTransactions);
+  const kpiData = useDashboardStore((s) => s.kpiData);
+  const inventoryAlerts = useDashboardStore((s) => s.inventoryAlerts);
   const fetchDashboardData = useDashboardStore((s) => s.fetchDashboardData);
   const [periodo, setPeriodo] = useState('30');
   const [selectedDayLine, setSelectedDayLine] = useState(new Intl.DateTimeFormat('en-CA').format(new Date()));
@@ -60,11 +165,11 @@ export function AnalyticsView() {
     year: new Date().getFullYear(),
   });
 
-  const getLocalDateStr = (d: Date | string) => {
+  const getLocalDateStr = useCallback((d: Date | string) => {
     return new Intl.DateTimeFormat('en-CA').format(new Date(d));
-  };
+  }, []);
 
-  // Fecha de inicio del período seleccionado (medianoche local)
+  // ── Period filter ──
   const periodoStart = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - (parseInt(periodo) - 1));
@@ -72,53 +177,53 @@ export function AnalyticsView() {
     return d;
   }, [periodo]);
 
-  // Registros filtrados por período
+  const prevPeriodoStart = useMemo(() => {
+    const dias = parseInt(periodo);
+    const d = new Date();
+    d.setDate(d.getDate() - (dias * 2 - 1));
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [periodo]);
+
   const salesEnPeriodo = useMemo(
-    () => saleRecords.filter(s => new Date(s.date) >= periodoStart),
-    [saleRecords, periodoStart]
+    () => saleRecords.filter((s) => new Date(s.date) >= periodoStart),
+    [saleRecords, periodoStart],
   );
+
+  const salesPeriodoAnterior = useMemo(
+    () => saleRecords.filter((s) => new Date(s.date) >= prevPeriodoStart && new Date(s.date) < periodoStart),
+    [saleRecords, prevPeriodoStart, periodoStart],
+  );
+
   const gastosEnPeriodo = useMemo(
-    () => gastos.filter(g => new Date(g.fecha) >= periodoStart),
-    [gastos, periodoStart]
+    () => gastos.filter((g) => new Date(g.fecha) >= periodoStart),
+    [gastos, periodoStart],
   );
+
   const mermasEnPeriodo = useMemo(
-    () => mermaRecords.filter(m => new Date(m.date) >= periodoStart),
-    [mermaRecords, periodoStart]
+    () => mermaRecords.filter((m) => new Date(m.date) >= periodoStart),
+    [mermaRecords, periodoStart],
   );
 
-  // Ventas del día
-  const ventasHoy = useMemo(() => {
-    const hoy = getLocalDateStr(new Date());
-    return saleRecords
-      .filter(s => getLocalDateStr(s.date) === hoy)
-      .reduce((sum, s) => sum + parseFloat(s.total.toString()), 0);
-  }, [saleRecords]);
-
-  // Ventas de ayer
-  const ventasAyer = useMemo(() => {
-    const ayerDate = new Date();
-    ayerDate.setDate(ayerDate.getDate() - 1);
-    const ayerStr = getLocalDateStr(ayerDate);
-    return saleRecords
-      .filter(s => getLocalDateStr(s.date) === ayerStr)
-      .reduce((sum, s) => sum + parseFloat(s.total.toString()), 0);
-  }, [saleRecords]);
-
-  // Análisis de un día específico (Explorador)
+  // ── Daily Explorer ──
   const statsDiaSeleccionado = useMemo(() => {
-    const dailySales = saleRecords.filter(s => getLocalDateStr(s.date) === selectedDayLine);
-    
+    const dailySales = saleRecords.filter((s) => getLocalDateStr(s.date) === selectedDayLine);
+
     let ingresos = 0;
     let costoTotal = 0;
-    const productosMap: Record<string, { name: string, qty: number, profit: number }> = {};
+    const productosMap: Record<string, { name: string; qty: number; profit: number }> = {};
+    const horaMap: Record<number, number> = {};
 
-    dailySales.forEach(sale => {
+    dailySales.forEach((sale) => {
       ingresos += parseFloat(sale.total.toString());
-      sale.items?.forEach(item => {
-        const prod = products.find(p => p.id === item.productId);
+      const hora = new Date(sale.date).getHours();
+      horaMap[hora] = (horaMap[hora] || 0) + parseFloat(sale.total.toString());
+
+      sale.items?.forEach((item) => {
+        const prod = products.find((p) => p.id === item.productId);
         const cost = prod ? prod.costPrice : 0;
-        costoTotal += (cost * item.quantity);
-        
+        costoTotal += cost * item.quantity;
+
         if (!productosMap[item.productId]) {
           productosMap[item.productId] = { name: item.productName, qty: 0, profit: 0 };
         }
@@ -128,15 +233,16 @@ export function AnalyticsView() {
     });
 
     const gananciaNeta = ingresos - costoTotal;
+    const margen = ingresos > 0 ? (gananciaNeta / ingresos) * 100 : 0;
     const topGanancia = Object.entries(productosMap)
       .map(([id, data]) => ({ id, ...data }))
       .sort((a, b) => b.profit - a.profit)
       .slice(0, 5);
 
-    return { ingresos, gananciaNeta, count: dailySales.length, topGanancia };
-  }, [saleRecords, products, selectedDayLine]);
+    return { ingresos, gananciaNeta, margen, count: dailySales.length, topGanancia };
+  }, [saleRecords, products, selectedDayLine, getLocalDateStr]);
 
-  // Ventas y conteo por día en el período (gráfica)
+  // ── Sales by day (chart) ──
   const datosPorDia = useMemo(() => {
     const dias = parseInt(periodo);
     const fechas = Array.from({ length: dias }, (_, i) => {
@@ -145,70 +251,87 @@ export function AnalyticsView() {
       return getLocalDateStr(date);
     });
 
-    const agrupado = salesEnPeriodo.reduce((acc, sale) => {
-      const fecha = getLocalDateStr(sale.date);
-      if (!acc[fecha]) acc[fecha] = { total: 0, count: 0 };
-      acc[fecha].total += parseFloat(String(sale.total || 0));
-      acc[fecha].count += 1;
-      return acc;
-    }, {} as Record<string, { total: number, count: number }>);
-
-    return fechas.map(fecha => ({
-      fecha,
-      total: agrupado[fecha]?.total || 0,
-      ticketPromedio: agrupado[fecha]?.count > 0 ? agrupado[fecha].total / agrupado[fecha].count : 0,
-    }));
-  }, [salesEnPeriodo, periodo]);
-
-  const ventasPorDia = useMemo(() => 
-    datosPorDia.map(d => ({ key: d.fecha, value: d.total })),
-  [datosPorDia]);
-
-  const ticketPromedioPorDia = useMemo(() => 
-    datosPorDia.map(d => ({ key: d.fecha, value: d.ticketPromedio })),
-  [datosPorDia]);
-
-  // Ventas por método de pago (en período)
-  const ventasPorMetodo = useMemo(() => {
-    if (!salesEnPeriodo.length) return [];
-    
-    const metodos = salesEnPeriodo.reduce((acc, sale) => {
-      const metodo = sale.paymentMethod || 'Otros';
-      const val = parseFloat(String(sale.total || 0));
-      if (!isNaN(val)) {
-        acc[metodo] = (acc[metodo] || 0) + val;
-      }
-      return acc;
-    }, {} as Record<string, number>);
-
-    return Object.entries(metodos).map(([metodo, total]) => ({
-      metodo: metodo === 'efectivo' ? 'Efectivo' :
-        metodo === 'tarjeta' ? 'Tarjeta' :
-          metodo === 'transferencia' ? 'Transferencia' :
-            metodo === 'fiado' ? 'Fiado' : metodo,
-      total,
-    }));
-  }, [salesEnPeriodo]);
-
-  // Top 10 productos más vendidos (en período)
-  const topProductos = useMemo(() => {
-    const productosVendidos = salesEnPeriodo.flatMap(sale =>
-      sale.items?.map(item => ({
-        id: item.productId,
-        name: item.productName,
-        quantity: item.quantity,
-        total: parseFloat(item.subtotal.toString()),
-      })) || []
+    const agrupado = salesEnPeriodo.reduce(
+      (acc, sale) => {
+        const fecha = getLocalDateStr(sale.date);
+        if (!acc[fecha]) acc[fecha] = { total: 0, count: 0, costo: 0 };
+        acc[fecha].total += parseFloat(String(sale.total || 0));
+        acc[fecha].count += 1;
+        sale.items?.forEach((item) => {
+          const prod = products.find((p) => p.id === item.productId);
+          acc[fecha].costo += (prod?.costPrice || 0) * item.quantity;
+        });
+        return acc;
+      },
+      {} as Record<string, { total: number; count: number; costo: number }>,
     );
 
-    const agrupados = productosVendidos.reduce((acc, item) => {
-      if (!acc[item.id]) {
-        acc[item.id] = { name: item.name, quantity: 0, total: 0 };
-      }
-      acc[item.id].quantity += item.quantity;
-      acc[item.id].total += item.total;
-      return acc;
-    }, {} as Record<string, { name: string; quantity: number; total: number }>);
+    return fechas.map((fecha) => ({
+      fecha,
+      total: agrupado[fecha]?.total || 0,
+      costo: agrupado[fecha]?.costo || 0,
+      ganancia: (agrupado[fecha]?.total || 0) - (agrupado[fecha]?.costo || 0),
+      ticketPromedio: agrupado[fecha]?.count > 0 ? agrupado[fecha].total / agrupado[fecha].count : 0,
+      count: agrupado[fecha]?.count || 0,
+    }));
+  }, [salesEnPeriodo, periodo, products, getLocalDateStr]);
+
+  // ── Sales by payment method (Donut) ──
+  const ventasPorMetodo = useMemo(() => {
+    if (!salesEnPeriodo.length) return [];
+
+    const metodos = salesEnPeriodo.reduce(
+      (acc, sale) => {
+        const metodo = sale.paymentMethod || 'otros';
+        const val = parseFloat(String(sale.total || 0));
+        if (!isNaN(val)) {
+          acc[metodo] = (acc[metodo] || 0) + val;
+        }
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    const labels: Record<string, string> = {
+      efectivo: 'Efectivo',
+      tarjeta: 'Tarjeta',
+      transferencia: 'Transferencia',
+      fiado: 'Fiado',
+      mixto: 'Mixto',
+      otros: 'Otros',
+    };
+
+    return Object.entries(metodos)
+      .map(([metodo, total]) => ({
+        name: labels[metodo] || metodo,
+        data: [{ key: labels[metodo] || metodo, value: total }],
+      }))
+      .sort((a, b) => (b.data[0]?.value ?? 0) - (a.data[0]?.value ?? 0));
+  }, [salesEnPeriodo]);
+
+  // ── Top 10 products ──
+  const topProductos = useMemo(() => {
+    const productosVendidos = salesEnPeriodo.flatMap(
+      (sale) =>
+        sale.items?.map((item) => ({
+          id: item.productId,
+          name: item.productName,
+          quantity: item.quantity,
+          total: parseFloat(item.subtotal.toString()),
+        })) || [],
+    );
+
+    const agrupados = productosVendidos.reduce(
+      (acc, item) => {
+        if (!acc[item.id]) {
+          acc[item.id] = { name: item.name, quantity: 0, total: 0 };
+        }
+        acc[item.id].quantity += item.quantity;
+        acc[item.id].total += item.total;
+        return acc;
+      },
+      {} as Record<string, { name: string; quantity: number; total: number }>,
+    );
 
     return Object.entries(agrupados)
       .map(([id, data]) => ({ id, ...data }))
@@ -216,385 +339,1131 @@ export function AnalyticsView() {
       .slice(0, 10);
   }, [salesEnPeriodo]);
 
-  // Productos con bajo stock
-  const productosStockBajo = useMemo(() => {
-    return products
-      .filter(p => p.currentStock < p.minStock)
-      .sort((a, b) => (a.currentStock / a.minStock) - (b.currentStock / b.minStock))
-      .slice(0, 10);
-  }, [products]);
+  const topProductoMax = topProductos[0]?.total || 1;
 
-  // Métricas generales — todas filtradas por período
+  // ── Sales by hour ──
+  const ventasPorHoraPeriodo = useMemo(() => {
+    const horaMap: Record<number, { total: number; count: number }> = {};
+    salesEnPeriodo.forEach((sale) => {
+      const hora = new Date(sale.date).getHours();
+      if (!horaMap[hora]) horaMap[hora] = { total: 0, count: 0 };
+      horaMap[hora].total += parseFloat(String(sale.total || 0));
+      horaMap[hora].count += 1;
+    });
+
+    return Array.from({ length: 15 }, (_, i) => ({
+      key: `${(i + 8).toString().padStart(2, '0')}:00`,
+      value: horaMap[i + 8]?.total || 0,
+      count: horaMap[i + 8]?.count || 0,
+    }));
+  }, [salesEnPeriodo]);
+
+  const peakHour = useMemo(() => {
+    return ventasPorHoraPeriodo.reduce(
+      (prev, curr) => (curr.value > prev.value ? curr : prev),
+      ventasPorHoraPeriodo[0],
+    );
+  }, [ventasPorHoraPeriodo]);
+
+  // ── Aggregate Metrics ──
   const totalVentas = salesEnPeriodo.reduce((sum, sale) => sum + parseFloat(sale.total.toString()), 0);
+  const totalVentasAnterior = salesPeriodoAnterior.reduce(
+    (sum, sale) => sum + parseFloat(sale.total.toString()),
+    0,
+  );
   const totalGastos = gastosEnPeriodo.reduce((sum, gasto) => sum + parseFloat(gasto.monto.toString()), 0);
   const totalMermas = mermasEnPeriodo.reduce((sum, merma) => sum + parseFloat(merma.value.toString()), 0);
   const utilidadBruta = totalVentas - totalGastos - totalMermas;
-  const margenUtilidad = totalVentas > 0 ? (utilidadBruta / totalVentas) * 100 : 0;
 
-  // Ticket promedio (período)
   const ticketPromedio = salesEnPeriodo.length > 0 ? totalVentas / salesEnPeriodo.length : 0;
+  const ticketAnterior =
+    salesPeriodoAnterior.length > 0 ? totalVentasAnterior / salesPeriodoAnterior.length : 0;
 
-  // Productos vendidos (período)
-  const productosVendidos = salesEnPeriodo.reduce((sum, sale) =>
-    sum + (sale.items?.reduce((s, i) => s + i.quantity, 0) || 0), 0
+  const productosVendidosTotal = salesEnPeriodo.reduce(
+    (sum, sale) => sum + (sale.items?.reduce((s, i) => s + i.quantity, 0) || 0),
+    0,
   );
 
-  const periodoLabel = periodo === '7' ? 'últimos 7 días' : periodo === '30' ? 'últimos 30 días' : 'últimos 90 días';
+  // Trends vs previous period
+  const trendVentas =
+    totalVentasAnterior > 0 ? ((totalVentas - totalVentasAnterior) / totalVentasAnterior) * 100 : undefined;
+  const trendTicket =
+    ticketAnterior > 0 ? ((ticketPromedio - ticketAnterior) / ticketAnterior) * 100 : undefined;
+  const trendTransacciones =
+    salesPeriodoAnterior.length > 0
+      ? ((salesEnPeriodo.length - salesPeriodoAnterior.length) / salesPeriodoAnterior.length) * 100
+      : undefined;
+
+  // Sparkline data
+  const sparkVentas = useMemo(() => datosPorDia.map((d) => ({ value: d.total })), [datosPorDia]);
+  const sparkTicket = useMemo(() => datosPorDia.map((d) => ({ value: d.ticketPromedio })), [datosPorDia]);
+  const sparkTransacciones = useMemo(() => datosPorDia.map((d) => ({ value: d.count })), [datosPorDia]);
+
+  // Financial bar: revenue split
+  // ── Devoluciones (returns) ──
+  const devolucionesEnPeriodo = useMemo(
+    () => devoluciones.filter((d) => new Date(d.fecha) >= periodoStart),
+    [devoluciones, periodoStart],
+  );
+  const totalDevoluciones = devolucionesEnPeriodo.reduce((sum, d) => sum + d.montoDevuelto, 0);
+  const devolucionesPorMotivo = useMemo(() => {
+    const motivos: Record<string, { count: number; total: number }> = {};
+    const labels: Record<string, string> = {
+      producto_danado: 'Producto dañado',
+      producto_incorrecto: 'Producto incorrecto',
+      insatisfaccion: 'Insatisfacción',
+      otro: 'Otro',
+    };
+    devolucionesEnPeriodo.forEach((d) => {
+      const m = d.motivo || 'otro';
+      if (!motivos[m]) motivos[m] = { count: 0, total: 0 };
+      motivos[m].count += 1;
+      motivos[m].total += d.montoDevuelto;
+    });
+    return Object.entries(motivos).map(([key, data]) => ({
+      motivo: labels[key] || key,
+      ...data,
+    }));
+  }, [devolucionesEnPeriodo]);
+
+  // ── Descuentos (from sales) ──
+  const totalDescuentos = useMemo(
+    () => salesEnPeriodo.reduce((sum, s) => sum + (s.discount || 0), 0),
+    [salesEnPeriodo],
+  );
+  const ventasConDescuento = useMemo(
+    () => salesEnPeriodo.filter((s) => (s.discount || 0) > 0).length,
+    [salesEnPeriodo],
+  );
+
+  // ── Gastos por categoría ──
+  const gastosPorCategoria = useMemo(() => {
+    const cats: Record<string, number> = {};
+    const labels: Record<string, string> = {
+      renta: 'Renta',
+      servicios: 'Servicios',
+      proveedores: 'Proveedores',
+      salarios: 'Salarios',
+      mantenimiento: 'Mantenimiento',
+      impuestos: 'Impuestos',
+      otro: 'Otro',
+    };
+    gastosEnPeriodo.forEach((g) => {
+      const cat = g.categoria || 'otro';
+      cats[cat] = (cats[cat] || 0) + parseFloat(g.monto.toString());
+    });
+    return Object.entries(cats)
+      .map(([key, total]) => ({
+        name: labels[key] || key,
+        data: [{ key: labels[key] || key, value: total }],
+      }))
+      .sort((a, b) => (b.data[0]?.value ?? 0) - (a.data[0]?.value ?? 0));
+  }, [gastosEnPeriodo]);
+
+  // ── Mermas por razón ──
+  const mermasPorRazon = useMemo(() => {
+    const razones: Record<string, { count: number; value: number }> = {};
+    const labels: Record<string, string> = {
+      expiration: 'Caducidad',
+      damage: 'Daño',
+      spoilage: 'Deterioro',
+      other: 'Otro',
+    };
+    mermasEnPeriodo.forEach((m) => {
+      const r = m.reason || 'other';
+      if (!razones[r]) razones[r] = { count: 0, value: 0 };
+      razones[r].count += 1;
+      razones[r].value += parseFloat(m.value.toString());
+    });
+    return Object.entries(razones).map(([key, data]) => ({
+      razon: labels[key] || key,
+      ...data,
+    }));
+  }, [mermasEnPeriodo]);
+
+  // ── Clientes y Fiado ──
+  const totalFiadoPendiente = useMemo(
+    () => clientes.reduce((sum, c) => sum + Math.abs(c.balance || 0), 0),
+    [clientes],
+  );
+  const clientesConFiado = useMemo(
+    () => clientes.filter((c) => (c.balance || 0) < 0).length,
+    [clientes],
+  );
+  const fiadoEnPeriodo = useMemo(
+    () => fiadoTransactions.filter((f) => new Date(f.date) >= periodoStart),
+    [fiadoTransactions, periodoStart],
+  );
+  const abonosEnPeriodo = useMemo(
+    () => fiadoEnPeriodo.filter((f) => f.type === 'abono').reduce((sum, f) => sum + f.amount, 0),
+    [fiadoEnPeriodo],
+  );
+  const fiadosNuevosEnPeriodo = useMemo(
+    () => fiadoEnPeriodo.filter((f) => f.type === 'fiado').reduce((sum, f) => sum + f.amount, 0),
+    [fiadoEnPeriodo],
+  );
+
+  // ── Cortes de caja ──
+  const cortesEnPeriodo = useMemo(
+    () => cortesHistory.filter((c) => new Date(c.fecha) >= periodoStart),
+    [cortesHistory, periodoStart],
+  );
+  const totalDiferenciaCaja = useMemo(
+    () => cortesEnPeriodo.reduce((sum, c) => sum + (c.diferencia || 0), 0),
+    [cortesEnPeriodo],
+  );
+
+  // ── Inventario resumen ──
+  const stockBajo = kpiData?.lowStockProducts ?? products.filter((p) => p.currentStock < p.minStock).length;
+  const productosPorVencer = kpiData?.expiringProducts ?? 0;
+  const valorInventario = useMemo(
+    () => products.reduce((sum, p) => sum + p.currentStock * p.costPrice, 0),
+    [products],
+  );
+  const alertasCriticas = useMemo(
+    () => inventoryAlerts.filter((a) => a.severity === 'critical').length,
+    [inventoryAlerts],
+  );
+
+  // ── Lealtad ──
+  const loyaltyEnPeriodo = useMemo(
+    () => loyaltyTransactions.filter((l) => new Date(l.fecha) >= periodoStart),
+    [loyaltyTransactions, periodoStart],
+  );
+  const puntosEmitidos = useMemo(
+    () => loyaltyEnPeriodo.filter((l) => l.tipo === 'acumulacion').reduce((sum, l) => sum + l.puntos, 0),
+    [loyaltyEnPeriodo],
+  );
+  const puntosCanjeados = useMemo(
+    () => loyaltyEnPeriodo.filter((l) => l.tipo === 'canje').reduce((sum, l) => sum + Math.abs(l.puntos), 0),
+    [loyaltyEnPeriodo],
+  );
+
+  // ── Movimientos de efectivo ──
+  const movimientosEnPeriodo = useMemo(
+    () => cashMovements.filter((m) => new Date(m.fecha) >= periodoStart),
+    [cashMovements, periodoStart],
+  );
+  const entradasEfectivo = useMemo(
+    () => movimientosEnPeriodo.filter((m) => m.tipo === 'entrada').reduce((sum, m) => sum + m.monto, 0),
+    [movimientosEnPeriodo],
+  );
+  const salidasEfectivo = useMemo(
+    () => movimientosEnPeriodo.filter((m) => m.tipo === 'salida').reduce((sum, m) => sum + m.monto, 0),
+    [movimientosEnPeriodo],
+  );
+
+  // ── Ventas canceladas ──
+  const ventasCanceladas = useMemo(
+    () => salesEnPeriodo.filter((s) => s.status === 'cancelada'),
+    [salesEnPeriodo],
+  );
+  const totalCancelado = ventasCanceladas.reduce((sum, s) => sum + parseFloat(s.total.toString()), 0);
+
+  // ── Ventas netas (post descuentos, devoluciones, cancelaciones) ──
+  const ventasNetas = totalVentas - totalDescuentos - totalDevoluciones - totalCancelado;
+
+  const periodoLabel =
+    periodo === '7' ? 'últimos 7 días' : periodo === '30' ? 'últimos 30 días' : 'últimos 90 días';
 
   if (!mounted) {
     return (
-      <div style={{ background: '#f4f6f8', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Text as="p" tone="subdued">Cargando analíticas...</Text>
+      <div
+        style={{
+          background: 'var(--p-color-bg-surface-secondary)',
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text as="p" tone="subdued">
+          Cargando analíticas...
+        </Text>
       </div>
     );
   }
 
   return (
-    <div style={{ background: '#f4f6f8', minHeight: '100%', paddingBottom: '2rem' }}>
+    <div style={{ background: 'var(--p-color-bg-surface-secondary)', minHeight: '100%', paddingBottom: '2rem' }}>
       <Page
-        title={(
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Icon source={ChartVerticalFilledIcon} tone="base" />
-            <span>Informes y estadísticas</span>
-          </div>
-        ) as any}
-        subtitle={`Período: ${periodoLabel} · Última actualización: ${i18n.formatDate(new Date(), { hour: 'numeric', minute: '2-digit' })}`}
+        title="Análisis Integral"
+        subtitle={`Período: ${periodoLabel} · Actualizado: ${i18n.formatDate(new Date(), { hour: 'numeric', minute: '2-digit' })}`}
         fullWidth
         secondaryActions={[
-          { id: 'analytics-advanced', content: 'Analítica Avanzada', icon: ChartVerticalIcon, url: '/dashboard/analytics/advanced' },
-          { id: 'analytics-refresh', content: 'Actualizar', icon: RefreshIcon, accessibilityLabel: 'Actualizar', onAction: fetchDashboardData },
+          {
+            id: 'analytics-advanced',
+            content: 'Analítica Avanzada',
+            icon: ChartVerticalIcon,
+            url: '/dashboard/analytics/advanced',
+          },
+          {
+            id: 'analytics-refresh',
+            content: 'Actualizar',
+            icon: RefreshIcon,
+            accessibilityLabel: 'Actualizar datos',
+            onAction: fetchDashboardData,
+          },
         ]}
       >
-        <BlockStack gap="400">
+        <BlockStack gap="500">
+          {/* ═══ TOOLBAR: Period + Calendar ═══ */}
+          <Card padding="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <ButtonGroup variant="segmented">
+                <Button pressed={periodo === '7'} onClick={() => setPeriodo('7')}>
+                  7 días
+                </Button>
+                <Button pressed={periodo === '30'} onClick={() => setPeriodo('30')}>
+                  30 días
+                </Button>
+                <Button pressed={periodo === '90'} onClick={() => setPeriodo('90')}>
+                  90 días
+                </Button>
+              </ButtonGroup>
 
-          {/* Selector de periodo y Explorador Diario */}
-          <InlineStack align="space-between">
-            <ButtonGroup variant="segmented">
-              <Button pressed={periodo === '7'} onClick={() => setPeriodo('7')}>7 días</Button>
-              <Button pressed={periodo === '30'} onClick={() => setPeriodo('30')}>30 días</Button>
-              <Button pressed={periodo === '90'} onClick={() => setPeriodo('90')}>90 días</Button>
-            </ButtonGroup>
-
-            <Popover
-              active={popoverActive}
-              activator={
-                <div style={{ width: '220px' }}>
-                  <TextField
-                    label="Fecha de análisis"
-                    labelHidden
-                    value={i18n.formatDate(new Date(selectedDayLine + 'T12:00:00'), { day: '2-digit', month: 'long', year: 'numeric' })}
-                    onFocus={() => setPopoverActive(true)}
-                    autoComplete="off"
-                    prefix={<Icon source={CalendarIcon} />}
-                  />
-                </div>
-              }
-              onClose={() => setPopoverActive(false)}
-            >
-              <Box padding="400">
-                <DatePicker
-                  month={month}
-                  year={year}
-                  selected={new Date(selectedDayLine + 'T12:00:00')}
-                  onMonthChange={(m, y) => setDateNav({ month: m, year: y })}
-                  onChange={(range) => {
-                    const d = range.start;
-                    const dateStr = new Intl.DateTimeFormat('en-CA').format(d);
-                    setSelectedDayLine(dateStr);
-                    setPopoverActive(false);
-                  }}
-                />
-              </Box>
-            </Popover>
-          </InlineStack>
-
-          {/* NUEVO: Panel de Ganancia Diaria */}
-          <Card background="bg-surface-secondary">
-            <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <BlockStack gap="100">
-                  <Text as="h3" variant="headingMd">Resultados del día: {i18n.formatDate(new Date(selectedDayLine + 'T12:00:00'), { day: '2-digit', month: 'long', year: 'numeric' })}</Text>
-                  <Text as="p" tone="subdued">Análisis detallado de rentabilidad y flujo de caja.</Text>
-                </BlockStack>
-                <Badge tone={statsDiaSeleccionado.gananciaNeta > 0 ? 'success' : 'attention'}>
-                  {statsDiaSeleccionado.gananciaNeta > 0 ? 'Día Rentable' : 'Revisar Márgenes'}
-                </Badge>
-              </InlineStack>
-
-              <InlineGrid columns={{ xs: 1, md: 3 }} gap="400">
-                <Box padding="300" background="bg-surface" borderRadius="200" shadow="100">
-                  <BlockStack gap="100">
-                    <Text as="p" variant="bodySm" tone="subdued">Ingreso Total (Bruto)</Text>
-                    <Text as="h2" variant="headingLg">{i18n.formatCurrency(statsDiaSeleccionado.ingresos, { currency: 'MXN' })}</Text>
-                    <Text as="p" variant="bodyXs" tone="subdued">{statsDiaSeleccionado.count} transacciones</Text>
-                  </BlockStack>
-                </Box>
-                <Box padding="300" background="bg-surface" borderRadius="200" shadow="100" borderInlineStartWidth="050" borderColor="border-success">
-                  <BlockStack gap="100">
-                    <Text as="p" variant="bodySm" tone="subdued">Ganancia Real (Utilidad)</Text>
-                    <Text as="h2" variant="headingLg" tone="success">{i18n.formatCurrency(statsDiaSeleccionado.gananciaNeta, { currency: 'MXN' })}</Text>
-                    <Text as="p" variant="bodyXs" tone="subdued">Venta minus Costo de adquisición</Text>
-                  </BlockStack>
-                </Box>
-                <Box padding="300" background="bg-surface" borderRadius="200" shadow="100">
-                  <BlockStack gap="100">
-                    <Text as="p" variant="bodySm" tone="subdued">Productos con mejor margen hoy</Text>
-                    <BlockStack gap="100">
-                      {statsDiaSeleccionado.topGanancia.length > 0 ? statsDiaSeleccionado.topGanancia.slice(0,2).map(p => (
-                        <InlineStack key={p.id} align="space-between">
-                          <Text as="span" variant="bodyXs" truncate>{p.name}</Text>
-                          <Text as="span" variant="bodyXs" fontWeight="bold">+{i18n.formatCurrency(p.profit, { currency: 'MXN' })}</Text>
-                        </InlineStack>
-                      )) : <Text as="p" variant="bodyXs" tone="subdued">Sin datos</Text>}
-                    </BlockStack>
-                  </BlockStack>
-                </Box>
-              </InlineGrid>
-            </BlockStack>
+              <Popover
+                  active={popoverActive}
+                  autofocusTarget="none"
+                  preferredAlignment="right"
+                  preferInputActivator={false}
+                  preferredPosition="below"
+                  preventCloseOnChildOverlayClick
+                  onClose={() => setPopoverActive(false)}
+                  activator={
+                    <Button
+                      onClick={() => setPopoverActive((v) => !v)}
+                      icon={CalendarCheckIcon}
+                      disclosure={popoverActive ? 'up' : 'down'}
+                    >
+                      {i18n.formatDate(new Date(selectedDayLine + 'T12:00:00'), {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </Button>
+                  }
+                >
+                  <Card>
+                    <DatePicker
+                      month={month}
+                      year={year}
+                      selected={new Date(selectedDayLine + 'T12:00:00')}
+                      onMonthChange={(m, y) => setDateNav({ month: m, year: y })}
+                      onChange={(range) => {
+                        const dateStr = new Intl.DateTimeFormat('en-CA').format(range.start);
+                        setSelectedDayLine(dateStr);
+                        setPopoverActive(false);
+                      }}
+                    />
+                  </Card>
+                </Popover>
+            </InlineStack>
           </Card>
 
-          {/* ROW 1: KPIs Principales */}
-          <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
-            <Card background="bg-surface">
-              <BlockStack gap="200">
-                <Text as="p" variant="bodySm" fontWeight="semibold">Ventas brutas</Text>
-                <InlineStack align="start" blockAlign="baseline" gap="200">
-                  <Text as="h3" variant="headingLg">{i18n.formatCurrency(totalVentas, { currency: 'MXN' })}</Text>
-                  <Text as="span" variant="bodySm" tone="subdued">—</Text>
+          {/* ═══ KPI CARDS ROW ═══ */}
+          <InlineGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="400">
+            <KPICard
+              title="Ventas Brutas"
+              value={i18n.formatCurrency(totalVentas, { currency: 'MXN' })}
+              subtitle={periodoLabel}
+              trend={trendVentas}
+              trendLabel="vs período anterior"
+              icon={CashDollarIcon}
+              sparkData={sparkVentas}
+              color={METRIC_COLORS.revenue}
+            />
+            <KPICard
+              title="Utilidad Bruta"
+              value={i18n.formatCurrency(utilidadBruta, { currency: 'MXN' })}
+              subtitle={
+                totalVentas > 0
+                  ? `Margen: ${((utilidadBruta / totalVentas) * 100).toFixed(1)}%`
+                  : 'Sin ventas'
+              }
+              icon={CartIcon}
+              sparkData={datosPorDia.map((d) => ({ value: d.ganancia }))}
+              color={METRIC_COLORS.profit}
+            />
+            <KPICard
+              title="Ticket Promedio"
+              value={i18n.formatCurrency(ticketPromedio, { currency: 'MXN' })}
+              subtitle={`${salesEnPeriodo.length} transacciones`}
+              trend={trendTicket}
+              trendLabel="vs período anterior"
+              icon={OrderIcon}
+              sparkData={sparkTicket}
+              color={METRIC_COLORS.average}
+            />
+            <KPICard
+              title="Productos Vendidos"
+              value={productosVendidosTotal.toLocaleString('es-MX')}
+              subtitle={`${salesEnPeriodo.length} tickets`}
+              trend={trendTransacciones}
+              trendLabel="transacciones vs período anterior"
+              icon={PersonIcon}
+              sparkData={sparkTransacciones}
+              color="#2563eb"
+            />
+          </InlineGrid>
+
+          {/* ═══ Payment Methods ═══ */}
+          <Layout>
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h3" variant="headingMd">
+                      Métodos de Pago
+                    </Text>
+                    <Badge tone="info">{`${salesEnPeriodo.length} ventas`}</Badge>
+                  </InlineStack>
+                  {ventasPorMetodo.length === 0 ? (
+                    <Box padding="800">
+                      <BlockStack gap="200" inlineAlign="center">
+                        <Text as="p" tone="subdued" alignment="center">
+                          Sin datos en este período
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                  ) : (
+                    <BlockStack gap="300">
+                      {ventasPorMetodo.map((metodo) => {
+                        const val = metodo.data[0]?.value ?? 0;
+                        const pct = totalVentas > 0 ? (val / totalVentas) * 100 : 0;
+                        const colors: Record<string, string> = {
+                          Efectivo: '#16a34a',
+                          Tarjeta: '#2563eb',
+                          Transferencia: '#7c3aed',
+                          Fiado: '#ea580c',
+                          Mixto: '#0891b2',
+                          Otros: '#6b7280',
+                        };
+                        const color = colors[metodo.name] || '#6b7280';
+                        return (
+                          <div key={metodo.name}>
+                            <InlineStack align="space-between" blockAlign="center">
+                              <InlineStack gap="200" blockAlign="center">
+                                <div
+                                  style={{
+                                    width: 12,
+                                    height: 12,
+                                    borderRadius: 3,
+                                    background: color,
+                                    flexShrink: 0,
+                                  }}
+                                />
+                                <Text as="span" variant="bodySm" fontWeight="medium">
+                                  {metodo.name}
+                                </Text>
+                              </InlineStack>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Text as="span" variant="bodySm" fontWeight="semibold">
+                                  {i18n.formatCurrency(val, { currency: 'MXN' })}
+                                </Text>
+                                <div
+                                  style={{
+                                    background: `${color}20`,
+                                    color,
+                                    padding: '2px 8px',
+                                    borderRadius: 20,
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {pct.toFixed(1)}%
+                                </div>
+                              </InlineStack>
+                            </InlineStack>
+                            <div style={{ marginTop: 6, height: 6, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  width: `${pct}%`,
+                                  height: '100%',
+                                  background: color,
+                                  borderRadius: 3,
+                                  transition: 'width 0.5s ease',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </BlockStack>
+                  )}
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          </Layout>
+
+          {/* ═══ ROW: Hora Pico + Explorador ═══ */}
+          <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+            {/* Hora Pico */}
+            <Card>
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h3" variant="headingMd">
+                    Distribución por Hora
+                  </Text>
+                  {peakHour && peakHour.value > 0 && <Badge tone="info">{`Pico: ${peakHour.key}`}</Badge>}
                 </InlineStack>
+                <div style={{ height: 220 }}>
+                  <BarChart
+                    data={[
+                      {
+                        name: 'Ventas por hora',
+                        data: ventasPorHoraPeriodo.map((h) => ({
+                          key: h.key,
+                          value: h.value,
+                        })),
+                      },
+                    ]}
+                    theme="Light"
+                    xAxisOptions={{
+                      labelFormatter: (value) => String(value ?? '').slice(0, 2) + 'h',
+                    }}
+                    yAxisOptions={{
+                      labelFormatter: (value) => `$${Math.round(Number(value ?? 0))}`,
+                    }}
+                  />
+                </div>
               </BlockStack>
             </Card>
 
-            <Card background="bg-surface">
-              <BlockStack gap="200">
-                <Text as="p" variant="bodySm" fontWeight="semibold">Tasa de clientes habituales</Text>
-                <InlineStack align="start" blockAlign="baseline" gap="200">
-                  <Text as="h3" variant="headingLg">0 %</Text>
-                  <Text as="span" variant="bodySm" tone="subdued">—</Text>
+            {/* Daily Explorer */}
+            <Card>
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h3" variant="headingMd">
+                    Explorador del Día
+                  </Text>
+                  <Badge
+                    tone={statsDiaSeleccionado.gananciaNeta > 0 ? 'success' : 'attention'}
+                  >
+                    {statsDiaSeleccionado.gananciaNeta > 0 ? 'Rentable' : 'Revisar'}
+                  </Badge>
                 </InlineStack>
-              </BlockStack>
-            </Card>
 
-            <Card background="bg-surface">
-              <BlockStack gap="200">
-                <Text as="p" variant="bodySm" fontWeight="semibold">Ticket promedio</Text>
-                <InlineStack align="start" blockAlign="baseline" gap="200">
-                  <Text as="h3" variant="headingLg">{i18n.formatCurrency(ticketPromedio, { currency: 'MXN' })}</Text>
-                  <Text as="span" variant="bodySm" tone="subdued">{periodoLabel}</Text>
-                </InlineStack>
-              </BlockStack>
-            </Card>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {i18n.formatDate(new Date(selectedDayLine + 'T12:00:00'), {
+                    weekday: 'long',
+                    day: '2-digit',
+                    month: 'long',
+                  })}
+                </Text>
 
-            <Card background="bg-surface">
-              <BlockStack gap="200">
-                <Text as="p" variant="bodySm" fontWeight="semibold">Ventas (transacciones)</Text>
-                <InlineStack align="start" blockAlign="baseline" gap="200">
-                  <Text as="h3" variant="headingLg">{salesEnPeriodo.length}</Text>
-                  <Text as="span" variant="bodySm" tone="subdued">{periodoLabel}</Text>
-                </InlineStack>
+                <InlineGrid columns={2} gap="300">
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">
+                        Ingreso
+                      </Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold">
+                        {i18n.formatCurrency(statsDiaSeleccionado.ingresos, { currency: 'MXN' })}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">
+                        Utilidad
+                      </Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold" tone="success">
+                        {i18n.formatCurrency(statsDiaSeleccionado.gananciaNeta, { currency: 'MXN' })}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">
+                        Transacciones
+                      </Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold">
+                        {statsDiaSeleccionado.count}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">
+                        Margen
+                      </Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold">
+                        {statsDiaSeleccionado.margen.toFixed(1)}%
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                </InlineGrid>
+
+                {statsDiaSeleccionado.topGanancia.length > 0 && (
+                  <>
+                    <Divider />
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      Top productos
+                    </Text>
+                    <BlockStack gap="200">
+                      {statsDiaSeleccionado.topGanancia.slice(0, 3).map((p) => (
+                        <InlineStack key={p.id} align="space-between" blockAlign="center">
+                          <Text as="span" variant="bodySm" truncate>
+                            {p.name}
+                          </Text>
+                          <Text as="span" variant="bodySm" fontWeight="bold" tone="success">
+                            +{formatCurrency(p.profit)}
+                          </Text>
+                        </InlineStack>
+                      ))}
+                    </BlockStack>
+                  </>
+                )}
               </BlockStack>
             </Card>
           </InlineGrid>
 
-          {/* ROW 2: Historico y Desglose */}
-          <Layout>
-            {/* Main Chart */}
-            <Layout.Section>
-              <Card background="bg-surface">
-                <BlockStack gap="400">
-                  <Text as="h3" variant="headingMd">Ventas totales a lo largo del tiempo</Text>
-                  <InlineStack align="start" blockAlign="baseline" gap="200">
-                    <Text as="h2" variant="headingXl">{i18n.formatCurrency(totalVentas, { currency: 'MXN' })}</Text>
-                    <Text as="span" variant="bodySm" tone="subdued">—</Text>
-                  </InlineStack>
-                  <div style={{ height: 350 }}>
-                    <LineChart
-                      data={[{ name: 'Ventas', data: ventasPorDia }]}
-                      theme="Light"
-                      xAxisOptions={{
-                        labelFormatter: (value) => {
-                          const date = new Date(String(value ?? ''));
-                          return `${date.getDate()}/${date.getMonth() + 1}`;
-                        },
-                      }}
-                      yAxisOptions={{
-                        labelFormatter: (value) => i18n.formatCurrency(Number(value ?? 0), { currency: 'MXN', precision: 0 }),
-                      }}
-                    />
-                  </div>
+          {/* ═══ TOP PRODUCTS — HORIZONTAL BAR CHART ═══ */}
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <BlockStack gap="100">
+                  <Text as="h3" variant="headingMd">
+                    Top 10 Productos Más Vendidos
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Ranking por ingreso en el período seleccionado
+                  </Text>
                 </BlockStack>
-              </Card>
-            </Layout.Section>
+                <Badge>{`${topProductos.length} productos`}</Badge>
+              </InlineStack>
 
-            {/* Desglose */}
-            <Layout.Section variant="oneThird">
-              <Card background="bg-surface">
-                <BlockStack gap="400">
-                  <Text as="h3" variant="headingMd">Desglose de ventas totales</Text>
-                  <BlockStack gap="300">
+              {topProductos.length === 0 ? (
+                <Box padding="800">
+                  <BlockStack gap="200" inlineAlign="center">
+                    <div style={{ opacity: 0.3, fontSize: 48 }}>📦</div>
+                    <Text as="p" tone="subdued" alignment="center">
+                      No hay ventas en este período
+                    </Text>
+                  </BlockStack>
+                </Box>
+              ) : (
+                <BlockStack gap="200">
+                  {topProductos.map((producto, index) => {
+                    const pct = topProductoMax > 0 ? (producto.total / topProductoMax) * 100 : 0;
+                    const medals = ['🥇', '🥈', '🥉'];
+                    const barColors = [
+                      'linear-gradient(90deg, #facc15 0%, #f59e0b 100%)',
+                      'linear-gradient(90deg, #cbd5e1 0%, #94a3b8 100%)',
+                      'linear-gradient(90deg, #fdba74 0%, #ea580c 100%)',
+                    ];
+                    const defaultBar = 'linear-gradient(90deg, #e0e7ff 0%, #818cf8 100%)';
+
+                    return (
+                      <div
+                        key={producto.id}
+                        style={{
+                          position: 'relative',
+                          padding: '10px 14px',
+                          borderRadius: 10,
+                          background: index < 3 ? 'var(--p-color-bg-surface-secondary)' : 'transparent',
+                          transition: 'background 0.15s',
+                        }}
+                      >
+                        {/* Background bar */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            height: '100%',
+                            width: `${Math.max(pct, 4)}%`,
+                            borderRadius: 10,
+                            background: index < 3 ? barColors[index] : defaultBar,
+                            opacity: index < 3 ? 0.18 : 0.1,
+                            transition: 'width 0.6s cubic-bezier(0.22,1,0.36,1)',
+                          }}
+                        />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
+                          {/* Rank */}
+                          <div
+                            style={{
+                              width: 30,
+                              textAlign: 'center',
+                              fontSize: index < 3 ? 18 : 13,
+                              fontWeight: 700,
+                              color: index < 3 ? undefined : '#9ca3af',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {index < 3 ? medals[index] : index + 1}
+                          </div>
+                          {/* Name */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <Text
+                              as="span"
+                              variant="bodyMd"
+                              fontWeight={index < 3 ? 'semibold' : 'regular'}
+                              truncate
+                            >
+                              {producto.name}
+                            </Text>
+                          </div>
+                          {/* Quantity pill */}
+                          <div
+                            style={{
+                              background: 'var(--p-color-bg-surface-secondary)',
+                              borderRadius: 6,
+                              padding: '2px 8px',
+                              fontSize: 12,
+                              color: '#6b7280',
+                              fontWeight: 500,
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {producto.quantity.toLocaleString('es-MX')} uds
+                          </div>
+                          {/* Revenue */}
+                          <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', flexShrink: 0, color: index < 3 ? '#1e293b' : '#374151' }}>
+                            {i18n.formatCurrency(producto.total, { currency: 'MXN' })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
+
+          {/* ═══ ESTADO DE RESULTADOS ═══ */}
+          <Layout>
+            <Layout.Section>
+              <Card>
+                <BlockStack gap="500">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <BlockStack gap="100">
+                      <Text as="h3" variant="headingLg" fontWeight="bold">
+                        Estado de Resultados
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {periodoLabel}
+                      </Text>
+                    </BlockStack>
+                    <Badge tone={utilidadBruta > 0 ? 'success' : 'critical'}>
+                      {utilidadBruta > 0 ? 'Rentable' : 'Pérdida neta'}
+                    </Badge>
+                  </InlineStack>
+
+                  {/* ── Ingresos ── */}
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="bold" tone="subdued">
+                      INGRESOS
+                    </Text>
                     <InlineStack align="space-between">
                       <Text as="span" variant="bodyMd">Ventas brutas</Text>
-                      <InlineStack gap="100">
-                        <Text as="span" variant="bodyMd" fontWeight="semibold">{i18n.formatCurrency(totalVentas, { currency: 'MXN' })}</Text>
-                        <Text as="span" tone="subdued">—</Text>
-                      </InlineStack>
+                      <Text as="span" variant="bodyMd" fontWeight="semibold">
+                        {i18n.formatCurrency(totalVentas, { currency: 'MXN' })}
+                      </Text>
                     </InlineStack>
-
                     <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">Descuentos</Text>
-                      <InlineStack gap="100">
-                        <Text as="span" variant="bodyMd" fontWeight="semibold">{formatCurrency(0)}</Text>
-                        <Text as="span" tone="subdued">—</Text>
-                      </InlineStack>
+                      <Text as="span" variant="bodyMd" tone="subdued">
+                        {`(-) Descuentos (${ventasConDescuento} ventas)`}
+                      </Text>
+                      <Text as="span" variant="bodyMd" tone="critical">
+                        {`-${i18n.formatCurrency(totalDescuentos, { currency: 'MXN' })}`}
+                      </Text>
                     </InlineStack>
-
                     <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">Devoluciones</Text>
-                      <InlineStack gap="100">
-                        <Text as="span" variant="bodyMd" fontWeight="semibold">{formatCurrency(0)}</Text>
-                        <Text as="span" tone="subdued">—</Text>
-                      </InlineStack>
+                      <Text as="span" variant="bodyMd" tone="subdued">
+                        {`(-) Devoluciones (${devolucionesEnPeriodo.length})`}
+                      </Text>
+                      <Text as="span" variant="bodyMd" tone="critical">
+                        {`-${i18n.formatCurrency(totalDevoluciones, { currency: 'MXN' })}`}
+                      </Text>
                     </InlineStack>
-
-                    <Box background="bg-surface-secondary" padding="200" borderRadius="100">
+                    <InlineStack align="space-between">
+                      <Text as="span" variant="bodyMd" tone="subdued">
+                        {`(-) Cancelaciones (${ventasCanceladas.length})`}
+                      </Text>
+                      <Text as="span" variant="bodyMd" tone="critical">
+                        {`-${i18n.formatCurrency(totalCancelado, { currency: 'MXN' })}`}
+                      </Text>
+                    </InlineStack>
+                    <Divider />
+                    <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                       <InlineStack align="space-between">
-                        <Text as="span" variant="bodyMd">Ventas netas</Text>
-                        <InlineStack gap="100">
-                          <Text as="span" variant="bodyMd" fontWeight="semibold">{i18n.formatCurrency(totalVentas, { currency: 'MXN' })}</Text>
-                          <Text as="span" tone="subdued">—</Text>
-                        </InlineStack>
+                        <Text as="span" variant="bodyMd" fontWeight="bold">Ingreso neto</Text>
+                        <Text as="span" variant="bodyMd" fontWeight="bold">
+                          {i18n.formatCurrency(ventasNetas, { currency: 'MXN' })}
+                        </Text>
                       </InlineStack>
                     </Box>
+                  </BlockStack>
 
+                  {/* ── Egresos ── */}
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="bold" tone="subdued">
+                      EGRESOS
+                    </Text>
                     <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">Cargos de envío</Text>
-                      <InlineStack gap="100">
-                        <Text as="span" variant="bodyMd" fontWeight="semibold">{formatCurrency(0)}</Text>
-                        <Text as="span" tone="subdued">—</Text>
-                      </InlineStack>
+                      <Text as="span" variant="bodyMd" tone="subdued">Gastos operativos</Text>
+                      <Text as="span" variant="bodyMd" tone="critical">
+                        {`-${i18n.formatCurrency(totalGastos, { currency: 'MXN' })}`}
+                      </Text>
                     </InlineStack>
-
                     <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">Cargos por devolución</Text>
-                      <InlineStack gap="100">
-                        <Text as="span" variant="bodyMd" fontWeight="semibold">{formatCurrency(0)}</Text>
-                        <Text as="span" tone="subdued">—</Text>
-                      </InlineStack>
+                      <Text as="span" variant="bodyMd" tone="subdued">Mermas y pérdidas</Text>
+                      <Text as="span" variant="bodyMd" tone="critical">
+                        {`-${i18n.formatCurrency(totalMermas, { currency: 'MXN' })}`}
+                      </Text>
                     </InlineStack>
-
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">Impuestos</Text>
-                      <InlineStack gap="100">
-                        <Text as="span" variant="bodyMd" fontWeight="semibold">{formatCurrency(0)}</Text>
-                        <Text as="span" tone="subdued">—</Text>
-                      </InlineStack>
-                    </InlineStack>
-
                     <Divider />
-
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">Ventas totales</Text>
-                      <InlineStack gap="100">
-                        <Text as="span" variant="bodyMd" fontWeight="semibold">{i18n.formatCurrency(totalVentas, { currency: 'MXN' })}</Text>
-                        <Text as="span" tone="subdued">—</Text>
+                    <Box
+                      background={utilidadBruta > 0 ? 'bg-fill-success-secondary' : 'bg-fill-critical-secondary'}
+                      padding="300"
+                      borderRadius="200"
+                    >
+                      <InlineStack align="space-between">
+                        <Text as="span" variant="headingSm" fontWeight="bold">
+                          Utilidad del período
+                        </Text>
+                        <Text as="span" variant="headingSm" fontWeight="bold" tone={utilidadBruta > 0 ? 'success' : 'critical'}>
+                          {i18n.formatCurrency(utilidadBruta, { currency: 'MXN' })}
+                        </Text>
                       </InlineStack>
+                    </Box>
+                  </BlockStack>
+
+                  {/* ── Márgenes ── */}
+                  <Divider />
+                  <InlineGrid columns={3} gap="300">
+                    <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                      <BlockStack gap="050">
+                        <Text as="p" variant="bodyXs" tone="subdued">Margen bruto</Text>
+                        <Text as="p" variant="headingSm" fontWeight="bold">
+                          {totalVentas > 0 ? ((utilidadBruta / totalVentas) * 100).toFixed(1) : '0'}%
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                      <BlockStack gap="050">
+                        <Text as="p" variant="bodyXs" tone="subdued">Ratio de gastos</Text>
+                        <Text as="p" variant="headingSm" fontWeight="bold">
+                          {totalVentas > 0 ? ((totalGastos / totalVentas) * 100).toFixed(1) : '0'}%
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                      <BlockStack gap="050">
+                        <Text as="p" variant="bodyXs" tone="subdued">Ratio de pérdidas</Text>
+                        <Text as="p" variant="headingSm" fontWeight="bold">
+                          {totalVentas > 0 ? (((totalMermas + totalDevoluciones) / totalVentas) * 100).toFixed(1) : '0'}%
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                  </InlineGrid>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+
+            {/* ── Sidebar: Gastos por Categoría ── */}
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h3" variant="headingMd">Gastos por Categoría</Text>
+                    <Badge tone="critical">{i18n.formatCurrency(totalGastos, { currency: 'MXN' })}</Badge>
+                  </InlineStack>
+                  <div style={{ height: 220 }}>
+                    {gastosPorCategoria.length === 0 ? (
+                      <Box padding="600">
+                        <Text as="p" tone="subdued" alignment="center">Sin gastos registrados</Text>
+                      </Box>
+                    ) : (
+                      <DonutChart data={gastosPorCategoria} theme="Light" legendPosition="bottom" />
+                    )}
+                  </div>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          </Layout>
+
+          {/* ═══ MERMAS + DEVOLUCIONES ═══ */}
+          <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+            {/* Mermas por razón */}
+            <Card>
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h3" variant="headingMd">Mermas por Causa</Text>
+                  <Badge tone="warning">{i18n.formatCurrency(totalMermas, { currency: 'MXN' })}</Badge>
+                </InlineStack>
+                {mermasPorRazon.length === 0 ? (
+                  <Box padding="600">
+                    <Text as="p" tone="subdued" alignment="center">Sin mermas registradas</Text>
+                  </Box>
+                ) : (
+                  <BlockStack gap="200">
+                    {mermasPorRazon.map((m) => (
+                      <div key={m.razon}>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <BlockStack gap="050">
+                            <Text as="span" variant="bodySm" fontWeight="medium">{m.razon}</Text>
+                            <Text as="span" variant="bodyXs" tone="subdued">{`${m.count} registros`}</Text>
+                          </BlockStack>
+                          <Text as="span" variant="bodySm" fontWeight="semibold" tone="critical">
+                            {i18n.formatCurrency(m.value, { currency: 'MXN' })}
+                          </Text>
+                        </InlineStack>
+                        <Box paddingBlockStart="100">
+                          <ProgressBar
+                            progress={totalMermas > 0 ? (m.value / totalMermas) * 100 : 0}
+                            size="small"
+                            tone="critical"
+                          />
+                        </Box>
+                      </div>
+                    ))}
+                  </BlockStack>
+                )}
+              </BlockStack>
+            </Card>
+
+            {/* Devoluciones por motivo */}
+            <Card>
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h3" variant="headingMd">Devoluciones por Motivo</Text>
+                  <Badge tone="attention">{`${devolucionesEnPeriodo.length} devol.`}</Badge>
+                </InlineStack>
+                {devolucionesPorMotivo.length === 0 ? (
+                  <Box padding="600">
+                    <Text as="p" tone="subdued" alignment="center">Sin devoluciones</Text>
+                  </Box>
+                ) : (
+                  <BlockStack gap="200">
+                    {devolucionesPorMotivo.map((d) => (
+                      <InlineStack key={d.motivo} align="space-between" blockAlign="center">
+                        <BlockStack gap="050">
+                          <Text as="span" variant="bodySm" fontWeight="medium">{d.motivo}</Text>
+                          <Text as="span" variant="bodyXs" tone="subdued">{`${d.count} casos`}</Text>
+                        </BlockStack>
+                        <Text as="span" variant="bodySm" fontWeight="semibold">
+                          {i18n.formatCurrency(d.total, { currency: 'MXN' })}
+                        </Text>
+                      </InlineStack>
+                    ))}
+                    <Divider />
+                    <InlineStack align="space-between">
+                      <Text as="span" variant="bodySm" fontWeight="bold">Total devuelto</Text>
+                      <Text as="span" variant="bodySm" fontWeight="bold" tone="critical">
+                        {i18n.formatCurrency(totalDevoluciones, { currency: 'MXN' })}
+                      </Text>
                     </InlineStack>
                   </BlockStack>
-                </BlockStack>
-              </Card>
-            </Layout.Section>
-          </Layout>
+                )}
+              </BlockStack>
+            </Card>
+          </InlineGrid>
 
-          {/* ROW 3: 3 Columns */}
+          {/* ═══ CLIENTES, FIADO Y LEALTAD ═══ */}
+          <InlineGrid columns={{ xs: 1, md: 3 }} gap="400">
+            {/* Fiado / Crédito */}
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h3" variant="headingMd">Crédito (Fiado)</Text>
+                <InlineGrid columns={2} gap="300">
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">Saldo pendiente</Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold" tone="critical">
+                        {i18n.formatCurrency(totalFiadoPendiente, { currency: 'MXN' })}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">Clientes c/deuda</Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold">
+                        {clientesConFiado}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">Fiados nuevos</Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold">
+                        {i18n.formatCurrency(fiadosNuevosEnPeriodo, { currency: 'MXN' })}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box padding="300" background="bg-fill-success-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">Abonos cobrados</Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold" tone="success">
+                        {i18n.formatCurrency(abonosEnPeriodo, { currency: 'MXN' })}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                </InlineGrid>
+              </BlockStack>
+            </Card>
+
+            {/* Programa de Lealtad */}
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h3" variant="headingMd">Programa de Lealtad</Text>
+                <InlineGrid columns={2} gap="300">
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">Puntos emitidos</Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold">
+                        {puntosEmitidos.toLocaleString('es-MX')}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">Puntos canjeados</Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold">
+                        {puntosCanjeados.toLocaleString('es-MX')}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                </InlineGrid>
+                <Text as="p" variant="bodyXs" tone="subdued">
+                  {loyaltyEnPeriodo.length} movimientos en el período
+                </Text>
+              </BlockStack>
+            </Card>
+
+            {/* Inventario snapshot */}
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h3" variant="headingMd">Inventario</Text>
+                <InlineGrid columns={2} gap="300">
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">Valor total</Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold">
+                        {i18n.formatCurrency(valorInventario, { currency: 'MXN' })}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box
+                    padding="300"
+                    background={stockBajo > 0 ? 'bg-fill-critical-secondary' : 'bg-fill-success-secondary'}
+                    borderRadius="200"
+                  >
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">Stock bajo</Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold" tone={stockBajo > 0 ? 'critical' : 'success'}>
+                        {stockBajo} productos
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">Por vencer</Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold">
+                        {productosPorVencer}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyXs" tone="subdued">Alertas críticas</Text>
+                      <Text as="p" variant="headingSm" fontWeight="bold" tone={alertasCriticas > 0 ? 'critical' : 'success'}>
+                        {alertasCriticas}
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                </InlineGrid>
+              </BlockStack>
+            </Card>
+          </InlineGrid>
+
+          {/* ═══ FLUJO DE EFECTIVO + CORTES ═══ */}
           <Layout>
-            {/* Method */}
-            <Layout.Section variant="oneThird">
-              <Card background="bg-surface">
+            <Layout.Section>
+              <Card>
                 <BlockStack gap="400">
-                  <Text as="h3" variant="headingMd">Ventas totales por canal de ventas</Text>
-                  <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {ventasPorMetodo.length === 0 ? (
-                      <Text as="p" tone="subdued">No hay datos para este rango de fechas</Text>
-                    ) : (
-                      <BarChart
-                        data={[{
-                          name: 'Ingresos por método',
-                          data: ventasPorMetodo.map(({ metodo, total }) => ({
-                            key: metodo || 'Otro',
-                            value: Number(total || 0),
-                          })),
-                        }]}
-                        xAxisOptions={{ 
-                          labelFormatter: (value) => i18n.formatCurrency(Number(value || 0), { currency: 'MXN', precision: 0 })
-                        }}
-                      />
-                    )}
-                  </div>
-                </BlockStack>
-              </Card>
-            </Layout.Section>
-
-            {/* Average Order Value (just placeholder line chart for now, or use our ticket promedio over time if we have it? No just use sales data) */}
-            <Layout.Section variant="oneThird">
-              <Card background="bg-surface">
-                <BlockStack gap="400">
-                  <Text as="h3" variant="headingMd">Valor medio del pedido a lo largo del tiempo</Text>
-                  <InlineStack align="start" blockAlign="baseline" gap="200">
-                    <Text as="h2" variant="headingXl">{i18n.formatCurrency(ticketPromedio, { currency: 'MXN' })}</Text>
-                    <Text as="span" variant="bodySm" tone="subdued">—</Text>
-                  </InlineStack>
-                  <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {datosPorDia.length === 0 ? (
-                      <Text as="p" tone="subdued">No hay datos para este rango de fechas</Text>
-                    ) : (
-                      <LineChart
-                        data={[{ name: 'Promedio de ticket', data: ticketPromedioPorDia }]}
-                        theme="Light"
-                        xAxisOptions={{ labelFormatter: () => '' }}
-                        yAxisOptions={{ 
-                          labelFormatter: (value) => i18n.formatCurrency(Number(value || 0), { currency: 'MXN', precision: 0 })
-                        }}
-                      />
-                    )}
-                  </div>
-                </BlockStack>
-              </Card>
-            </Layout.Section>
-
-            {/* Top Products */}
-            <Layout.Section variant="oneThird">
-              <Card background="bg-surface">
-                <BlockStack gap="400">
-                  <Text as="h3" variant="headingMd">Ventas totales por producto</Text>
-                  <div style={{ height: 250, overflowY: 'auto' }}>
-                    {topProductos.length === 0 ? (
-                      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Text as="p" tone="subdued">No hay datos para este rango de fechas</Text>
-                      </div>
-                    ) : (
-                      <BlockStack gap="300">
-                        {topProductos.slice(0, 5).map((producto, index) => (
-                          <div key={producto.id}>
-                            <InlineStack align="space-between" blockAlign="center">
-                              <BlockStack gap="0">
-                                <Text as="span" variant="bodyMd">{producto.name}</Text>
-                              </BlockStack>
-                              <InlineStack gap="100">
-                                <Text as="span" variant="bodyMd" fontWeight="semibold">{i18n.formatCurrency(producto.total, { currency: 'MXN' })}</Text>
-                                <Text as="span" tone="subdued">—</Text>
-                              </InlineStack>
-                            </InlineStack>
-                            {index < Math.min(topProductos.length, 5) - 1 && <div style={{ paddingTop: '8px' }}><Divider /></div>}
-                          </div>
-                        ))}
+                  <Text as="h3" variant="headingMd">Flujo de Efectivo</Text>
+                  <InlineGrid columns={{ xs: 1, sm: 4 }} gap="300">
+                    <Box padding="300" background="bg-fill-success-secondary" borderRadius="200">
+                      <BlockStack gap="050">
+                        <Text as="p" variant="bodyXs" tone="subdued">Entradas</Text>
+                        <Text as="p" variant="headingSm" fontWeight="bold" tone="success">
+                          +{i18n.formatCurrency(entradasEfectivo, { currency: 'MXN' })}
+                        </Text>
                       </BlockStack>
-                    )}
-                  </div>
+                    </Box>
+                    <Box padding="300" background="bg-fill-critical-secondary" borderRadius="200">
+                      <BlockStack gap="050">
+                        <Text as="p" variant="bodyXs" tone="subdued">Salidas</Text>
+                        <Text as="p" variant="headingSm" fontWeight="bold" tone="critical">
+                          -{i18n.formatCurrency(salidasEfectivo, { currency: 'MXN' })}
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                      <BlockStack gap="050">
+                        <Text as="p" variant="bodyXs" tone="subdued">Movimientos</Text>
+                        <Text as="p" variant="headingSm" fontWeight="bold">
+                          {movimientosEnPeriodo.length}
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                      <BlockStack gap="050">
+                        <Text as="p" variant="bodyXs" tone="subdued">Flujo neto</Text>
+                        <Text
+                          as="p"
+                          variant="headingSm"
+                          fontWeight="bold"
+                          tone={entradasEfectivo - salidasEfectivo >= 0 ? 'success' : 'critical'}
+                        >
+                          {i18n.formatCurrency(entradasEfectivo - salidasEfectivo, { currency: 'MXN' })}
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                  </InlineGrid>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h3" variant="headingMd">Cortes de Caja</Text>
+                    <Badge>{`${cortesEnPeriodo.length} cortes`}</Badge>
+                  </InlineStack>
+                  <InlineGrid columns={2} gap="300">
+                    <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                      <BlockStack gap="050">
+                        <Text as="p" variant="bodyXs" tone="subdued">Diferencia total</Text>
+                        <Text
+                          as="p"
+                          variant="headingSm"
+                          fontWeight="bold"
+                          tone={totalDiferenciaCaja === 0 ? 'success' : 'critical'}
+                        >
+                          {i18n.formatCurrency(totalDiferenciaCaja, { currency: 'MXN' })}
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                      <BlockStack gap="050">
+                        <Text as="p" variant="bodyXs" tone="subdued">Precisión</Text>
+                        <Text as="p" variant="headingSm" fontWeight="bold" tone="success">
+                          {cortesEnPeriodo.length > 0
+                            ? `${((cortesEnPeriodo.filter((c) => c.diferencia === 0).length / cortesEnPeriodo.length) * 100).toFixed(0)}%`
+                            : '—'}
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                  </InlineGrid>
                 </BlockStack>
               </Card>
             </Layout.Section>
           </Layout>
-
         </BlockStack>
       </Page>
     </div>

@@ -1,9 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  withRequestContext,
-  getRequestContext,
-  extractRequestId,
-} from '@/lib/logger';
+import { describe, it, expect } from 'vitest';
+import { withRequestContext, getRequestContext, extractRequestId } from '@/lib/logger';
 
 describe('Enterprise Logger', () => {
   describe('request context (correlation IDs)', () => {
@@ -28,21 +24,24 @@ describe('Enterprise Logger', () => {
     });
 
     it('should propagate traceId and spanId', () => {
-      withRequestContext({ 
-        requestId: 'req-1',
-        traceId: 'trace-abc',
-        spanId: 'span-xyz',
-      }, () => {
-        const ctx = getRequestContext();
-        expect(ctx?.requestId).toBe('req-1');
-        expect(ctx?.traceId).toBe('trace-abc');
-        expect(ctx?.spanId).toBe('span-xyz');
-      });
+      withRequestContext(
+        {
+          requestId: 'req-1',
+          traceId: 'trace-abc',
+          spanId: 'span-xyz',
+        },
+        () => {
+          const ctx = getRequestContext();
+          expect(ctx?.requestId).toBe('req-1');
+          expect(ctx?.traceId).toBe('trace-abc');
+          expect(ctx?.spanId).toBe('span-xyz');
+        },
+      );
     });
 
     it('should not leak context between calls', () => {
       let insideRequestId: string | undefined;
-      
+
       withRequestContext({ requestId: 'req-first' }, () => {
         insideRequestId = getRequestContext()?.requestId;
       });

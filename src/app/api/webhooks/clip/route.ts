@@ -66,14 +66,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Option 1: HMAC signature header (preferred)
       const signature = request.headers.get('x-clip-signature');
       if (signature) {
-        const expectedSignature = crypto
-          .createHmac('sha256', webhookSecret)
-          .update(body)
-          .digest('hex');
-        const isValid = crypto.timingSafeEqual(
-          Buffer.from(signature, 'hex'),
-          Buffer.from(expectedSignature, 'hex'),
-        );
+        const expectedSignature = crypto.createHmac('sha256', webhookSecret).update(body).digest('hex');
+        const isValid = crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'));
         if (!isValid) {
           logger.warn('Clip webhook signature mismatch', { action: 'clip_webhook_sig_fail', ip });
           return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
@@ -82,10 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Option 2: Shared secret in custom header
         const headerSecret = request.headers.get('x-clip-webhook-secret');
         if (headerSecret) {
-          const isValid = crypto.timingSafeEqual(
-            Buffer.from(headerSecret),
-            Buffer.from(webhookSecret),
-          );
+          const isValid = crypto.timingSafeEqual(Buffer.from(headerSecret), Buffer.from(webhookSecret));
           if (!isValid) {
             logger.warn('Clip webhook secret mismatch', { action: 'clip_webhook_secret_fail', ip });
             return NextResponse.json({ error: 'Invalid secret' }, { status: 401 });
@@ -94,7 +85,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // If neither header is present, fall through to DB-record validation
         // This allows the webhook to work even without signature while still logging
         logger.info('Clip webhook received without signature (using DB validation only)', {
-          action: 'clip_webhook_no_sig', ip,
+          action: 'clip_webhook_no_sig',
+          ip,
         });
       }
     }
@@ -125,7 +117,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const status = mapClipWebhookStatus(data.status);
 
       // Idempotency: prevent duplicate processing on webhook retries
-      const isNew = await idempotencyCheck(`clip_webhook:checkout:${providerChargeId}:${data.status}`, { ttlMs: 86_400_000 });
+      const isNew = await idempotencyCheck(`clip_webhook:checkout:${providerChargeId}:${data.status}`, {
+        ttlMs: 86_400_000,
+      });
       if (!isNew) {
         logger.info('Clip checkout webhook duplicate skipped', { action: 'clip_checkout_duplicate', providerChargeId });
         return NextResponse.json({ received: true, duplicate: true });
@@ -169,7 +163,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           .update(paymentCharges)
           .set({
             status,
-            paidAt: status === 'paid' && data.approved_at ? new Date(data.approved_at) : status === 'paid' ? new Date() : undefined,
+            paidAt:
+              status === 'paid' && data.approved_at
+                ? new Date(data.approved_at)
+                : status === 'paid'
+                  ? new Date()
+                  : undefined,
             updatedAt: new Date(),
           })
           .where(eq(paymentCharges.providerChargeId, providerChargeId));
@@ -190,7 +189,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const status = mapClipPinpadWebhookStatus(data.status);
 
       // Idempotency: prevent duplicate processing on webhook retries
-      const isNew = await idempotencyCheck(`clip_webhook:pinpad:${providerChargeId}:${data.status}`, { ttlMs: 86_400_000 });
+      const isNew = await idempotencyCheck(`clip_webhook:pinpad:${providerChargeId}:${data.status}`, {
+        ttlMs: 86_400_000,
+      });
       if (!isNew) {
         logger.info('Clip PinPad webhook duplicate skipped', { action: 'clip_pinpad_duplicate', providerChargeId });
         return NextResponse.json({ received: true, duplicate: true });

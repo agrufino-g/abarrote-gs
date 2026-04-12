@@ -1,11 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'path';
 
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 30 * 1000,
   expect: {
-    timeout: 5000
+    timeout: 5000,
   },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -24,10 +23,12 @@ export default defineConfig({
     },
     // Add additional browser configurations as desired
   ],
-  webServer: process.env.CI ? undefined : {
-    command: 'pnpm dev',
-    port: 3000,
-    timeout: 120 * 1000,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: process.env.CI
+    ? undefined
+    : {
+        command: 'pnpm dev',
+        port: 3000,
+        timeout: 120 * 1000,
+        reuseExistingServer: !process.env.CI,
+      },
 });

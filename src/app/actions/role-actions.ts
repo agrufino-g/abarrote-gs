@@ -8,10 +8,19 @@ import { eq, isNotNull } from 'drizzle-orm';
 import type { UserRoleRecord, RoleDefinition, PermissionKey } from '@/types';
 import { DEFAULT_SYSTEM_ROLES } from '@/types';
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
-import { checkRateLimit, getClientIp } from '@/infrastructure/redis';
+import { checkRateLimit } from '@/infrastructure/redis';
 import { withLogging } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import { validateSchema, createRoleSchema, updateRoleSchema, assignUserRoleSchema, createUserWithRoleSchema, updateUserPinSchema, updateUserProfileSchema, idSchema } from '@/lib/validation/schemas';
+import {
+  validateSchema,
+  createRoleSchema,
+  updateRoleSchema,
+  assignUserRoleSchema,
+  createUserWithRoleSchema,
+  updateUserPinSchema,
+  updateUserProfileSchema,
+  idSchema,
+} from '@/lib/validation/schemas';
 
 // ==================== PIN RATE LIMITING ====================
 
@@ -80,7 +89,7 @@ async function _fetchRoleDefinitions(): Promise<RoleDefinition[]> {
 
 async function _createRoleDefinition(
   data: { name: string; description: string; permissions: PermissionKey[] },
-  createdByUid: string
+  createdByUid: string,
 ): Promise<RoleDefinition> {
   await requirePermission('roles.manage');
   validateSchema(createRoleSchema, data, 'createRoleDefinition');
@@ -111,7 +120,7 @@ async function _createRoleDefinition(
 
 async function _updateRoleDefinition(
   id: string,
-  data: { name?: string; description?: string; permissions?: PermissionKey[] }
+  data: { name?: string; description?: string; permissions?: PermissionKey[] },
 ): Promise<void> {
   await requirePermission('roles.manage');
   validateSchema(idSchema, id, 'updateRoleDefinition.id');
@@ -179,8 +188,8 @@ async function _ensureOwnerRole(firebaseUid: string, email: string, displayName:
   await seedSystemRoles();
 
   const allDefs = await db.select().from(roleDefinitions);
-  const ownerDef = allDefs.find(d => d.isSystem && d.name === 'Propietario');
-  const viewerDef = allDefs.find(d => d.isSystem && d.name === 'Solo lectura');
+  const ownerDef = allDefs.find((d) => d.isSystem && d.name === 'Propietario');
+  const viewerDef = allDefs.find((d) => d.isSystem && d.name === 'Solo lectura');
 
   if (!ownerDef || !viewerDef) throw new Error('System roles not found');
 
@@ -193,17 +202,28 @@ async function _ensureOwnerRole(firebaseUid: string, email: string, displayName:
     const id = crypto.randomUUID();
     const now = new Date();
     await db.insert(userRoles).values({
-      id, firebaseUid, email,
-      displayName: displayName || '', employeeNumber,
-      roleId: ownerDef.id, assignedBy: firebaseUid,
-      createdAt: now, updatedAt: now,
+      id,
+      firebaseUid,
+      email,
+      displayName: displayName || '',
+      employeeNumber,
+      roleId: ownerDef.id,
+      assignedBy: firebaseUid,
+      createdAt: now,
+      updatedAt: now,
     });
     return {
-      id, firebaseUid, email, displayName: displayName || '',
-      avatarUrl: '', employeeNumber,
+      id,
+      firebaseUid,
+      email,
+      displayName: displayName || '',
+      avatarUrl: '',
+      employeeNumber,
       status: 'activo' as const,
-      roleId: ownerDef.id, assignedBy: firebaseUid,
-      createdAt: now.toISOString(), updatedAt: now.toISOString(),
+      roleId: ownerDef.id,
+      assignedBy: firebaseUid,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
     };
   }
 
@@ -212,7 +232,10 @@ async function _ensureOwnerRole(firebaseUid: string, email: string, displayName:
     if (!userRow.employeeNumber) {
       const idx = existing.indexOf(userRow) + 1;
       const empNum = `3226${String(idx).padStart(2, '0')}`;
-      await db.update(userRoles).set({ employeeNumber: empNum, updatedAt: new Date() }).where(eq(userRoles.id, userRow.id));
+      await db
+        .update(userRoles)
+        .set({ employeeNumber: empNum, updatedAt: new Date() })
+        .where(eq(userRoles.id, userRow.id));
       userRow.employeeNumber = empNum;
     }
     return mapUserRole(userRow);
@@ -221,23 +244,34 @@ async function _ensureOwnerRole(firebaseUid: string, email: string, displayName:
   const id = crypto.randomUUID();
   const now = new Date();
   await db.insert(userRoles).values({
-    id, firebaseUid, email,
-    displayName: displayName || '', employeeNumber,
-    roleId: viewerDef.id, assignedBy: 'system',
-    createdAt: now, updatedAt: now,
+    id,
+    firebaseUid,
+    email,
+    displayName: displayName || '',
+    employeeNumber,
+    roleId: viewerDef.id,
+    assignedBy: 'system',
+    createdAt: now,
+    updatedAt: now,
   });
   return {
-    id, firebaseUid, email, displayName: displayName || '',
-    avatarUrl: '', employeeNumber,
+    id,
+    firebaseUid,
+    email,
+    displayName: displayName || '',
+    avatarUrl: '',
+    employeeNumber,
     status: 'activo' as const,
-    roleId: viewerDef.id, assignedBy: 'system',
-    createdAt: now.toISOString(), updatedAt: now.toISOString(),
+    roleId: viewerDef.id,
+    assignedBy: 'system',
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
   };
 }
 
 async function _assignUserRole(
   data: { firebaseUid: string; email: string; displayName: string; roleId: string },
-  assignedByUid: string
+  assignedByUid: string,
 ): Promise<UserRoleRecord> {
   await requirePermission('roles.manage');
   validateSchema(assignUserRoleSchema, data, 'assignUserRole');
@@ -246,16 +280,28 @@ async function _assignUserRole(
 
   if (existingRows.length > 0) {
     const now = new Date();
-    await db.update(userRoles)
-      .set({ roleId: data.roleId, displayName: data.displayName, email: data.email, updatedAt: now, assignedBy: assignedByUid })
+    await db
+      .update(userRoles)
+      .set({
+        roleId: data.roleId,
+        displayName: data.displayName,
+        email: data.email,
+        updatedAt: now,
+        assignedBy: assignedByUid,
+      })
       .where(eq(userRoles.firebaseUid, data.firebaseUid));
     return {
-      id: existingRows[0].id, firebaseUid: data.firebaseUid,
-      email: data.email, displayName: data.displayName,
-      avatarUrl: existingRows[0].avatarUrl, employeeNumber: existingRows[0].employeeNumber,
+      id: existingRows[0].id,
+      firebaseUid: data.firebaseUid,
+      email: data.email,
+      displayName: data.displayName,
+      avatarUrl: existingRows[0].avatarUrl,
+      employeeNumber: existingRows[0].employeeNumber,
       status: (existingRows[0].status as 'activo' | 'baja') || 'activo',
-      roleId: data.roleId, assignedBy: assignedByUid,
-      createdAt: existingRows[0].createdAt.toISOString(), updatedAt: now.toISOString(),
+      roleId: data.roleId,
+      assignedBy: assignedByUid,
+      createdAt: existingRows[0].createdAt.toISOString(),
+      updatedAt: now.toISOString(),
     };
   }
 
@@ -265,23 +311,48 @@ async function _assignUserRole(
   const id = crypto.randomUUID();
   const now = new Date();
   await db.insert(userRoles).values({
-    id, firebaseUid: data.firebaseUid, email: data.email,
-    displayName: data.displayName || '', employeeNumber: empNum, roleId: data.roleId,
+    id,
+    firebaseUid: data.firebaseUid,
+    email: data.email,
+    displayName: data.displayName || '',
+    employeeNumber: empNum,
+    roleId: data.roleId,
     status: 'activo',
-    assignedBy: assignedByUid, createdAt: now, updatedAt: now,
+    assignedBy: assignedByUid,
+    createdAt: now,
+    updatedAt: now,
   });
+
+  // Audit log — role assignment
+  await db.insert(auditLogs).values({
+    id: crypto.randomUUID(),
+    userId: assignedByUid,
+    userEmail: data.email,
+    action: 'create',
+    entity: 'userRole',
+    entityId: data.firebaseUid,
+    changes: { after: { roleId: data.roleId, status: 'activo' } },
+    timestamp: now,
+  });
+
   return {
-    id, firebaseUid: data.firebaseUid, email: data.email,
-    displayName: data.displayName || '', avatarUrl: '', employeeNumber: empNum,
+    id,
+    firebaseUid: data.firebaseUid,
+    email: data.email,
+    displayName: data.displayName || '',
+    avatarUrl: '',
+    employeeNumber: empNum,
     status: 'activo' as const,
-    roleId: data.roleId, assignedBy: assignedByUid,
-    createdAt: now.toISOString(), updatedAt: now.toISOString(),
+    roleId: data.roleId,
+    assignedBy: assignedByUid,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
   };
 }
 
 async function _createFirebaseUserWithRole(
   data: { email: string; password?: string; displayName: string; roleId: string; pinCode?: string },
-  assignedByUid: string
+  assignedByUid: string,
 ): Promise<UserRoleRecord> {
   await requirePermission('roles.manage');
   validateSchema(createUserWithRoleSchema, data, 'createFirebaseUserWithRole');
@@ -300,7 +371,7 @@ async function _createFirebaseUserWithRole(
       displayName: data.displayName,
       roleId: data.roleId,
     },
-    assignedByUid
+    assignedByUid,
   );
 
   if (data.pinCode) {
@@ -311,20 +382,26 @@ async function _createFirebaseUserWithRole(
 }
 
 async function _updateUserPin(firebaseUid: string, pinCode: string): Promise<void> {
-  await requirePermission('roles.manage');
+  const currentUser = await requirePermission('roles.manage');
   validateSchema(updateUserPinSchema, { firebaseUid, pinCode }, 'updateUserPin');
   const hashed = hashPin(pinCode);
   const now = new Date();
-  await db.update(userRoles)
-    .set({ pinCode: hashed, updatedAt: now })
-    .where(eq(userRoles.firebaseUid, firebaseUid));
+  await db.update(userRoles).set({ pinCode: hashed, updatedAt: now }).where(eq(userRoles.firebaseUid, firebaseUid));
+
+  // Audit log — PIN change (never log the actual PIN)
+  await db.insert(auditLogs).values({
+    id: crypto.randomUUID(),
+    userId: currentUser.uid,
+    userEmail: currentUser.email ?? 'system',
+    action: 'update',
+    entity: 'userRole',
+    entityId: firebaseUid,
+    changes: { after: { pinChanged: true } },
+    timestamp: now,
+  });
 }
 
-async function _updateUserRole(
-  firebaseUid: string,
-  newRoleId: string,
-  assignedByUid: string
-): Promise<void> {
+async function _updateUserRole(firebaseUid: string, newRoleId: string, assignedByUid: string): Promise<void> {
   await requirePermission('roles.manage');
 
   // Capture previous state for audit trail
@@ -332,7 +409,8 @@ async function _updateUserRole(
   const previousRoleId = existing.length > 0 ? existing[0].roleId : null;
 
   const now = new Date();
-  await db.update(userRoles)
+  await db
+    .update(userRoles)
     .set({ roleId: newRoleId, updatedAt: now, assignedBy: assignedByUid })
     .where(eq(userRoles.firebaseUid, firebaseUid));
 
@@ -358,12 +436,29 @@ async function _updateUserRole(
 }
 
 async function _removeUserRole(firebaseUid: string): Promise<void> {
-  await requireOwner();
+  const currentUser = await requireOwner();
+
+  // Capture previous state for audit
+  const existing = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
+  const prev = existing[0] ?? null;
+
   await db.delete(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
+
+  // Audit log — role removal
+  await db.insert(auditLogs).values({
+    id: crypto.randomUUID(),
+    userId: currentUser.uid,
+    userEmail: currentUser.email ?? 'system',
+    action: 'delete',
+    entity: 'userRole',
+    entityId: firebaseUid,
+    changes: prev ? { before: { roleId: prev.roleId, email: prev.email, status: prev.status } } : {},
+    timestamp: new Date(),
+  });
 }
 
 async function _generateGlobalId(firebaseUid: string): Promise<string> {
-  await requirePermission('roles.manage');
+  const currentUser = await requirePermission('roles.manage');
   const rows = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
   if (rows.length === 0) throw new Error('Usuario no encontrado');
   if (rows[0].globalId) throw new Error('Este usuario ya tiene un Global ID asignado. No se puede generar otro.');
@@ -371,7 +466,7 @@ async function _generateGlobalId(firebaseUid: string): Promise<string> {
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
   const allWithGlobalId = await db.select().from(userRoles);
-  const existingIds = new Set(allWithGlobalId.map(r => r.globalId).filter(Boolean));
+  const existingIds = new Set(allWithGlobalId.map((r) => r.globalId).filter(Boolean));
   let seq = existingIds.size + 1;
   let globalId = `GID-${dateStr}-${String(seq).padStart(4, '0')}`;
   while (existingIds.has(globalId)) {
@@ -379,40 +474,76 @@ async function _generateGlobalId(firebaseUid: string): Promise<string> {
     globalId = `GID-${dateStr}-${String(seq).padStart(4, '0')}`;
   }
 
-  await db.update(userRoles)
-    .set({ globalId, updatedAt: now })
-    .where(eq(userRoles.firebaseUid, firebaseUid));
+  await db.update(userRoles).set({ globalId, updatedAt: now }).where(eq(userRoles.firebaseUid, firebaseUid));
+
+  // Audit log — Global ID generation
+  await db.insert(auditLogs).values({
+    id: crypto.randomUUID(),
+    userId: currentUser.uid,
+    userEmail: currentUser.email ?? 'system',
+    action: 'update',
+    entity: 'userRole',
+    entityId: firebaseUid,
+    changes: { after: { globalId } },
+    timestamp: now,
+  });
 
   return globalId;
 }
 
 async function _deactivateUser(firebaseUid: string): Promise<void> {
-  await requireOwner();
+  const currentUser = await requireOwner();
   const rows = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
   if (rows.length === 0) throw new Error('Usuario no encontrado');
   if (rows[0].status === 'baja') throw new Error('Este usuario ya está dado de baja');
 
   const now = new Date();
-  await db.update(userRoles)
+  await db
+    .update(userRoles)
     .set({ status: 'baja', deactivatedAt: now, updatedAt: now })
     .where(eq(userRoles.firebaseUid, firebaseUid));
+
+  // Audit log — user deactivation
+  await db.insert(auditLogs).values({
+    id: crypto.randomUUID(),
+    userId: currentUser.uid,
+    userEmail: currentUser.email ?? 'system',
+    action: 'update',
+    entity: 'userRole',
+    entityId: firebaseUid,
+    changes: { before: { status: 'activo' }, after: { status: 'baja' } },
+    timestamp: now,
+  });
 }
 
 async function _reactivateUser(firebaseUid: string): Promise<void> {
-  await requireOwner();
+  const currentUser = await requireOwner();
   const rows = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
   if (rows.length === 0) throw new Error('Usuario no encontrado');
   if (rows[0].status === 'activo') throw new Error('Este usuario ya está activo');
 
   const now = new Date();
-  await db.update(userRoles)
+  await db
+    .update(userRoles)
     .set({ status: 'activo', deactivatedAt: null, updatedAt: now })
     .where(eq(userRoles.firebaseUid, firebaseUid));
+
+  // Audit log — user reactivation
+  await db.insert(auditLogs).values({
+    id: crypto.randomUUID(),
+    userId: currentUser.uid,
+    userEmail: currentUser.email ?? 'system',
+    action: 'update',
+    entity: 'userRole',
+    entityId: firebaseUid,
+    changes: { before: { status: 'baja' }, after: { status: 'activo' } },
+    timestamp: now,
+  });
 }
 
 async function _updateUserProfile(
   firebaseUid: string,
-  data: { displayName?: string; avatarUrl?: string }
+  data: { displayName?: string; avatarUrl?: string },
 ): Promise<UserRoleRecord> {
   const currentUser = await requireAuth();
   validateSchema(updateUserProfileSchema, { firebaseUid, ...data }, 'updateUserProfile');
@@ -432,9 +563,7 @@ async function _updateUserProfile(
     safeData.avatarUrl = data.avatarUrl;
   }
 
-  await db.update(userRoles)
-    .set(safeData)
-    .where(eq(userRoles.firebaseUid, firebaseUid));
+  await db.update(userRoles).set(safeData).where(eq(userRoles.firebaseUid, firebaseUid));
   const rows = await db.select().from(userRoles).where(eq(userRoles.firebaseUid, firebaseUid));
   if (rows.length === 0) throw new Error('User not found');
   return mapUserRole(rows[0]);
@@ -442,7 +571,7 @@ async function _updateUserProfile(
 
 async function _authorizePin(
   pinCode: string,
-  requiredPermission: PermissionKey
+  requiredPermission: PermissionKey,
 ): Promise<{ success: boolean; authorizedByUid?: string; userDisplayName?: string; error?: string }> {
   // 1. Require authenticated session first
   const currentUser = await requireAuth();

@@ -12,16 +12,12 @@ import {
   createCategory as dbCreateCategory,
   updateCategory as dbUpdateCategory,
   deleteCategory as dbDeleteCategory,
-  fetchCategories as dbFetchCategories,
+  fetchCategories as _dbFetchCategories,
 } from '@/app/actions/db-actions';
 
 /** Refresh only product-related data: products list, alerts, KPIs */
 async function refreshProductData(set: StoreSet) {
-  const [products, alerts, kpi] = await Promise.all([
-    fetchAllProducts(),
-    fetchInventoryAlerts(),
-    fetchKPIData(),
-  ]);
+  const [products, alerts, kpi] = await Promise.all([fetchAllProducts(), fetchInventoryAlerts(), fetchKPIData()]);
   set({ products, inventoryAlerts: alerts, kpiData: kpi });
 }
 
@@ -44,9 +40,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
       await dbUpdateProductStock(productId, newStock);
       // Optimistic update with rollback on failure
       set({
-        products: prev.map(p =>
-          p.id === productId ? { ...p, currentStock: newStock } : p
-        ),
+        products: prev.map((p) => (p.id === productId ? { ...p, currentStock: newStock } : p)),
       });
       const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
       set({ inventoryAlerts: alerts, kpiData: kpi });
@@ -72,7 +66,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
       await dbDeleteProduct(productId);
       // Optimistic: remove from local state immediately
       const state = get();
-      set({ products: state.products.filter(p => p.id !== productId) });
+      set({ products: state.products.filter((p) => p.id !== productId) });
       // Then refresh alerts/KPIs (product list already updated)
       const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
       set({ inventoryAlerts: alerts, kpiData: kpi });
@@ -87,7 +81,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
     try {
       await dbUpdateProduct(id, data);
       // Optimistic update with rollback on failure
-      set({ products: prev.map(p => p.id === id ? { ...p, ...data } : p) });
+      set({ products: prev.map((p) => (p.id === id ? { ...p, ...data } : p)) });
       // Refresh alerts/KPIs (price or stock changes affect them)
       const [alerts, kpi] = await Promise.all([fetchInventoryAlerts(), fetchKPIData()]);
       set({ inventoryAlerts: alerts, kpiData: kpi });
@@ -121,7 +115,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
     ]);
     set({ products, inventoryAlerts: alerts, kpiData: kpi, inventoryAudits: audits });
   },
-  
+
   createCategory: async (data: { id?: string; name: string; description: string | null; icon: string | null }) => {
     try {
       const newCat = await dbCreateCategory(data);
@@ -136,7 +130,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
     try {
       const updated = await dbUpdateCategory(id, data);
       const state = get();
-      set({ categories: state.categories.map(c => c.id === id ? updated : c) });
+      set({ categories: state.categories.map((c) => (c.id === id ? updated : c)) });
     } catch (error) {
       console.error('[store:inventory] updateCategory failed', error);
     }
@@ -146,7 +140,7 @@ export const createInventorySlice = (set: StoreSet, get: StoreGet): InventorySli
     try {
       await dbDeleteCategory(id);
       const state = get();
-      set({ categories: state.categories.filter(c => c.id !== id) });
+      set({ categories: state.categories.filter((c) => c.id !== id) });
     } catch (error) {
       console.error('[store:inventory] deleteCategory failed', error);
     }

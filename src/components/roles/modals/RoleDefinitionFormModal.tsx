@@ -37,6 +37,7 @@ export function RoleDefinitionFormModal({
   const [roleDefPerms, setRoleDefPerms] = useState<PermissionKey[]>([]);
 
   // Sync internal state when editingRoleDef changes
+  /* eslint-disable react-hooks/set-state-in-effect -- prop-derived state sync */
   useEffect(() => {
     if (editingRoleDef) {
       setRoleDefName(editingRoleDef.name);
@@ -48,11 +49,10 @@ export function RoleDefinitionFormModal({
       setRoleDefPerms([]);
     }
   }, [editingRoleDef]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const togglePermission = useCallback((perm: PermissionKey) => {
-    setRoleDefPerms((prev) =>
-      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
-    );
+    setRoleDefPerms((prev) => (prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]));
   }, []);
 
   const handleSave = useCallback(() => {
@@ -118,23 +118,45 @@ export function RoleDefinitionFormModal({
             </InlineStack>
           </InlineStack>
           <Divider />
-          {PERMISSION_GROUPS.map((group) => (
-            <Box key={group.title}>
-              <BlockStack gap="200">
-                <Text variant="headingSm" as="h4">{group.title}</Text>
-                <InlineGrid columns={{ xs: 1, sm: 2 }} gap="100">
-                  {group.permissions.map((perm) => (
+          {PERMISSION_GROUPS.map((group) => {
+            const allInGroup = group.permissions.every((p) => roleDefPerms.includes(p));
+            const activeCount = group.permissions.filter((p) => roleDefPerms.includes(p)).length;
+            return (
+              <Box key={group.title}>
+                <BlockStack gap="200">
+                  <InlineStack gap="200" blockAlign="center">
                     <Checkbox
-                      key={perm}
-                      label={PERMISSION_LABELS[perm]}
-                      checked={roleDefPerms.includes(perm)}
-                      onChange={() => togglePermission(perm)}
+                      label={
+                        <Text variant="headingSm" as="span">
+                          {group.title} ({activeCount}/{group.permissions.length})
+                        </Text>
+                      }
+                      checked={allInGroup}
+                      onChange={() => {
+                        if (allInGroup) {
+                          setRoleDefPerms((prev) => prev.filter((p) => !group.permissions.includes(p)));
+                        } else {
+                          setRoleDefPerms((prev) => [...new Set([...prev, ...group.permissions])]);
+                        }
+                      }}
                     />
-                  ))}
-                </InlineGrid>
-              </BlockStack>
-            </Box>
-          ))}
+                  </InlineStack>
+                  <Box paddingInlineStart="400">
+                    <InlineGrid columns={{ xs: 1, sm: 2 }} gap="100">
+                      {group.permissions.map((perm) => (
+                        <Checkbox
+                          key={perm}
+                          label={PERMISSION_LABELS[perm]}
+                          checked={roleDefPerms.includes(perm)}
+                          onChange={() => togglePermission(perm)}
+                        />
+                      ))}
+                    </InlineGrid>
+                  </Box>
+                </BlockStack>
+              </Box>
+            );
+          })}
         </BlockStack>
       </Modal.Section>
     </Modal>

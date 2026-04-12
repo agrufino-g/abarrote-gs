@@ -36,7 +36,18 @@ import {
   ResetIcon,
   DeliveryIcon,
   CartIcon,
+  DragHandleIcon,
 } from '@shopify/polaris-icons';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { parseError } from '@/lib/errors';
 import { TicketPreview } from './TicketPreview';
@@ -46,8 +57,14 @@ import type {
   TicketFontSize,
   TicketSeparatorStyle,
   TicketHeaderAlignment,
+  TicketSectionKey,
 } from '@/types';
-import { DEFAULT_TICKET_DESIGN, DEFAULT_TICKET_DESIGN_PROVEEDOR } from '@/types';
+import {
+  DEFAULT_TICKET_DESIGN,
+  DEFAULT_TICKET_DESIGN_PROVEEDOR,
+  DEFAULT_SECTION_ORDER,
+  DEFAULT_SECTION_ORDER_PROVEEDOR,
+} from '@/types';
 
 // ═══════════════════════════════════════════════════════════
 // Types
@@ -64,7 +81,13 @@ const CONFIG_KEY_MAP: Record<TicketTab, 'ticketDesignVenta' | 'ticketDesignCorte
 
 const TAB_DEFAULTS: Record<TicketTab, TicketDesignConfig> = {
   venta: { ...DEFAULT_TICKET_DESIGN },
-  corte: { ...DEFAULT_TICKET_DESIGN, headerNote: 'CORTE DE CAJA', showItemCount: false, showDiscount: false, showUnitDetail: false },
+  corte: {
+    ...DEFAULT_TICKET_DESIGN,
+    headerNote: 'CORTE DE CAJA',
+    showItemCount: false,
+    showDiscount: false,
+    showUnitDetail: false,
+  },
   proveedor: { ...DEFAULT_TICKET_DESIGN_PROVEEDOR },
 };
 
@@ -115,13 +138,39 @@ const ALIGN_OPTS: { label: string; value: TicketHeaderAlignment }[] = [
 // ═══════════════════════════════════════════════════════════
 
 const ALL_BOOL_FIELDS: (keyof TicketDesignConfig)[] = [
-  'showLogo', 'showStoreName', 'showLegalName', 'showAddress', 'showPhone', 'showRfc',
-  'showRegimen', 'showStoreNumber', 'showSku', 'showBarcode', 'showUnitDetail',
-  'showSubtotal', 'showIva', 'showDiscount', 'showAmountPaid', 'showChange',
-  'showItemCount', 'showPaymentMethod', 'showDateTime', 'showCashierInfo', 'showCurrency',
-  'showServicePhone', 'showVigencia', 'showPoweredBy', 'showTicketBarcode',
-  'showSupplierInfo', 'showOrderFolio', 'showDeliveryDate', 'showPaymentTerms',
-  'showOrderNotes', 'showCostPrice', 'showTotalPieces', 'showDestination',
+  'showLogo',
+  'showStoreName',
+  'showLegalName',
+  'showAddress',
+  'showPhone',
+  'showRfc',
+  'showRegimen',
+  'showStoreNumber',
+  'showSku',
+  'showBarcode',
+  'showUnitDetail',
+  'showSubtotal',
+  'showIva',
+  'showDiscount',
+  'showAmountPaid',
+  'showChange',
+  'showItemCount',
+  'showPaymentMethod',
+  'showDateTime',
+  'showCashierInfo',
+  'showCurrency',
+  'showServicePhone',
+  'showVigencia',
+  'showPoweredBy',
+  'showTicketBarcode',
+  'showSupplierInfo',
+  'showOrderFolio',
+  'showDeliveryDate',
+  'showPaymentTerms',
+  'showOrderNotes',
+  'showCostPrice',
+  'showTotalPieces',
+  'showDestination',
 ];
 
 function countEnabled(design: TicketDesignConfig): number {
@@ -159,30 +208,86 @@ function SectionHeader({
       onClick={onToggle}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onToggle(); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onToggle();
+      }}
       style={{ cursor: 'pointer', userSelect: 'none' }}
     >
       <BlockStack gap="100">
         <InlineStack align="space-between" blockAlign="center">
           <InlineStack gap="300" blockAlign="center">
-            <Box
-              background="bg-surface-secondary"
-              borderRadius="200"
-              padding="150"
-            >
+            <Box background="bg-surface-secondary" borderRadius="200" padding="150">
               <Icon source={icon} tone="base" />
             </Box>
-            <Text variant="headingSm" as="h3">{title}</Text>
+            <Text variant="headingSm" as="h3">
+              {title}
+            </Text>
             {badge && <Badge tone="info">{badge}</Badge>}
           </InlineStack>
           <Icon source={open ? ChevronUpIcon : ChevronDownIcon} tone="subdued" />
         </InlineStack>
         {description && !open && (
           <Box paddingInlineStart="1000">
-            <Text as="p" variant="bodySm" tone="subdued">{description}</Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              {description}
+            </Text>
           </Box>
         )}
       </BlockStack>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Section labels for reorder panel
+// ═══════════════════════════════════════════════════════════
+
+const SECTION_LABELS: Record<TicketSectionKey, string> = {
+  header: 'Encabezado',
+  supplier: 'Proveedor',
+  items: 'Productos',
+  totals: 'Totales',
+  barcode: 'Código de barras',
+  footer: 'Pie de ticket',
+};
+
+const SECTION_ICONS: Record<TicketSectionKey, typeof ReceiptIcon> = {
+  header: ImageIcon,
+  supplier: DeliveryIcon,
+  items: CartIcon,
+  totals: CashDollarIcon,
+  barcode: CodeIcon,
+  footer: TextFontIcon,
+};
+
+// ═══════════════════════════════════════════════════════════
+// Sortable section row for drag-and-drop
+// ═══════════════════════════════════════════════════════════
+
+function SortableSectionRow({ id }: { id: TicketSectionKey }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Box padding="200" borderRadius="200" background={isDragging ? 'bg-surface-hover' : 'bg-surface'}>
+        <InlineStack gap="300" blockAlign="center" align="space-between">
+          <InlineStack gap="200" blockAlign="center">
+            <div {...attributes} {...listeners} style={{ cursor: 'grab', touchAction: 'none' }}>
+              <Icon source={DragHandleIcon} tone="subdued" />
+            </div>
+            <Icon source={SECTION_ICONS[id]} tone="base" />
+            <Text as="span" variant="bodySm" fontWeight="semibold">
+              {SECTION_LABELS[id]}
+            </Text>
+          </InlineStack>
+          <Badge tone="info">{String(SECTION_LABELS[id].length > 0 ? '☰' : '')}</Badge>
+        </InlineStack>
+      </Box>
     </div>
   );
 }
@@ -203,10 +308,16 @@ export function TicketDesignerSection() {
 
   // Collapsible sections
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    header: true, items: true, supplier: true, totals: true,
-    footer: false, barcode: false, style: false, advanced: false,
+    header: true,
+    items: true,
+    supplier: true,
+    totals: true,
+    footer: false,
+    barcode: false,
+    style: false,
+    advanced: false,
   });
-  const toggle = (key: SectionKey) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  const toggle = (key: SectionKey) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Design state per ticket type
   const [designVenta, setDesignVenta] = useState<TicketDesignConfig>(
@@ -220,23 +331,35 @@ export function TicketDesignerSection() {
   );
 
   // Sync from store on hydration
+  /* eslint-disable react-hooks/set-state-in-effect -- external store hydration sync */
   useEffect(() => {
     if (storeConfig.ticketDesignVenta) setDesignVenta(storeConfig.ticketDesignVenta);
     if (storeConfig.ticketDesignCorte) setDesignCorte(storeConfig.ticketDesignCorte);
     if (storeConfig.ticketDesignProveedor) setDesignProveedor(storeConfig.ticketDesignProveedor);
   }, [storeConfig.ticketDesignVenta, storeConfig.ticketDesignCorte, storeConfig.ticketDesignProveedor]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Map tab index to ticket type
   const TAB_ORDER: TicketTab[] = useMemo(() => ['venta', 'corte', 'proveedor'], []);
   const activeTab = TAB_ORDER[selectedTab] ?? 'venta';
 
-  const designMap: Record<TicketTab, TicketDesignConfig> = useMemo(() => ({
-    venta: designVenta, corte: designCorte, proveedor: designProveedor,
-  }), [designVenta, designCorte, designProveedor]);
+  const designMap: Record<TicketTab, TicketDesignConfig> = useMemo(
+    () => ({
+      venta: designVenta,
+      corte: designCorte,
+      proveedor: designProveedor,
+    }),
+    [designVenta, designCorte, designProveedor],
+  );
 
-  const setDesignMap: Record<TicketTab, React.Dispatch<React.SetStateAction<TicketDesignConfig>>> = useMemo(() => ({
-    venta: setDesignVenta, corte: setDesignCorte, proveedor: setDesignProveedor,
-  }), []);
+  const setDesignMap: Record<TicketTab, React.Dispatch<React.SetStateAction<TicketDesignConfig>>> = useMemo(
+    () => ({
+      venta: setDesignVenta,
+      corte: setDesignCorte,
+      proveedor: setDesignProveedor,
+    }),
+    [],
+  );
 
   const currentDesign = designMap[activeTab];
   const setCurrentDesign = setDesignMap[activeTab];
@@ -245,21 +368,24 @@ export function TicketDesignerSection() {
   const visibleSections = TAB_SECTIONS[activeTab];
 
   // ── Save handler (auto-save on change) ──
-  const updateDesign = useCallback(<K extends keyof TicketDesignConfig>(field: K, value: TicketDesignConfig[K]) => {
-    const next = { ...currentDesign, [field]: value };
-    setCurrentDesign(next);
-    startTransition(async () => {
-      setStatus('saving');
-      try {
-        await saveStoreConfig({ [configKey]: next } as Partial<Record<string, TicketDesignConfig>>);
-        setStatus('saved');
-        setTimeout(() => setStatus('idle'), 1500);
-      } catch (err) {
-        setStatus('error');
-        setErrorMsg(parseError(err).description);
-      }
-    });
-  }, [currentDesign, setCurrentDesign, configKey, saveStoreConfig]);
+  const updateDesign = useCallback(
+    <K extends keyof TicketDesignConfig>(field: K, value: TicketDesignConfig[K]) => {
+      const next = { ...currentDesign, [field]: value };
+      setCurrentDesign(next);
+      startTransition(async () => {
+        setStatus('saving');
+        try {
+          await saveStoreConfig({ [configKey]: next } as Partial<Record<string, TicketDesignConfig>>);
+          setStatus('saved');
+          setTimeout(() => setStatus('idle'), 1500);
+        } catch (err) {
+          setStatus('error');
+          setErrorMsg(parseError(err).description);
+        }
+      });
+    },
+    [currentDesign, setCurrentDesign, configKey, saveStoreConfig],
+  );
 
   const resetToDefaults = useCallback(() => {
     const defaults = TAB_DEFAULTS[activeTab];
@@ -276,6 +402,39 @@ export function TicketDesignerSection() {
       }
     });
   }, [activeTab, setCurrentDesign, configKey, saveStoreConfig]);
+
+  // ── Drag-and-drop for section reordering ──
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // Ensure sectionOrder exists (for existing configs that lack it)
+  const currentSectionOrder: TicketSectionKey[] = useMemo(() => {
+    const order = currentDesign.sectionOrder;
+    if (order && order.length > 0) return order;
+    return activeTab === 'proveedor' ? [...DEFAULT_SECTION_ORDER_PROVEEDOR] : [...DEFAULT_SECTION_ORDER];
+  }, [currentDesign.sectionOrder, activeTab]);
+
+  // Filter to only sections visible for this tab type
+  const printableSections: TicketSectionKey[] = ['header', 'supplier', 'items', 'totals', 'barcode', 'footer'];
+  const visibleOrderSections = useMemo(
+    () => currentSectionOrder.filter((s) => visibleSections.includes(s) && printableSections.includes(s)),
+    [currentSectionOrder, visibleSections],
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = currentSectionOrder.indexOf(active.id as TicketSectionKey);
+      const newIndex = currentSectionOrder.indexOf(over.id as TicketSectionKey);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(currentSectionOrder, oldIndex, newIndex);
+      updateDesign('sectionOrder', reordered);
+    },
+    [currentSectionOrder, updateDesign],
+  );
 
   // ── Stats ──
   const enabledCount = useMemo(() => countEnabled(currentDesign), [currentDesign]);
@@ -347,6 +506,30 @@ export function TicketDesignerSection() {
       <InlineGrid columns={{ xs: 1, lg: ['oneHalf', 'oneHalf'] }} gap="400">
         {/* ═══════════ LEFT: Controls ═══════════ */}
         <BlockStack gap="300">
+          {/* ── Section reorder (drag-and-drop) ── */}
+          <Card>
+            <BlockStack gap="200">
+              <InlineStack gap="200" blockAlign="center" align="space-between">
+                <InlineStack gap="200" blockAlign="center">
+                  <Icon source={SettingsIcon} tone="base" />
+                  <Text variant="headingSm" as="h3">
+                    Orden de secciones
+                  </Text>
+                </InlineStack>
+                <Badge tone="info">Arrastra para reordenar</Badge>
+              </InlineStack>
+              <Divider />
+              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={visibleOrderSections} strategy={verticalListSortingStrategy}>
+                  <BlockStack gap="100">
+                    {visibleOrderSections.map((sectionId) => (
+                      <SortableSectionRow key={sectionId} id={sectionId} />
+                    ))}
+                  </BlockStack>
+                </SortableContext>
+              </DndContext>
+            </BlockStack>
+          </Card>
 
           {/* ── 1. Encabezado ── */}
           {showSection('header') && (
@@ -365,26 +548,75 @@ export function TicketDesignerSection() {
                   <Box paddingBlockStart="300">
                     <BlockStack gap="300">
                       <InlineGrid columns={{ xs: 1, md: 2 }} gap="200">
-                        <Checkbox label="Logo de tienda" checked={currentDesign.showLogo} onChange={(v) => updateDesign('showLogo', v)} />
-                        <Checkbox label="Nombre comercial" checked={currentDesign.showStoreName} onChange={(v) => updateDesign('showStoreName', v)} />
-                        <Checkbox label="Razón social" checked={currentDesign.showLegalName} onChange={(v) => updateDesign('showLegalName', v)} />
-                        <Checkbox label="Dirección completa" checked={currentDesign.showAddress} onChange={(v) => updateDesign('showAddress', v)} />
-                        <Checkbox label="Teléfono" checked={currentDesign.showPhone} onChange={(v) => updateDesign('showPhone', v)} />
-                        <Checkbox label="RFC" checked={currentDesign.showRfc} onChange={(v) => updateDesign('showRfc', v)} />
-                        <Checkbox label="Régimen fiscal" checked={currentDesign.showRegimen} onChange={(v) => updateDesign('showRegimen', v)} />
-                        <Checkbox label="Número de sucursal" checked={currentDesign.showStoreNumber} onChange={(v) => updateDesign('showStoreNumber', v)} />
-                        <Checkbox label="Fecha y hora" checked={currentDesign.showDateTime} onChange={(v) => updateDesign('showDateTime', v)} />
-                        <Checkbox label="Datos del cajero/operador" checked={currentDesign.showCashierInfo} onChange={(v) => updateDesign('showCashierInfo', v)} />
+                        <Checkbox
+                          label="Logo de tienda"
+                          checked={currentDesign.showLogo}
+                          onChange={(v) => updateDesign('showLogo', v)}
+                        />
+                        <Checkbox
+                          label="Nombre comercial"
+                          checked={currentDesign.showStoreName}
+                          onChange={(v) => updateDesign('showStoreName', v)}
+                        />
+                        <Checkbox
+                          label="Razón social"
+                          checked={currentDesign.showLegalName}
+                          onChange={(v) => updateDesign('showLegalName', v)}
+                        />
+                        <Checkbox
+                          label="Dirección completa"
+                          checked={currentDesign.showAddress}
+                          onChange={(v) => updateDesign('showAddress', v)}
+                        />
+                        <Checkbox
+                          label="Teléfono"
+                          checked={currentDesign.showPhone}
+                          onChange={(v) => updateDesign('showPhone', v)}
+                        />
+                        <Checkbox
+                          label="RFC"
+                          checked={currentDesign.showRfc}
+                          onChange={(v) => updateDesign('showRfc', v)}
+                        />
+                        <Checkbox
+                          label="Régimen fiscal"
+                          checked={currentDesign.showRegimen}
+                          onChange={(v) => updateDesign('showRegimen', v)}
+                        />
+                        <Checkbox
+                          label="Número de sucursal"
+                          checked={currentDesign.showStoreNumber}
+                          onChange={(v) => updateDesign('showStoreNumber', v)}
+                        />
+                        <Checkbox
+                          label="Fecha y hora"
+                          checked={currentDesign.showDateTime}
+                          onChange={(v) => updateDesign('showDateTime', v)}
+                        />
+                        <Checkbox
+                          label="Datos del cajero/operador"
+                          checked={currentDesign.showCashierInfo}
+                          onChange={(v) => updateDesign('showCashierInfo', v)}
+                        />
                       </InlineGrid>
 
                       {/* Logo size */}
                       {currentDesign.showLogo && (
                         <Box>
                           <InlineStack gap="200" blockAlign="center">
-                            <Text variant="bodySm" as="span" tone="subdued">Tamaño del logo:</Text>
+                            <Text variant="bodySm" as="span" tone="subdued">
+                              Tamaño del logo:
+                            </Text>
                             <ButtonGroup variant="segmented">
-                              {LOGO_SIZE_OPTS.map(o => (
-                                <Button key={o.value} pressed={currentDesign.logoSize === o.value} onClick={() => updateDesign('logoSize', o.value)} size="slim">{o.label}</Button>
+                              {LOGO_SIZE_OPTS.map((o) => (
+                                <Button
+                                  key={o.value}
+                                  pressed={currentDesign.logoSize === o.value}
+                                  onClick={() => updateDesign('logoSize', o.value)}
+                                  size="slim"
+                                >
+                                  {o.label}
+                                </Button>
                               ))}
                             </ButtonGroup>
                           </InlineStack>
@@ -394,10 +626,19 @@ export function TicketDesignerSection() {
                       {/* Header alignment */}
                       <Box>
                         <InlineStack gap="200" blockAlign="center">
-                          <Text variant="bodySm" as="span" tone="subdued">Alineación del encabezado:</Text>
+                          <Text variant="bodySm" as="span" tone="subdued">
+                            Alineación del encabezado:
+                          </Text>
                           <ButtonGroup variant="segmented">
-                            {ALIGN_OPTS.map(o => (
-                              <Button key={o.value} pressed={currentDesign.headerAlignment === o.value} onClick={() => updateDesign('headerAlignment', o.value)} size="slim">{o.label}</Button>
+                            {ALIGN_OPTS.map((o) => (
+                              <Button
+                                key={o.value}
+                                pressed={currentDesign.headerAlignment === o.value}
+                                onClick={() => updateDesign('headerAlignment', o.value)}
+                                size="slim"
+                              >
+                                {o.label}
+                              </Button>
                             ))}
                           </ButtonGroup>
                         </InlineStack>
@@ -407,10 +648,16 @@ export function TicketDesignerSection() {
                         label="Nota de encabezado"
                         value={currentDesign.headerNote}
                         onChange={(v) => updateDesign('headerNote', v)}
-                        placeholder={activeTab === 'proveedor' ? 'ORDEN DE COMPRA' : activeTab === 'corte' ? 'CORTE DE CAJA' : 'COMPROBANTE DE VENTA'}
+                        placeholder={
+                          activeTab === 'proveedor'
+                            ? 'ORDEN DE COMPRA'
+                            : activeTab === 'corte'
+                              ? 'CORTE DE CAJA'
+                              : 'COMPROBANTE DE VENTA'
+                        }
                         maxLength={60}
                         autoComplete="off"
-                        helpText='Se imprime debajo de los datos fiscales.'
+                        helpText="Se imprime debajo de los datos fiscales."
                       />
                     </BlockStack>
                   </Box>
@@ -489,9 +736,10 @@ export function TicketDesignerSection() {
                   title={activeTab === 'proveedor' ? 'Detalle de productos a surtir' : 'Detalle de productos'}
                   open={openSections.items}
                   onToggle={() => toggle('items')}
-                  description={activeTab === 'proveedor'
-                    ? 'Productos solicitados al proveedor con cantidades y costos'
-                    : 'Cómo se muestra cada producto vendido en el ticket'
+                  description={
+                    activeTab === 'proveedor'
+                      ? 'Productos solicitados al proveedor con cantidades y costos'
+                      : 'Cómo se muestra cada producto vendido en el ticket'
                   }
                 />
                 <Collapsible open={openSections.items} id="section-items">
@@ -514,7 +762,9 @@ export function TicketDesignerSection() {
                         label="Desglose de cantidad × precio"
                         checked={currentDesign.showUnitDetail}
                         onChange={(v) => updateDesign('showUnitDetail', v)}
-                        helpText={activeTab === 'proveedor' ? 'Muestra "10 pza × $18.50 (costo)"' : 'Muestra "2 pza × $25.00"'}
+                        helpText={
+                          activeTab === 'proveedor' ? 'Muestra "10 pza × $18.50 (costo)"' : 'Muestra "2 pza × $25.00"'
+                        }
                       />
                       {activeTab === 'proveedor' && (
                         <>
@@ -548,29 +798,67 @@ export function TicketDesignerSection() {
                   title={activeTab === 'proveedor' ? 'Totales del pedido' : 'Totales y pago'}
                   open={openSections.totals}
                   onToggle={() => toggle('totals')}
-                  description={activeTab === 'proveedor'
-                    ? 'Subtotal, IVA y total estimado del pedido de compra'
-                    : 'Subtotal, IVA, descuentos, método de pago y cambio'
+                  description={
+                    activeTab === 'proveedor'
+                      ? 'Subtotal, IVA y total estimado del pedido de compra'
+                      : 'Subtotal, IVA, descuentos, método de pago y cambio'
                   }
                 />
                 <Collapsible open={openSections.totals} id="section-totals">
                   <Divider />
                   <Box paddingBlockStart="300">
                     <InlineGrid columns={{ xs: 1, md: 2 }} gap="200">
-                      <Checkbox label="Subtotal" checked={currentDesign.showSubtotal} onChange={(v) => updateDesign('showSubtotal', v)} />
-                      <Checkbox label="IVA desglosado" checked={currentDesign.showIva} onChange={(v) => updateDesign('showIva', v)} />
-                      <Checkbox label="Moneda del ticket" checked={currentDesign.showCurrency} onChange={(v) => updateDesign('showCurrency', v)} helpText='Ej: "MXN", "USD"' />
+                      <Checkbox
+                        label="Subtotal"
+                        checked={currentDesign.showSubtotal}
+                        onChange={(v) => updateDesign('showSubtotal', v)}
+                      />
+                      <Checkbox
+                        label="IVA desglosado"
+                        checked={currentDesign.showIva}
+                        onChange={(v) => updateDesign('showIva', v)}
+                      />
+                      <Checkbox
+                        label="Moneda del ticket"
+                        checked={currentDesign.showCurrency}
+                        onChange={(v) => updateDesign('showCurrency', v)}
+                        helpText='Ej: "MXN", "USD"'
+                      />
                       {activeTab !== 'proveedor' && (
                         <>
-                          <Checkbox label="Descuento aplicado" checked={currentDesign.showDiscount} onChange={(v) => updateDesign('showDiscount', v)} />
-                          <Checkbox label="Método de pago" checked={currentDesign.showPaymentMethod} onChange={(v) => updateDesign('showPaymentMethod', v)} />
-                          <Checkbox label="Monto recibido" checked={currentDesign.showAmountPaid} onChange={(v) => updateDesign('showAmountPaid', v)} />
-                          <Checkbox label="Cambio" checked={currentDesign.showChange} onChange={(v) => updateDesign('showChange', v)} />
-                          <Checkbox label="Conteo de artículos" checked={currentDesign.showItemCount} onChange={(v) => updateDesign('showItemCount', v)} />
+                          <Checkbox
+                            label="Descuento aplicado"
+                            checked={currentDesign.showDiscount}
+                            onChange={(v) => updateDesign('showDiscount', v)}
+                          />
+                          <Checkbox
+                            label="Método de pago"
+                            checked={currentDesign.showPaymentMethod}
+                            onChange={(v) => updateDesign('showPaymentMethod', v)}
+                          />
+                          <Checkbox
+                            label="Monto recibido"
+                            checked={currentDesign.showAmountPaid}
+                            onChange={(v) => updateDesign('showAmountPaid', v)}
+                          />
+                          <Checkbox
+                            label="Cambio"
+                            checked={currentDesign.showChange}
+                            onChange={(v) => updateDesign('showChange', v)}
+                          />
+                          <Checkbox
+                            label="Conteo de artículos"
+                            checked={currentDesign.showItemCount}
+                            onChange={(v) => updateDesign('showItemCount', v)}
+                          />
                         </>
                       )}
                       {activeTab === 'proveedor' && (
-                        <Checkbox label="Conteo total de piezas" checked={currentDesign.showTotalPieces} onChange={(v) => updateDesign('showTotalPieces', v)} />
+                        <Checkbox
+                          label="Conteo total de piezas"
+                          checked={currentDesign.showTotalPieces}
+                          onChange={(v) => updateDesign('showTotalPieces', v)}
+                        />
                       )}
                     </InlineGrid>
                   </Box>
@@ -601,18 +889,31 @@ export function TicketDesignerSection() {
                         multiline={3}
                         maxLength={500}
                         autoComplete="off"
-                        placeholder={activeTab === 'proveedor'
-                          ? 'Favor de confirmar recepción de este pedido.'
-                          : '¡Gracias por su compra!'
+                        placeholder={
+                          activeTab === 'proveedor'
+                            ? 'Favor de confirmar recepción de este pedido.'
+                            : '¡Gracias por su compra!'
                         }
                         helpText="Si queda vacío se usa el pie general de Punto de Venta"
                       />
                       <InlineGrid columns={{ xs: 1, md: 2 }} gap="200">
-                        <Checkbox label="Teléfono de soporte" checked={currentDesign.showServicePhone} onChange={(v) => updateDesign('showServicePhone', v)} />
+                        <Checkbox
+                          label="Teléfono de soporte"
+                          checked={currentDesign.showServicePhone}
+                          onChange={(v) => updateDesign('showServicePhone', v)}
+                        />
                         {activeTab !== 'proveedor' && (
-                          <Checkbox label="Vigencia de cambios" checked={currentDesign.showVigencia} onChange={(v) => updateDesign('showVigencia', v)} />
+                          <Checkbox
+                            label="Vigencia de cambios"
+                            checked={currentDesign.showVigencia}
+                            onChange={(v) => updateDesign('showVigencia', v)}
+                          />
                         )}
-                        <Checkbox label='Leyenda "Powered by"' checked={currentDesign.showPoweredBy} onChange={(v) => updateDesign('showPoweredBy', v)} />
+                        <Checkbox
+                          label='Leyenda "Powered by"'
+                          checked={currentDesign.showPoweredBy}
+                          onChange={(v) => updateDesign('showPoweredBy', v)}
+                        />
                       </InlineGrid>
                     </BlockStack>
                   </Box>
@@ -636,14 +937,27 @@ export function TicketDesignerSection() {
                   <Divider />
                   <Box paddingBlockStart="300">
                     <BlockStack gap="300">
-                      <Checkbox label="Imprimir código de barras / QR en el ticket" checked={currentDesign.showTicketBarcode} onChange={(v) => updateDesign('showTicketBarcode', v)} />
+                      <Checkbox
+                        label="Imprimir código de barras / QR en el ticket"
+                        checked={currentDesign.showTicketBarcode}
+                        onChange={(v) => updateDesign('showTicketBarcode', v)}
+                      />
                       {currentDesign.showTicketBarcode && (
                         <Box>
-                          <Text variant="bodySm" as="p" tone="subdued">Formato:</Text>
+                          <Text variant="bodySm" as="p" tone="subdued">
+                            Formato:
+                          </Text>
                           <Box paddingBlockStart="100">
                             <ButtonGroup variant="segmented">
-                              {BARCODE_OPTS.map(o => (
-                                <Button key={o.value} pressed={currentDesign.barcodeFormat === o.value} onClick={() => updateDesign('barcodeFormat', o.value)} size="slim">{o.label}</Button>
+                              {BARCODE_OPTS.map((o) => (
+                                <Button
+                                  key={o.value}
+                                  pressed={currentDesign.barcodeFormat === o.value}
+                                  onClick={() => updateDesign('barcodeFormat', o.value)}
+                                  size="slim"
+                                >
+                                  {o.label}
+                                </Button>
                               ))}
                             </ButtonGroup>
                           </Box>
@@ -673,11 +987,19 @@ export function TicketDesignerSection() {
                     <BlockStack gap="400">
                       {/* Paper width */}
                       <BlockStack gap="100">
-                        <Text variant="bodySm" as="p" fontWeight="semibold">Ancho de papel</Text>
+                        <Text variant="bodySm" as="p" fontWeight="semibold">
+                          Ancho de papel
+                        </Text>
                         <ButtonGroup variant="segmented">
-                          {PAPER_OPTS.map(o => (
+                          {PAPER_OPTS.map((o) => (
                             <Tooltip key={o.value} content={o.help}>
-                              <Button pressed={currentDesign.paperWidth === o.value} onClick={() => updateDesign('paperWidth', o.value)} size="slim">{o.label}</Button>
+                              <Button
+                                pressed={currentDesign.paperWidth === o.value}
+                                onClick={() => updateDesign('paperWidth', o.value)}
+                                size="slim"
+                              >
+                                {o.label}
+                              </Button>
                             </Tooltip>
                           ))}
                         </ButtonGroup>
@@ -685,20 +1007,38 @@ export function TicketDesignerSection() {
 
                       {/* Font size */}
                       <BlockStack gap="100">
-                        <Text variant="bodySm" as="p" fontWeight="semibold">Tamaño de fuente</Text>
+                        <Text variant="bodySm" as="p" fontWeight="semibold">
+                          Tamaño de fuente
+                        </Text>
                         <ButtonGroup variant="segmented">
-                          {FONT_OPTS.map(o => (
-                            <Button key={o.value} pressed={currentDesign.fontSize === o.value} onClick={() => updateDesign('fontSize', o.value)} size="slim">{o.label}</Button>
+                          {FONT_OPTS.map((o) => (
+                            <Button
+                              key={o.value}
+                              pressed={currentDesign.fontSize === o.value}
+                              onClick={() => updateDesign('fontSize', o.value)}
+                              size="slim"
+                            >
+                              {o.label}
+                            </Button>
                           ))}
                         </ButtonGroup>
                       </BlockStack>
 
                       {/* Separator */}
                       <BlockStack gap="100">
-                        <Text variant="bodySm" as="p" fontWeight="semibold">Estilo de separador</Text>
+                        <Text variant="bodySm" as="p" fontWeight="semibold">
+                          Estilo de separador
+                        </Text>
                         <ButtonGroup variant="segmented">
-                          {SEP_OPTS.map(o => (
-                            <Button key={o.value} pressed={currentDesign.separatorStyle === o.value} onClick={() => updateDesign('separatorStyle', o.value)} size="slim">{o.label}</Button>
+                          {SEP_OPTS.map((o) => (
+                            <Button
+                              key={o.value}
+                              pressed={currentDesign.separatorStyle === o.value}
+                              onClick={() => updateDesign('separatorStyle', o.value)}
+                              size="slim"
+                            >
+                              {o.label}
+                            </Button>
                           ))}
                         </ButtonGroup>
                       </BlockStack>
@@ -740,8 +1080,7 @@ export function TicketDesignerSection() {
                             ? 'Este diseño se aplica en cobro en mostrador, reimpresión desde historial de ventas. Si defines una plantilla HTML personalizada (sección superior), ésta tiene prioridad.'
                             : activeTab === 'corte'
                               ? 'Este diseño se aplica al generar el reporte de corte de caja manual o automático.'
-                              : 'Este diseño se aplica al imprimir órdenes de compra desde la sección de proveedores. Si defines una plantilla HTML personalizada, ésta tiene prioridad.'
-                          }
+                              : 'Este diseño se aplica al imprimir órdenes de compra desde la sección de proveedores. Si defines una plantilla HTML personalizada, ésta tiene prioridad.'}
                         </Text>
                       </Banner>
                       <InlineStack gap="200">
@@ -767,7 +1106,9 @@ export function TicketDesignerSection() {
                 <InlineStack align="space-between" blockAlign="center">
                   <InlineStack gap="200" blockAlign="center">
                     <Icon source={ViewIcon} tone="base" />
-                    <Text variant="headingSm" as="h3">Vista previa</Text>
+                    <Text variant="headingSm" as="h3">
+                      Vista previa
+                    </Text>
                   </InlineStack>
                   <Badge tone={activeTab === 'venta' ? 'success' : activeTab === 'corte' ? 'warning' : 'info'}>
                     {activeTab === 'venta' ? 'Venta' : activeTab === 'corte' ? 'Corte' : 'Proveedor'}
@@ -775,7 +1116,8 @@ export function TicketDesignerSection() {
                 </InlineStack>
                 <Divider />
                 <Text as="p" variant="bodySm" tone="subdued">
-                  Simulación con datos de ejemplo. La impresión real usa los datos de la {activeTab === 'proveedor' ? 'orden de compra' : 'operación'}.
+                  Simulación con datos de ejemplo. La impresión real usa los datos de la{' '}
+                  {activeTab === 'proveedor' ? 'orden de compra' : 'operación'}.
                 </Text>
                 <div style={{ overflowX: 'auto', overflowY: 'visible' }}>
                   <TicketPreview design={currentDesign} config={storeConfig} type={ticketType} />

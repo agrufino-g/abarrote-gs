@@ -9,19 +9,10 @@
 // ======================================================================
 
 // Products
-export {
-  fetchAllProducts,
-  createProduct,
-  updateProductStock,
-  deleteProduct,
-  updateProduct,
-} from './product-actions';
+export { fetchAllProducts, createProduct, updateProductStock, deleteProduct, updateProduct } from './product-actions';
 
 // Store Config
-export {
-  fetchStoreConfig,
-  saveStoreConfig,
-} from './store-config-actions';
+export { fetchStoreConfig, saveStoreConfig } from './store-config-actions';
 
 // Inventory (alerts, KPIs, mermas, audits)
 export {
@@ -98,33 +89,16 @@ export {
 } from './role-actions';
 
 // Dashboard
-export {
-  fetchDashboardFromDB,
-} from './dashboard-actions';
+export { fetchDashboardFromDB } from './dashboard-actions';
 
 // Devoluciones
-export {
-  fetchDevoluciones,
-  createDevolucion,
-  getSaleItemsForDevolucion,
-} from './devolucion-actions';
+export { fetchDevoluciones, createDevolucion, getSaleItemsForDevolucion } from './devolucion-actions';
 
 // Categories
-export {
-  fetchCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} from './category-actions';
+export { fetchCategories, createCategory, updateCategory, deleteCategory } from './category-actions';
 
 // Movimientos de Caja
-export {
-  fetchCashMovements,
-  createCashMovement,
-} from './cash-movement-actions';
+export { fetchCashMovements, createCashMovement } from './cash-movement-actions';
 
 // Loyalty Transactions
-export {
-  fetchLoyaltyTransactions,
-  createLoyaltyTransaction,
-} from './loyalty-actions';
+export { fetchLoyaltyTransactions, createLoyaltyTransaction } from './loyalty-actions';

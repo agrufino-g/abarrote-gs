@@ -37,40 +37,32 @@ export async function POST(req: Request) {
 
     // Extract information using Vercel AI SDK
     const { object } = await generateObject({
-      model: openai('gpt-4o-mini', { structuredOutputs: true }),
+      model: openai('gpt-4o-mini'),
       schema: z.object({
         concepto: z.string().describe('El concepto de la compra resumido'),
         monto: z.number().describe('El costo total o pago total de la factura o ticket'),
         fecha: z.string().describe('La fecha de la compra o facturación YYYY-MM-DD'),
-        categoria: z.enum([
-          'renta',
-          'servicios',
-          'proveedores',
-          'salarios',
-          'mantenimiento',
-          'impuestos',
-          'otro',
-        ]).describe('Categoría calculada según la tienda o rubro de los productos'),
+        categoria: z
+          .enum(['renta', 'servicios', 'proveedores', 'salarios', 'mantenimiento', 'impuestos', 'otro'])
+          .describe('Categoría calculada según la tienda o rubro de los productos'),
       }),
       messages: [
         {
           role: 'user',
           content: [
             { type: 'text', text: promptText },
-            isPdf 
-              ? { type: 'file', data: buffer, mimeType: 'application/pdf' }
-              : { type: 'image', image: buffer }
-          ]
-        }
-      ]
+            { type: 'file', data: buffer, mediaType: mimeType },
+          ],
+        },
+      ],
     });
 
     return NextResponse.json({ data: object });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] /extract-receipt Error:', error);
     return NextResponse.json(
-      { error: 'Error procesando el recibo', details: error.message },
-      { status: 500 }
+      { error: 'Error procesando el recibo', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
     );
   }
 }

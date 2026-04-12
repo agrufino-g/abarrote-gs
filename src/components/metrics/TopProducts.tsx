@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Badge,
-  ProgressBar,
-  Avatar,
-  Box,
-} from '@shopify/polaris';
+import { Card, Text, BlockStack, InlineStack, Badge, ProgressBar, Box } from '@shopify/polaris';
 import { formatCurrency } from '@/lib/utils';
 
 interface TopProduct {
@@ -25,6 +16,7 @@ interface TopProduct {
 interface TopProductsProps {
   products?: TopProduct[];
   title?: string;
+  period?: string;
 }
 
 const defaultTopProducts: TopProduct[] = [
@@ -35,71 +27,75 @@ const defaultTopProducts: TopProduct[] = [
   { id: '5', name: 'Sabritas Original', sku: 'BOT-001', unitsSold: 128, revenue: 2560, margin: 35, trend: 'down' },
 ];
 
-function getTrendBadge(trend: 'up' | 'down' | 'stable') {
-  switch (trend) {
-    case 'up':
-      return <Badge tone="success">↑ Subiendo</Badge>;
-    case 'down':
-      return <Badge tone="critical">↓ Bajando</Badge>;
-    default:
-      return <Badge tone="info">→ Estable</Badge>;
-  }
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((word) => word[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-export function TopProducts({ products = defaultTopProducts, title = "Productos Más Vendidos" }: TopProductsProps) {
+export function TopProducts({ products = defaultTopProducts, title = 'Top Productos', period = 'Hoy' }: TopProductsProps) {
   const maxUnits = Math.max(...products.map((p) => p.unitsSold));
+  const totalRevenue = products.reduce((s, p) => s + p.revenue, 0);
 
   return (
     <Card>
-      <BlockStack gap="400">
+      <BlockStack gap="300">
         <InlineStack align="space-between" blockAlign="center">
-          <Text as="h3" variant="headingMd">
+          <Text as="h3" variant="headingSm" fontWeight="semibold">
             {title}
           </Text>
-          <Badge tone="info">Hoy</Badge>
+          <Badge tone="info">{period}</Badge>
         </InlineStack>
 
-        <BlockStack gap="200">
-          {products.map((product) => (
-            <div key={product.id} style={{ padding: '8px 0' }}>
-              <InlineStack align="space-between" blockAlign="center">
-                <InlineStack gap="300" blockAlign="center">
-                  <Avatar
-                    size="sm"
-                    initials={getInitials(product.name)}
-                    name={product.name}
-                  />
-                  <BlockStack gap="050">
-                    <Text as="p" variant="bodyMd" fontWeight="bold">
-                      {product.name}
-                    </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      {product.unitsSold} uds. · {formatCurrency(product.revenue)}
-                    </Text>
-                  </BlockStack>
+        <BlockStack gap="300">
+          {products.map((product, i) => {
+            const pct = maxUnits > 0 ? (product.unitsSold / maxUnits) * 100 : 0;
+            return (
+              <div key={product.id}>
+                <InlineStack align="space-between" blockAlign="start">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Box
+                      padding="100"
+                      background={i === 0 ? 'bg-fill-success-secondary' : 'bg-surface-secondary'}
+                      borderRadius="200"
+                      minWidth="28px"
+                    >
+                      <Text
+                        as="span"
+                        variant="bodySm"
+                        fontWeight="bold"
+                        alignment="center"
+                        tone={i === 0 ? 'success' : 'subdued'}
+                      >
+                        {`#${i + 1}`}
+                      </Text>
+                    </Box>
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        {product.name}
+                      </Text>
+                      <Text as="p" variant="bodyXs" tone="subdued">
+                        {product.unitsSold} uds · {formatCurrency(product.revenue)}
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
                 </InlineStack>
-                <div style={{ paddingRight: '12px' }}>
-                  {getTrendBadge(product.trend)}
-                </div>
-              </InlineStack>
-              <Box paddingBlockStart="300">
-                <ProgressBar
-                  progress={(product.unitsSold / maxUnits) * 100}
-                  size="small"
-                />
-              </Box>
-            </div>
-          ))}
+                <Box paddingBlockStart="100">
+                  <ProgressBar
+                    progress={pct}
+                    size="small"
+                    tone={i === 0 ? 'highlight' : 'primary'}
+                  />
+                </Box>
+              </div>
+            );
+          })}
         </BlockStack>
+
+        <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+          <InlineStack align="space-between">
+            <Text as="p" variant="bodyXs" tone="subdued">
+              Total Top 5
+            </Text>
+            <Text as="p" variant="bodyXs" fontWeight="bold">
+              {formatCurrency(totalRevenue)}
+            </Text>
+          </InlineStack>
+        </Box>
       </BlockStack>
     </Card>
   );

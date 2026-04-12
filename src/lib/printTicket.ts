@@ -6,8 +6,7 @@ export function printWithIframe(html: string): void {
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const iframe = document.createElement('iframe');
-  iframe.style.cssText =
-    'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;opacity:0;';
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;opacity:0;';
   iframe.src = url;
   document.body.appendChild(iframe);
   iframe.onload = () => {
@@ -31,7 +30,7 @@ export function printWithIframe(html: string): void {
 export function applyTicketTemplate(
   template: string | undefined,
   vars: Record<string, string>,
-  defaultHtml: string
+  defaultHtml: string,
 ): string {
   if (!template) return defaultHtml;
   let result = template;
@@ -204,7 +203,8 @@ export const corteTicketCSS = `
 // Used by the print flow when no custom HTML template is set.
 // ═══════════════════════════════════════════════════════════
 
-import type { TicketDesignConfig } from '@/types';
+import type { TicketDesignConfig, TicketSectionKey } from '@/types';
+import { DEFAULT_SECTION_ORDER } from '@/types';
 
 interface TicketPrintData {
   storeName: string;
@@ -222,10 +222,20 @@ interface TicketPrintData {
   fecha: string;
   cajero: string;
   metodoPago: string;
-  items: { name: string; sku?: string; barcode?: string; qty: number; unit: string; unitPrice: number; subtotal: number }[];
+  clienteName?: string;
+  items: {
+    name: string;
+    sku?: string;
+    barcode?: string;
+    qty: number;
+    unit: string;
+    unitPrice: number;
+    subtotal: number;
+  }[];
   subtotal: number;
   iva: number;
   discount: number;
+  discountDetail?: string; // e.g. "Promoción 2x1", "10% Lealtad"
   total: number;
   amountPaid: number;
   change: number;
@@ -254,7 +264,7 @@ export function generateTicketHtml(design: TicketDesignConfig, data: TicketPrint
 
   const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  const style = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:${fs}px;color:#111;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 .ticket{width:${pw};margin:0 auto;padding:4mm 3mm}
@@ -280,69 +290,109 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:${fs}px;c
 @media print{body{background:#fff}.ticket{padding:2mm 1mm}@page{size:${pw === '80mm' ? '80mm' : pw} auto;margin:0}}
 </style></head><body><div class="ticket">`;
 
-  // ── Header ──
-  if (design.showLogo && data.logoUrl) {
-    html += `<div class="c"><img src="${escape(data.logoUrl)}" style="max-height:${logoSz[design.logoSize] || '50px'};max-width:80%;object-fit:contain"></div>`;
-  }
-  if (design.showStoreName) html += `<div class="c bb" style="font-size:${fs + 3}px;letter-spacing:1.5px;text-transform:uppercase">${escape(data.storeName)}</div>`;
-  if (design.showLegalName) html += `<div class="c sub">${escape(data.legalName)}</div>`;
-  if (design.showAddress) html += `<div class="c sub">${escape(data.address)}, C.P. ${escape(data.postalCode)}, ${escape(data.city)}</div>`;
-  if (design.showPhone) html += `<div class="c sub">TEL: ${escape(data.phone)}</div>`;
-  if (design.showRfc) html += `<div class="c sub">RFC: ${escape(data.rfc)}</div>`;
-  if (design.showRegimen) html += `<div class="c sub" style="font-size:${Math.max(fs - 4, 7)}px;color:#888">${escape(data.regimenDescription)}</div>`;
+  // ── Section renderers ──
 
-  html += sep;
-
-  if (design.headerNote) html += `<div class="c bb" style="font-size:${fs - 1}px;letter-spacing:2.5px;text-transform:uppercase;margin:4px 0">${escape(design.headerNote)}</div>`;
-  if (design.showStoreNumber) html += `<div class="c sub">TDA#${escape(data.storeNumber)} &middot; OP#${escape(data.cajero)} &middot; TR# ${escape(data.folio)}</div>`;
-  html += `<div class="c" style="font-size:${fs - 2}px;color:#999;margin-bottom:2px">${escape(data.fecha)}</div>`;
-
-  html += sep;
-
-  // ── Items ──
-  for (const item of data.items) {
-    html += `<div class="item-name">${escape(item.name)}`;
-    if (design.showSku && item.sku) html += ` <span style="color:#aaa;font-size:${fs - 3}px;font-weight:400">[${escape(item.sku)}]</span>`;
-    html += `</div>`;
-    if (design.showBarcode && item.barcode) html += `<div class="item-sub">${escape(item.barcode)}</div>`;
-    html += `<div class="item-detail">`;
-    if (design.showUnitDetail) {
-      html += `<span>${item.qty} ${escape(item.unit)} × $${item.unitPrice.toFixed(2)}</span>`;
-    } else {
-      html += `<span>×${item.qty}</span>`;
+  const renderHeader = (): string => {
+    let h = '';
+    if (design.showLogo && data.logoUrl) {
+      h += `<div class="c"><img src="${escape(data.logoUrl)}" style="max-height:${logoSz[design.logoSize] || '50px'};max-width:80%;object-fit:contain"></div>`;
     }
-    html += `<span class="b" style="color:#111">$${item.subtotal.toFixed(2)}</span></div>`;
-  }
+    if (design.showStoreName)
+      h += `<div class="c bb" style="font-size:${fs + 3}px;letter-spacing:1.5px;text-transform:uppercase">${escape(data.storeName)}</div>`;
+    if (design.showLegalName) h += `<div class="c sub">${escape(data.legalName)}</div>`;
+    if (design.showAddress)
+      h += `<div class="c sub">${escape(data.address)}, C.P. ${escape(data.postalCode)}, ${escape(data.city)}</div>`;
+    if (design.showPhone) h += `<div class="c sub">TEL: ${escape(data.phone)}</div>`;
+    if (design.showRfc) h += `<div class="c sub">RFC: ${escape(data.rfc)}</div>`;
+    if (design.showRegimen)
+      h += `<div class="c sub" style="font-size:${Math.max(fs - 4, 7)}px;color:#888">${escape(data.regimenDescription)}</div>`;
+    h += sep;
+    if (design.headerNote)
+      h += `<div class="c bb" style="font-size:${fs - 1}px;letter-spacing:2.5px;text-transform:uppercase;margin:4px 0">${escape(design.headerNote)}</div>`;
+    if (design.showStoreNumber)
+      h += `<div class="c sub">TDA#${escape(data.storeNumber)} &middot; OP#${escape(data.cajero)} &middot; TR# ${escape(data.folio)}</div>`;
+    h += `<div class="c" style="font-size:${fs - 2}px;color:#999;margin-bottom:2px">${escape(data.fecha)}</div>`;
+    if (data.clienteName)
+      h += `<div class="row"><span class="sub" style="text-transform:uppercase;letter-spacing:.5px">CLIENTE</span><span class="b">${escape(data.clienteName)}</span></div>`;
+    return h;
+  };
 
-  html += sep;
+  const renderSupplier = (): string => ''; // Not applicable for venta print (proveedor has its own flow)
 
-  // ── Totals ──
-  if (design.showSubtotal) html += `<div class="row"><span>SUBTOTAL</span><span>$${data.subtotal.toFixed(2)}</span></div>`;
-  if (design.showIva) html += `<div class="row"><span>IVA (${escape(data.ivaRate)}%)</span><span>$${data.iva.toFixed(2)}</span></div>`;
-  if (design.showDiscount && data.discount > 0) html += `<div class="row discount"><span>DESCUENTO</span><span>-$${data.discount.toFixed(2)}</span></div>`;
-  html += `<div class="total-main"><span>TOTAL</span><span>$${data.total.toFixed(2)}</span></div>`;
-  if (design.showPaymentMethod) html += `<div class="c" style="font-size:${fs - 2}px;font-weight:700;letter-spacing:2px;color:#555;margin:4px 0;text-transform:uppercase">${escape(data.metodoPago)}</div>`;
-  if (design.showAmountPaid) html += `<div class="row"><span>RECIBIDO</span><span>$${data.amountPaid.toFixed(2)}</span></div>`;
-  if (design.showChange) html += `<div class="row b"><span>CAMBIO</span><span>$${data.change.toFixed(2)}</span></div>`;
-  if (design.showItemCount) html += `<div class="c" style="font-size:${fs - 2}px;color:#888;margin-top:3px">ARTÍCULOS VENDIDOS: ${itemCount}</div>`;
+  const renderItems = (): string => {
+    let h = '';
+    for (const item of data.items) {
+      h += `<div class="item-name">${escape(item.name)}`;
+      if (design.showSku && item.sku)
+        h += ` <span style="color:#aaa;font-size:${fs - 3}px;font-weight:400">[${escape(item.sku)}]</span>`;
+      h += `</div>`;
+      if (design.showBarcode && item.barcode) h += `<div class="item-sub">${escape(item.barcode)}</div>`;
+      h += `<div class="item-detail">`;
+      if (design.showUnitDetail) {
+        h += `<span>${item.qty} ${escape(item.unit)} × $${item.unitPrice.toFixed(2)}</span>`;
+      } else {
+        h += `<span>×${item.qty}</span>`;
+      }
+      h += `<span class="b" style="color:#111">$${item.subtotal.toFixed(2)}</span></div>`;
+    }
+    return h;
+  };
 
-  html += sep;
+  const renderTotals = (): string => {
+    let h = '';
+    if (design.showSubtotal)
+      h += `<div class="row"><span>SUBTOTAL</span><span>$${data.subtotal.toFixed(2)}</span></div>`;
+    if (design.showIva)
+      h += `<div class="row"><span>IVA (${escape(data.ivaRate)}%)</span><span>$${data.iva.toFixed(2)}</span></div>`;
+    if (design.showDiscount && data.discount > 0) {
+      h += `<div class="row discount"><span>DESCUENTO</span><span>-$${data.discount.toFixed(2)}</span></div>`;
+      if (data.discountDetail)
+        h += `<div class="c sub" style="font-size:${Math.max(fs - 4, 7)}px;color:#c00">${escape(data.discountDetail)}</div>`;
+    }
+    h += `<div class="total-main"><span>TOTAL</span><span>$${data.total.toFixed(2)}</span></div>`;
+    if (design.showPaymentMethod)
+      h += `<div class="c" style="font-size:${fs - 2}px;font-weight:700;letter-spacing:2px;color:#555;margin:4px 0;text-transform:uppercase">${escape(data.metodoPago)}</div>`;
+    if (design.showAmountPaid)
+      h += `<div class="row"><span>RECIBIDO</span><span>$${data.amountPaid.toFixed(2)}</span></div>`;
+    if (design.showChange) h += `<div class="row b"><span>CAMBIO</span><span>$${data.change.toFixed(2)}</span></div>`;
+    if (design.showItemCount)
+      h += `<div class="c" style="font-size:${fs - 2}px;color:#888;margin-top:3px">ARTÍCULOS VENDIDOS: ${itemCount}</div>`;
+    return h;
+  };
 
-  // ── Barcode placeholder (real barcode injected via JsBarcode at print time) ──
-  if (design.showTicketBarcode) {
-    html += `<div class="c" style="padding:6px 0"><svg id="ticket-barcode"></svg></div>`;
-  }
+  const renderBarcode = (): string => {
+    if (design.showTicketBarcode) {
+      return `<div class="c" style="padding:6px 0"><svg id="ticket-barcode"></svg></div>`;
+    }
+    return '';
+  };
 
-  html += sep;
+  const renderFooter = (): string => {
+    let h = '';
+    const footerMsg = design.customFooterMessage || data.ticketFooter || '';
+    if (footerMsg) h += `<div class="c footer">${escape(footerMsg)}</div>`;
+    if (design.showServicePhone && data.ticketServicePhone)
+      h += `<div class="c footer">Ayuda: ${escape(data.ticketServicePhone)}</div>`;
+    if (design.showVigencia && data.ticketVigencia)
+      h += `<div class="c footer">Vigencia: ${escape(data.ticketVigencia)}</div>`;
+    if (design.showPoweredBy) h += `<div class="c powered">POWERED BY OPENDEX KIOSKO</div>`;
+    return h;
+  };
 
-  // ── Footer ──
-  const footerMsg = design.customFooterMessage || data.ticketFooter || '';
-  if (footerMsg) html += `<div class="c footer">${escape(footerMsg)}</div>`;
-  if (design.showServicePhone && data.ticketServicePhone) html += `<div class="c footer">Ayuda: ${escape(data.ticketServicePhone)}</div>`;
-  if (design.showVigencia && data.ticketVigencia) html += `<div class="c footer">Vigencia: ${escape(data.ticketVigencia)}</div>`;
-  if (design.showPoweredBy) html += `<div class="c powered">POWERED BY OPENDEX KIOSKO</div>`;
+  const sectionRenderers: Record<TicketSectionKey, () => string> = {
+    header: renderHeader,
+    supplier: renderSupplier,
+    items: renderItems,
+    totals: renderTotals,
+    barcode: renderBarcode,
+    footer: renderFooter,
+  };
 
+  const order = design.sectionOrder?.length ? design.sectionOrder : DEFAULT_SECTION_ORDER;
+
+  let html = style;
+  const parts = order.map((key) => sectionRenderers[key]?.() ?? '').filter(Boolean);
+  html += parts.join(sep);
   html += `</div></body></html>`;
   return html;
 }
-

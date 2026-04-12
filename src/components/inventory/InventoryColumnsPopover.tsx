@@ -1,17 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import {
-  BlockStack,
-  Box,
-  Checkbox,
-  Divider,
-  Icon,
-  Popover,
-  Scrollable,
-  Text,
-  TextField,
-} from '@shopify/polaris';
+import { BlockStack, Box, Checkbox, Divider, Icon, Popover, Scrollable, Text, TextField } from '@shopify/polaris';
 import { SearchIcon } from '@shopify/polaris-icons';
 import { BulkColumnKey, BULK_COLUMN_DEFINITIONS } from './InventoryTypes';
 
@@ -38,27 +28,25 @@ export function InventoryColumnsPopover({
     const normalizedQuery = columnQuery.trim().toLowerCase();
     if (!normalizedQuery) return BULK_COLUMN_DEFINITIONS;
 
-    return BULK_COLUMN_DEFINITIONS.filter((column) =>
-      column.label.toLowerCase().includes(normalizedQuery) ||
-      column.group.toLowerCase().includes(normalizedQuery)
+    return BULK_COLUMN_DEFINITIONS.filter(
+      (column) =>
+        column.label.toLowerCase().includes(normalizedQuery) || column.group.toLowerCase().includes(normalizedQuery),
     );
   }, [columnQuery]);
 
   const groupedColumnDefinitions = useMemo(
-    () => ['General', 'Precios', 'Inventario'].map((group) => ({
-      group,
-      columns: filteredColumnDefinitions.filter((column) => column.group === group),
-    })).filter((entry) => entry.columns.length > 0),
-    [filteredColumnDefinitions]
+    () =>
+      ['General', 'Precios', 'Inventario']
+        .map((group) => ({
+          group,
+          columns: filteredColumnDefinitions.filter((column) => column.group === group),
+        }))
+        .filter((entry) => entry.columns.length > 0),
+    [filteredColumnDefinitions],
   );
 
   return (
-    <Popover
-      active={active}
-      activator={activator}
-      onClose={onClose}
-      preferredAlignment="right"
-    >
+    <Popover active={active} activator={activator} onClose={onClose} preferredAlignment="right">
       <Box padding="0" minWidth="260px">
         <BlockStack gap="0">
           <Box padding="300">

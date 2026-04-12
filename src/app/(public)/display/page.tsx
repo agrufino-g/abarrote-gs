@@ -10,7 +10,6 @@ import type {
   TransitionSpeed,
   CustomerDisplayTheme,
   MessageTextSize,
-  MessageTextWeight,
   MessageStyle,
 } from '@/types';
 import { formatCurrency } from '@/lib/utils';
@@ -135,11 +134,7 @@ function toPolarisAlign(align: string | undefined): 'start' | 'center' | 'end' {
 }
 
 /** Build inline animation style for a given config */
-function buildAnimStyle(
-  animation: string,
-  speedMs: number,
-  delayMs: number = 0,
-): React.CSSProperties {
+function buildAnimStyle(animation: string, speedMs: number, delayMs: number = 0): React.CSSProperties {
   if (animation === 'none') return {};
   return {
     animation: `cd-${animation} ${speedMs}ms ease ${delayMs}ms both`,
@@ -147,11 +142,7 @@ function buildAnimStyle(
 }
 
 /** Build promo animation style */
-function buildPromoAnimStyle(
-  animation: string,
-  speedMs: number,
-  delayMs: number = 0,
-): React.CSSProperties {
+function buildPromoAnimStyle(animation: string, speedMs: number, delayMs: number = 0): React.CSSProperties {
   if (animation === 'none') return {};
   const isInfinite = animation === 'pulse' || animation === 'kenBurns';
   const duration = animation === 'kenBurns' ? 8000 : animation === 'pulse' ? 2000 : speedMs;
@@ -168,7 +159,7 @@ function useCarousel(enabled: boolean, intervalSec: number, slideCount: number):
   const [index, setIndex] = useState(0);
   useEffect(() => {
     if (!enabled || slideCount <= 1) {
-      setIndex(0);
+      setIndex(0); // eslint-disable-line react-hooks/set-state-in-effect -- intentional reset
       return;
     }
     const id = setInterval(() => {
@@ -239,10 +230,10 @@ const EMPTY_SALE: SaleState = {
 
 export default function CustomerDisplayPage() {
   const [storeConfig, setStoreConfig] = useState<StoreConfig>(DEFAULT_STORE_CONFIG);
-  const [configLoaded, setConfigLoaded] = useState(false);
+  const [_configLoaded, setConfigLoaded] = useState(false);
   const [sale, setSale] = useState<SaleState>(EMPTY_SALE);
   const [currentTime, setCurrentTime] = useState('');
-  const [currentDate, setCurrentDate] = useState('');
+  const [_currentDate, setCurrentDate] = useState('');
   const [animKey, setAnimKey] = useState(0);
 
   // Load store config
@@ -258,16 +249,16 @@ export default function CustomerDisplayPage() {
       .catch(() => {
         if (mounted) setConfigLoaded(true);
       });
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Clock
   useEffect(() => {
     function tick() {
       const now = new Date();
-      setCurrentTime(
-        now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-      );
+      setCurrentTime(now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }));
       setCurrentDate(
         now.toLocaleDateString('es-MX', {
           weekday: 'long',
@@ -323,7 +314,9 @@ export default function CustomerDisplayPage() {
         osc.start();
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
         osc.stop(ctx.currentTime + 0.15);
-      } catch { /* AudioContext not available */ }
+      } catch {
+        /* AudioContext not available */
+      }
     }
     prevStatusRef.current = sale.status;
   }, [sale.status, soundEnabled]);
@@ -343,13 +336,12 @@ export default function CustomerDisplayPage() {
     try {
       const parsed: unknown = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed.filter((u): u is string => typeof u === 'string' && u.length > 0);
-    } catch { /* not JSON */ }
+    } catch {
+      /* not JSON */
+    }
     return raw.startsWith('http') ? [raw] : [];
   }, [storeConfig.customerDisplayPromoImage]);
-  const itemCount = useMemo(
-    () => sale.items.reduce((sum, i) => sum + i.quantity, 0),
-    [sale.items],
-  );
+  const itemCount = useMemo(() => sale.items.reduce((sum, i) => sum + i.quantity, 0), [sale.items]);
 
   // ── Animation config ──
   const idleAnimation = (storeConfig.customerDisplayIdleAnimation || 'fade') as CustomerDisplayAnimation;
@@ -364,9 +356,7 @@ export default function CustomerDisplayPage() {
   const baseTheme = THEMES[theme] ?? THEMES.light;
   // Override accent color if custom one is set
   const customAccent = storeConfig.customerDisplayAccentColor || '';
-  const themeConfig = customAccent
-    ? { ...baseTheme, accent: customAccent }
-    : baseTheme;
+  const themeConfig = customAccent ? { ...baseTheme, accent: customAccent } : baseTheme;
 
   // Message styling
   const msgStyle = storeConfig.customerDisplayMessageStyle;
@@ -388,10 +378,12 @@ export default function CustomerDisplayPage() {
   const activeSlide = carouselSlides[carouselIndex] ?? 'welcome';
 
   // Themed wrapper style
-  const themedBg: React.CSSProperties = {
+  const isPortrait = orientation === 'portrait';
+  const _themedBg: React.CSSProperties = {
     background: themeConfig.bg,
     minHeight: '100vh',
     fontSize: `${fontScale}rem`,
+    ...(isPortrait ? { maxWidth: '100vw', overflowX: 'hidden' as const } : {}),
   };
 
   // ════════════════════════════════════════════════════════
@@ -430,7 +422,6 @@ export default function CustomerDisplayPage() {
       <div className="cd-fullscreen" style={{ background: themeConfig.bg }}>
         <div className="cd-center-col" key={carouselEnabled ? `carousel-${carouselIndex}` : `static-${animKey}`}>
           <BlockStack gap="600" inlineAlign="center">
-
             {/* Logo / Store icon — matches preview */}
             <div style={buildAnimStyle(idleAnimation, speedMs, 0)}>
               {displayLogo ? (
@@ -449,12 +440,22 @@ export default function CustomerDisplayPage() {
               <div style={buildAnimStyle(idleAnimation, speedMs, 100)}>
                 {activeSlide === 'welcome' && (
                   <BlockStack gap="200" inlineAlign="center">
-                    <Text variant={MSG_SIZE_TO_VARIANT[welcomeStyle?.textSize ?? '2xl']} as="h1" alignment={toPolarisAlign(welcomeStyle?.textAlign)}>
+                    <Text
+                      variant={MSG_SIZE_TO_VARIANT[welcomeStyle?.textSize ?? '2xl']}
+                      as="h1"
+                      alignment={toPolarisAlign(welcomeStyle?.textAlign)}
+                    >
                       <span style={msgTextStyle(welcomeStyle, themeConfig.text)}>{welcomeMsg}</span>
                     </Text>
                     {(welcomeStyle?.subtitle ?? 'Estamos a su servicio') && (
-                      <Text variant={MSG_SIZE_TO_SUBTITLE_VARIANT[welcomeStyle?.textSize ?? '2xl']} as="p" alignment={toPolarisAlign(welcomeStyle?.textAlign)}>
-                        <span style={{ color: themeConfig.accent }}>{welcomeStyle?.subtitle ?? 'Estamos a su servicio'}</span>
+                      <Text
+                        variant={MSG_SIZE_TO_SUBTITLE_VARIANT[welcomeStyle?.textSize ?? '2xl']}
+                        as="p"
+                        alignment={toPolarisAlign(welcomeStyle?.textAlign)}
+                      >
+                        <span style={{ color: themeConfig.accent }}>
+                          {welcomeStyle?.subtitle ?? 'Estamos a su servicio'}
+                        </span>
                       </Text>
                     )}
                   </BlockStack>
@@ -462,8 +463,13 @@ export default function CustomerDisplayPage() {
                 {activeSlide === 'promo-text' && (
                   <Box padding="400" borderRadius="200">
                     <InlineStack gap="200" blockAlign="center" align={toPolarisAlign(promoStyle?.textAlign)}>
-                      {(promoStyle?.showIcon !== false) && <Icon source={GiftCardIcon} tone="success" />}
-                      <Text variant={MSG_SIZE_TO_VARIANT[promoStyle?.textSize ?? 'lg']} as="p" alignment={toPolarisAlign(promoStyle?.textAlign)} tone="success">
+                      {promoStyle?.showIcon !== false && <Icon source={GiftCardIcon} tone="success" />}
+                      <Text
+                        variant={MSG_SIZE_TO_VARIANT[promoStyle?.textSize ?? 'lg']}
+                        as="p"
+                        alignment={toPolarisAlign(promoStyle?.textAlign)}
+                        tone="success"
+                      >
                         <span style={msgTextStyle(promoStyle)}>{promoText}</span>
                       </Text>
                     </InlineStack>
@@ -475,12 +481,22 @@ export default function CustomerDisplayPage() {
                 {/* Welcome text */}
                 <div style={buildAnimStyle(idleAnimation, speedMs, 100)}>
                   <BlockStack gap="200" inlineAlign="center">
-                    <Text variant={MSG_SIZE_TO_VARIANT[welcomeStyle?.textSize ?? '2xl']} as="h1" alignment={toPolarisAlign(welcomeStyle?.textAlign)}>
+                    <Text
+                      variant={MSG_SIZE_TO_VARIANT[welcomeStyle?.textSize ?? '2xl']}
+                      as="h1"
+                      alignment={toPolarisAlign(welcomeStyle?.textAlign)}
+                    >
                       <span style={msgTextStyle(welcomeStyle, themeConfig.text)}>{welcomeMsg}</span>
                     </Text>
                     {(welcomeStyle?.subtitle ?? 'Estamos a su servicio') && (
-                      <Text variant={MSG_SIZE_TO_SUBTITLE_VARIANT[welcomeStyle?.textSize ?? '2xl']} as="p" alignment={toPolarisAlign(welcomeStyle?.textAlign)}>
-                        <span style={{ color: themeConfig.accent }}>{welcomeStyle?.subtitle ?? 'Estamos a su servicio'}</span>
+                      <Text
+                        variant={MSG_SIZE_TO_SUBTITLE_VARIANT[welcomeStyle?.textSize ?? '2xl']}
+                        as="p"
+                        alignment={toPolarisAlign(welcomeStyle?.textAlign)}
+                      >
+                        <span style={{ color: themeConfig.accent }}>
+                          {welcomeStyle?.subtitle ?? 'Estamos a su servicio'}
+                        </span>
                       </Text>
                     )}
                   </BlockStack>
@@ -488,11 +504,16 @@ export default function CustomerDisplayPage() {
 
                 {/* Promo text */}
                 {promoText && (
-                  <div style={buildAnimStyle(idleAnimation, speedMs, 200)}>
+                  <div style={buildPromoAnimStyle(promoAnimation, speedMs, 200)}>
                     <Box padding="400" borderRadius="200">
                       <InlineStack gap="200" blockAlign="center" align={toPolarisAlign(promoStyle?.textAlign)}>
-                        {(promoStyle?.showIcon !== false) && <Icon source={GiftCardIcon} tone="success" />}
-                        <Text variant={MSG_SIZE_TO_VARIANT[promoStyle?.textSize ?? 'lg']} as="p" alignment={toPolarisAlign(promoStyle?.textAlign)} tone="success">
+                        {promoStyle?.showIcon !== false && <Icon source={GiftCardIcon} tone="success" />}
+                        <Text
+                          variant={MSG_SIZE_TO_VARIANT[promoStyle?.textSize ?? 'lg']}
+                          as="p"
+                          alignment={toPolarisAlign(promoStyle?.textAlign)}
+                          tone="success"
+                        >
                           <span style={msgTextStyle(promoStyle)}>{promoText}</span>
                         </Text>
                       </InlineStack>
@@ -502,7 +523,7 @@ export default function CustomerDisplayPage() {
 
                 {/* Promo image (first one) — static mode, inline like preview */}
                 {promoImages.length > 0 && (
-                  <div style={buildAnimStyle(idleAnimation, speedMs, 300)}>
+                  <div style={buildPromoAnimStyle(promoAnimation, speedMs, 300)}>
                     <Thumbnail source={promoImages[0]} alt="Promoción" size="large" />
                   </div>
                 )}
@@ -520,13 +541,15 @@ export default function CustomerDisplayPage() {
                 </InlineStack>
               </div>
             )}
-
           </BlockStack>
         </div>
 
         {/* Bottom contact */}
         {storeConfig.phone && (
-          <div className="cd-idle-bottom" style={{ position: 'absolute', bottom: 24, left: 0, right: 0, textAlign: 'center' }}>
+          <div
+            className="cd-idle-bottom"
+            style={{ position: 'absolute', bottom: 24, left: 0, right: 0, textAlign: 'center' }}
+          >
             <Text variant="bodySm" as="p" alignment="center">
               <span style={{ color: themeConfig.textMuted }}>
                 Tel. {storeConfig.phone}
@@ -588,27 +611,37 @@ export default function CustomerDisplayPage() {
                   <Card>
                     <BlockStack gap="400">
                       <InlineStack align="space-between">
-                        <Text variant="bodyLg" as="span" tone="subdued">Total pagado</Text>
+                        <Text variant="bodyLg" as="span" tone="subdued">
+                          Total pagado
+                        </Text>
                         <Text variant="headingXl" as="span" fontWeight="bold">
                           {formatCurrency(sale.total)}
                         </Text>
                       </InlineStack>
                       <Divider />
                       <InlineStack align="space-between">
-                        <Text variant="bodyMd" as="span" tone="subdued">Método</Text>
+                        <Text variant="bodyMd" as="span" tone="subdued">
+                          Método
+                        </Text>
                         <Badge>{paymentLabel}</Badge>
                       </InlineStack>
                       {sale.folio && (
                         <InlineStack align="space-between">
-                          <Text variant="bodyMd" as="span" tone="subdued">Folio</Text>
-                          <Text variant="bodyMd" as="span" fontWeight="semibold">{sale.folio}</Text>
+                          <Text variant="bodyMd" as="span" tone="subdued">
+                            Folio
+                          </Text>
+                          <Text variant="bodyMd" as="span" fontWeight="semibold">
+                            {sale.folio}
+                          </Text>
                         </InlineStack>
                       )}
                       {sale.change != null && sale.change > 0 && (
                         <>
                           <Divider />
                           <InlineStack align="space-between">
-                            <Text variant="bodyLg" as="span" tone="subdued">Su cambio</Text>
+                            <Text variant="bodyLg" as="span" tone="subdued">
+                              Su cambio
+                            </Text>
                             <Text variant="headingLg" as="span" fontWeight="bold" tone="caution">
                               {formatCurrency(sale.change)}
                             </Text>
@@ -623,11 +656,15 @@ export default function CustomerDisplayPage() {
               <div style={buildAnimStyle('fade', 600, 500)}>
                 <BlockStack gap="100" inlineAlign="center">
                   <InlineStack gap="200" blockAlign="center" align={toPolarisAlign(farewellStyle?.textAlign)}>
-                    {(farewellStyle?.showIcon !== false) && <Icon source={StarFilledIcon} tone="warning" />}
-                    <Text variant={MSG_SIZE_TO_VARIANT[farewellStyle?.textSize ?? 'md']} as="p" alignment={toPolarisAlign(farewellStyle?.textAlign)}>
+                    {farewellStyle?.showIcon !== false && <Icon source={StarFilledIcon} tone="warning" />}
+                    <Text
+                      variant={MSG_SIZE_TO_VARIANT[farewellStyle?.textSize ?? 'md']}
+                      as="p"
+                      alignment={toPolarisAlign(farewellStyle?.textAlign)}
+                    >
                       <span style={msgTextStyle(farewellStyle)}>{farewellMsg}</span>
                     </Text>
-                    {(farewellStyle?.showIcon !== false) && <Icon source={StarFilledIcon} tone="warning" />}
+                    {farewellStyle?.showIcon !== false && <Icon source={StarFilledIcon} tone="warning" />}
                   </InlineStack>
                   {farewellStyle?.subtitle && (
                     <Text variant="bodySm" as="p" tone="subdued" alignment={toPolarisAlign(farewellStyle?.textAlign)}>
@@ -649,10 +686,17 @@ export default function CustomerDisplayPage() {
   // ════════════════════════════════════════════════════════
 
   return (
-    <div className="cd-fullscreen">
+    <div className={`cd-fullscreen${isPortrait ? ' cd-portrait' : ''}`}>
       <Box minHeight="100vh" background="bg-surface-secondary">
         {/* Header */}
-        <Box padding="300" paddingInlineStart="500" paddingInlineEnd="500" background="bg-surface" borderBlockEndWidth="025" borderColor="border">
+        <Box
+          padding="300"
+          paddingInlineStart="500"
+          paddingInlineEnd="500"
+          background="bg-surface"
+          borderBlockEndWidth="025"
+          borderColor="border"
+        >
           <InlineStack align="space-between" blockAlign="center">
             <InlineStack gap="300" blockAlign="center">
               {displayLogo ? (
@@ -664,12 +708,16 @@ export default function CustomerDisplayPage() {
                   </div>
                 </Box>
               )}
-              <Text variant="headingMd" as="span">{storeName}</Text>
+              <Text variant="headingMd" as="span">
+                {storeName}
+              </Text>
             </InlineStack>
             <InlineStack gap="300" blockAlign="center">
               <InlineStack gap="100" blockAlign="center">
                 <Icon source={ClockIcon} tone="subdued" />
-                <Text variant="bodySm" as="span" tone="subdued">{currentTime}</Text>
+                <Text variant="bodySm" as="span" tone="subdued">
+                  {currentTime}
+                </Text>
               </InlineStack>
               <Badge tone="success">{`${itemCount} artículo${itemCount !== 1 ? 's' : ''}`}</Badge>
             </InlineStack>
@@ -684,7 +732,9 @@ export default function CustomerDisplayPage() {
               <BlockStack gap="400">
                 <InlineStack gap="200" blockAlign="center">
                   <Icon source={OrderIcon} tone="subdued" />
-                  <Text variant="headingSm" as="h2" tone="subdued">SU COMPRA</Text>
+                  <Text variant="headingSm" as="h2" tone="subdued">
+                    SU COMPRA
+                  </Text>
                 </InlineStack>
                 {sale.items.length === 0 ? (
                   <Box paddingBlockStart="1200">
@@ -745,24 +795,36 @@ export default function CustomerDisplayPage() {
                 <Card>
                   <BlockStack gap="300">
                     <InlineStack align="space-between">
-                      <Text variant="bodyLg" as="span">Subtotal</Text>
-                      <Text variant="bodyLg" as="span">{formatCurrency(sale.subtotal)}</Text>
+                      <Text variant="bodyLg" as="span">
+                        Subtotal
+                      </Text>
+                      <Text variant="bodyLg" as="span">
+                        {formatCurrency(sale.subtotal)}
+                      </Text>
                     </InlineStack>
                     {sale.discountAmount > 0 && (
                       <InlineStack align="space-between">
-                        <Text variant="bodyLg" as="span" tone="success">Descuento</Text>
+                        <Text variant="bodyLg" as="span" tone="success">
+                          Descuento
+                        </Text>
                         <Text variant="bodyLg" as="span" tone="success">
                           −{formatCurrency(sale.discountAmount)}
                         </Text>
                       </InlineStack>
                     )}
                     <InlineStack align="space-between">
-                      <Text variant="bodySm" as="span" tone="subdued">IVA (16%)</Text>
-                      <Text variant="bodySm" as="span" tone="subdued">{formatCurrency(sale.iva)}</Text>
+                      <Text variant="bodySm" as="span" tone="subdued">
+                        IVA (16%)
+                      </Text>
+                      <Text variant="bodySm" as="span" tone="subdued">
+                        {formatCurrency(sale.iva)}
+                      </Text>
                     </InlineStack>
                     {sale.cardSurcharge > 0 && (
                       <InlineStack align="space-between">
-                        <Text variant="bodySm" as="span" tone="caution">Comisión tarjeta</Text>
+                        <Text variant="bodySm" as="span" tone="caution">
+                          Comisión tarjeta
+                        </Text>
                         <Text variant="bodySm" as="span" tone="caution">
                           +{formatCurrency(sale.cardSurcharge)}
                         </Text>
@@ -770,7 +832,9 @@ export default function CustomerDisplayPage() {
                     )}
                     <Divider />
                     <InlineStack align="space-between" blockAlign="center">
-                      <Text variant="headingXl" as="span">TOTAL</Text>
+                      <Text variant="headingXl" as="span">
+                        TOTAL
+                      </Text>
                       <Text variant="heading2xl" as="span" fontWeight="bold">
                         {formatCurrency(sale.total)}
                       </Text>
@@ -786,20 +850,26 @@ export default function CustomerDisplayPage() {
                         <Text variant="bodyMd" as="p" fontWeight="semibold">
                           Procesando pago…
                         </Text>
-                        <Text variant="bodySm" as="p">{paymentLabel}</Text>
+                        <Text variant="bodySm" as="p">
+                          {paymentLabel}
+                        </Text>
                       </BlockStack>
                     </InlineStack>
                   </Banner>
                 ) : (
                   <Card>
                     <BlockStack gap="200" inlineAlign="center">
-                      <Text variant="bodySm" as="p" tone="subdued">Método de pago</Text>
+                      <Text variant="bodySm" as="p" tone="subdued">
+                        Método de pago
+                      </Text>
                       <InlineStack gap="200" blockAlign="center">
                         <Icon
                           source={sale.paymentMethod === 'efectivo' ? CashDollarIcon : CreditCardIcon}
                           tone="subdued"
                         />
-                        <Text variant="headingMd" as="p" fontWeight="bold">{paymentLabel}</Text>
+                        <Text variant="headingMd" as="p" fontWeight="bold">
+                          {paymentLabel}
+                        </Text>
                       </InlineStack>
                     </BlockStack>
                   </Card>
@@ -838,6 +908,11 @@ function AnimationStyles() {
       .cd-split { display: flex; flex: 1; min-height: 0; height: calc(100vh - 52px); }
       .cd-left { flex: 1.6; overflow-y: auto; }
       .cd-right { flex: 1; display: flex; flex-direction: column; }
+
+      /* Portrait orientation: stack vertically */
+      .cd-portrait .cd-split { flex-direction: column; }
+      .cd-portrait .cd-left { flex: 1; }
+      .cd-portrait .cd-right { flex: none; max-height: 40vh; }
 
       .Polaris-Frame, .Polaris-Frame__Navigation,
       .Polaris-Frame__TopBar, .Polaris-TopBar { display: none !important; }

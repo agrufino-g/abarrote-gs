@@ -11,7 +11,6 @@ import {
   Divider,
   Button,
   TextField,
-  Banner,
   Box,
   FormLayout,
   Grid,
@@ -19,7 +18,7 @@ import {
 import { FormSelect } from '@/components/ui/FormSelect';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { Product } from '@/types';
-import { formatCurrency, formatDate, getDaysUntil, getStockStatus } from '@/lib/utils';
+import { formatCurrency, getDaysUntil, getStockStatus } from '@/lib/utils';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { uploadFile, getProductImagePath } from '@/lib/storage';
 import { useToast } from '@/components/notifications/ToastProvider';
@@ -37,19 +36,13 @@ interface ProductChanges {
   reason?: string;
 }
 
-export function ProductDetailModal({
-  product,
-  open,
-  onClose,
-  onSave,
-  isInline = false,
-}: ProductDetailModalProps) {
-  const [editMode, setEditMode] = useState(false);
+export function ProductDetailModal({ product, open, onClose, onSave, isInline = false }: ProductDetailModalProps) {
+  const [_editMode, setEditMode] = useState(false);
   const [editProductMode, setEditProductMode] = useState(false);
   const [newStock, setNewStock] = useState('');
   const [adjustmentReason, setAdjustmentReason] = useState('');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [_showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [_deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const deleteProduct = useDashboardStore((s) => s.deleteProduct);
   const updateProduct = useDashboardStore((s) => s.updateProduct);
@@ -72,7 +65,7 @@ export function ProductDetailModal({
   const stockStatus = product ? getStockStatus(product.currentStock, product.minStock) : null;
   const daysUntil = product?.expirationDate ? getDaysUntil(product.expirationDate) : null;
 
-  const handleSave = useCallback(() => {
+  const _handleSave = useCallback(() => {
     if (!product) return;
     if (onSave && newStock) {
       onSave(product, {
@@ -102,58 +95,87 @@ export function ProductDetailModal({
     setEditProductMode(true);
   }, [product]);
 
-  const handleSaveProduct = useCallback(async (shouldClose = true) => {
-    if (!product) return;
-    if (!editName.trim()) { showError('El nombre es obligatorio'); return; }
-    if (!editUnitPrice || parseFloat(editUnitPrice) <= 0) { showError('El precio de venta debe ser mayor a 0'); return; }
-    setSaving(true);
-    try {
-      let finalImageUrl = editImageUrl;
-      if (editFile) {
-        const path = getProductImagePath(editSku || product.id, editFile.name);
-        finalImageUrl = await uploadFile(editFile, path);
+  const handleSaveProduct = useCallback(
+    async (shouldClose = true) => {
+      if (!product) return;
+      if (!editName.trim()) {
+        showError('El nombre es obligatorio');
+        return;
       }
-
-      await updateProduct(product.id, {
-        name: editName.trim(),
-        sku: editSku.trim(),
-        barcode: editBarcode.trim(),
-        category: editCategory,
-        costPrice: parseFloat(editCostPrice),
-        unitPrice: parseFloat(editUnitPrice),
-        minStock: parseInt(editMinStock),
-        isPerishable: editIsPerishable,
-        expirationDate: editIsPerishable ? editExpirationDate : null,
-        imageUrl: finalImageUrl,
-      });
-      
-      if (shouldClose) {
-        showSuccess(`"${editName}" actualizado correctamente`);
-        setEditProductMode(false);
-        onClose();
-      } else {
-        // Silent success for immediate sync or different notification
+      if (!editUnitPrice || parseFloat(editUnitPrice) <= 0) {
+        showError('El precio de venta debe ser mayor a 0');
+        return;
       }
-      setSaving(false);
-    } catch {
-      showError('Error al guardar los cambios');
-      setSaving(false);
-    }
-  }, [product, editName, editSku, editBarcode, editCategory, editCostPrice, editUnitPrice, editMinStock, editIsPerishable, editExpirationDate, editFile, editImageUrl, updateProduct, showSuccess, showError, onClose]);
+      setSaving(true);
+      try {
+        let finalImageUrl = editImageUrl;
+        if (editFile) {
+          const path = getProductImagePath(editSku || product.id, editFile.name);
+          finalImageUrl = await uploadFile(editFile, path);
+        }
 
-  const handleEditCostPriceChange = useCallback((value: string) => {
-    setEditCostPrice(value);
-    const cost = parseFloat(value);
-    if (!isNaN(cost) && cost > 0) {
-      const defaultMargin = parseFloat(storeConfig.defaultMargin || '30');
-      const calculatedPrice = cost + (cost * (defaultMargin / 100));
-      setEditUnitPrice(calculatedPrice.toFixed(2));
-    } else if (value === '') {
-      setEditUnitPrice('');
-    }
-  }, [storeConfig.defaultMargin]);
+        await updateProduct(product.id, {
+          name: editName.trim(),
+          sku: editSku.trim(),
+          barcode: editBarcode.trim(),
+          category: editCategory,
+          costPrice: parseFloat(editCostPrice),
+          unitPrice: parseFloat(editUnitPrice),
+          minStock: parseInt(editMinStock),
+          isPerishable: editIsPerishable,
+          expirationDate: editIsPerishable ? editExpirationDate : null,
+          imageUrl: finalImageUrl,
+        });
 
-  const handleDelete = async () => {
+        if (shouldClose) {
+          showSuccess(`"${editName}" actualizado correctamente`);
+          setEditProductMode(false);
+          onClose();
+        } else {
+          // Silent success for immediate sync or different notification
+        }
+        setSaving(false);
+      } catch {
+        showError('Error al guardar los cambios');
+        setSaving(false);
+      }
+    },
+    [
+      product,
+      editName,
+      editSku,
+      editBarcode,
+      editCategory,
+      editCostPrice,
+      editUnitPrice,
+      editMinStock,
+      editIsPerishable,
+      editExpirationDate,
+      editFile,
+      editImageUrl,
+      updateProduct,
+      showSuccess,
+      showError,
+      onClose,
+    ],
+  );
+
+  const handleEditCostPriceChange = useCallback(
+    (value: string) => {
+      setEditCostPrice(value);
+      const cost = parseFloat(value);
+      if (!isNaN(cost) && cost > 0) {
+        const defaultMargin = parseFloat(storeConfig.defaultMargin || '30');
+        const calculatedPrice = cost + cost * (defaultMargin / 100);
+        setEditUnitPrice(calculatedPrice.toFixed(2));
+      } else if (value === '') {
+        setEditUnitPrice('');
+      }
+    },
+    [storeConfig.defaultMargin],
+  );
+
+  const _handleDelete = async () => {
     if (!product) return;
     setDeleting(true);
     try {
@@ -168,7 +190,7 @@ export function ProductDetailModal({
     }
   };
 
-  const getExpirationBadge = () => {
+  const _getExpirationBadge = () => {
     if (!daysUntil) return null;
     if (!daysUntil) return null;
     if (daysUntil <= 0) return <Badge tone="critical">Vencido</Badge>;
@@ -177,7 +199,7 @@ export function ProductDetailModal({
     return <Badge tone="success">{`Vence en ${daysUntil} días`}</Badge>;
   };
 
-  const adjustmentReasons = [
+  const _adjustmentReasons = [
     { label: 'Seleccionar razón...', value: '' },
     { label: 'Recuento físico', value: 'recount' },
     { label: 'Recepción de mercancía', value: 'reception' },
@@ -209,10 +231,14 @@ export function ProductDetailModal({
           {isInline && (
             <Box paddingBlockEnd="400">
               <InlineStack align="space-between">
-                <Button variant="plain" onClick={() => setEditProductMode(false)}>← Volver a detalles</Button>
+                <Button variant="plain" onClick={() => setEditProductMode(false)}>
+                  ← Volver a detalles
+                </Button>
                 <InlineStack gap="200">
                   <Button onClick={() => setEditProductMode(false)}>Cancelar</Button>
-                  <Button variant="primary" onClick={() => handleSaveProduct(true)} loading={saving}>Guardar</Button>
+                  <Button variant="primary" onClick={() => handleSaveProduct(true)} loading={saving}>
+                    Guardar
+                  </Button>
                 </InlineStack>
               </InlineStack>
             </Box>
@@ -222,13 +248,39 @@ export function ProductDetailModal({
               <BlockStack gap="400">
                 <Box background="bg-surface" padding="400" borderRadius="300" shadow="300">
                   <BlockStack gap="400">
-                    <TextField label="Título" value={editName} onChange={setEditName} onBlur={() => handleSaveProduct(false)} autoComplete="off" requiredIndicator />
-                    <TextField label="Descripción" multiline={4} value="Descripción del producto..." onChange={() => {}} autoComplete="off" />
+                    <TextField
+                      label="Título"
+                      value={editName}
+                      onChange={setEditName}
+                      onBlur={() => handleSaveProduct(false)}
+                      autoComplete="off"
+                      requiredIndicator
+                    />
+                    <TextField
+                      label="Descripción"
+                      multiline={4}
+                      value="Descripción del producto..."
+                      onChange={() => {}}
+                      autoComplete="off"
+                    />
                   </BlockStack>
                 </Box>
                 <Box background="bg-surface" padding="400" borderRadius="300" shadow="300">
-                  <Text as="h3" variant="headingSm">Multimedia</Text>
-                  <div style={{ border: '1px solid var(--p-color-border-secondary)', borderRadius: '0.5rem', background: 'var(--p-color-bg-surface-secondary)', width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text as="h3" variant="headingSm">
+                    Multimedia
+                  </Text>
+                  <div
+                    style={{
+                      border: '1px solid var(--p-color-border-secondary)',
+                      borderRadius: '0.5rem',
+                      background: 'var(--p-color-bg-surface-secondary)',
+                      width: '200px',
+                      height: '200px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
                     <OptimizedImage source={product!.imageUrl} alt={product!.name} size={200} borderRadius="0.5rem" />
                   </div>
                 </Box>
@@ -237,12 +289,33 @@ export function ProductDetailModal({
             <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 4, lg: 4 }}>
               <Box background="bg-surface" padding="400" borderRadius="300" shadow="300">
                 <BlockStack gap="400">
-                  <Text as="h3" variant="headingSm">Estado</Text>
+                  <Text as="h3" variant="headingSm">
+                    Estado
+                  </Text>
                   <Badge tone="success">Activo</Badge>
-                  <FormSelect options={categoryOptions} value={editCategory} onChange={setEditCategory} label="Categoría" />
+                  <FormSelect
+                    options={categoryOptions}
+                    value={editCategory}
+                    onChange={setEditCategory}
+                    label="Categoría"
+                  />
                   <FormLayout.Group>
-                    <TextField label="Precio de costo" type="number" value={editCostPrice} onChange={handleEditCostPriceChange} prefix="$" autoComplete="off" />
-                    <TextField label="Precio de venta" type="number" value={editUnitPrice} onChange={setEditUnitPrice} prefix="$" autoComplete="off" />
+                    <TextField
+                      label="Precio de costo"
+                      type="number"
+                      value={editCostPrice}
+                      onChange={handleEditCostPriceChange}
+                      prefix="$"
+                      autoComplete="off"
+                    />
+                    <TextField
+                      label="Precio de venta"
+                      type="number"
+                      value={editUnitPrice}
+                      onChange={setEditUnitPrice}
+                      prefix="$"
+                      autoComplete="off"
+                    />
                   </FormLayout.Group>
                 </BlockStack>
               </Box>
@@ -258,7 +331,9 @@ export function ProductDetailModal({
       {isInline && (
         <Box paddingBlockEnd="400">
           <InlineStack align="space-between" blockAlign="center">
-            <Button variant="plain" onClick={onClose}>← Volver a la lista</Button>
+            <Button variant="plain" onClick={onClose}>
+              ← Volver a la lista
+            </Button>
             <Button onClick={handleStartEdit}>Editar Producto</Button>
           </InlineStack>
         </Box>
@@ -266,7 +341,9 @@ export function ProductDetailModal({
       <InlineStack gap="400" blockAlign="center">
         <OptimizedImage source={product!.imageUrl} alt={product!.name} size="medium" />
         <BlockStack gap="100">
-          <Text variant="headingXl" as="h2" fontWeight="bold">{product!.name?.toUpperCase()}</Text>
+          <Text variant="headingXl" as="h2" fontWeight="bold">
+            {product!.name?.toUpperCase()}
+          </Text>
           <Badge tone="info">{product!.category}</Badge>
         </BlockStack>
       </InlineStack>
@@ -274,23 +351,38 @@ export function ProductDetailModal({
       <Grid>
         <Grid.Cell columnSpan={{ xs: 6, md: 6 }}>
           <BlockStack gap="200">
-            <Text as="h3" variant="headingMd">Inventario</Text>
-            <Text as="p" variant="bodyLg">{product!.currentStock} unidades disponibles</Text>
-            <ProgressBar progress={stockStatus?.percentage || 0} tone={stockStatus?.status === 'critical' ? 'critical' : 'primary'} />
+            <Text as="h3" variant="headingMd">
+              Inventario
+            </Text>
+            <Text as="p" variant="bodyLg">
+              {product!.currentStock} unidades disponibles
+            </Text>
+            <ProgressBar
+              progress={stockStatus?.percentage || 0}
+              tone={stockStatus?.status === 'critical' ? 'critical' : 'primary'}
+            />
           </BlockStack>
         </Grid.Cell>
         <Grid.Cell columnSpan={{ xs: 6, md: 6 }}>
           <BlockStack gap="200">
-            <Text as="h3" variant="headingMd">Precio</Text>
-            <Text as="p" variant="headingLg" fontWeight="bold">{formatCurrency(product!.unitPrice)}</Text>
-            <Text as="p" variant="bodySm" tone="subdued">Costo: {formatCurrency(product!.costPrice)}</Text>
+            <Text as="h3" variant="headingMd">
+              Precio
+            </Text>
+            <Text as="p" variant="headingLg" fontWeight="bold">
+              {formatCurrency(product!.unitPrice)}
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              Costo: {formatCurrency(product!.costPrice)}
+            </Text>
           </BlockStack>
         </Grid.Cell>
       </Grid>
       {!isInline && (
         <InlineStack align="end" gap="200">
           <Button onClick={handleStartEdit}>Editar</Button>
-          <Button tone="critical" onClick={() => setShowDeleteConfirm(true)}>Eliminar</Button>
+          <Button tone="critical" onClick={() => setShowDeleteConfirm(true)}>
+            Eliminar
+          </Button>
         </InlineStack>
       )}
     </BlockStack>
@@ -301,8 +393,16 @@ export function ProductDetailModal({
   }
 
   return (
-    <Modal open={open} onClose={() => { setEditProductMode(false); onClose(); }} title={product!.name.toUpperCase()} size="large">
-       <Modal.Section>{editProductMode ? renderEditContent() : renderViewContent()}</Modal.Section>
+    <Modal
+      open={open}
+      onClose={() => {
+        setEditProductMode(false);
+        onClose();
+      }}
+      title={product!.name.toUpperCase()}
+      size="large"
+    >
+      <Modal.Section>{editProductMode ? renderEditContent() : renderViewContent()}</Modal.Section>
     </Modal>
   );
 }

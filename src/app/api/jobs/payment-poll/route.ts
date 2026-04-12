@@ -44,10 +44,7 @@ export async function POST(request: NextRequest) {
     // Return 200 to stop retries if terminal state reached.
     if (result.status === 'pending') {
       // Return 500 so QStash retries later (with backoff)
-      return NextResponse.json(
-        { status: result.status, retry: true },
-        { status: 500 },
-      );
+      return NextResponse.json({ status: result.status, retry: true }, { status: 500 });
     }
 
     return NextResponse.json({ status: result.status, paidAt: result.paidAt });

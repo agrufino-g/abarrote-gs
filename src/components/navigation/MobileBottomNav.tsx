@@ -2,12 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { Icon } from '@shopify/polaris';
-import {
-  HomeIcon,
-  OrderIcon,
-  ProductIcon,
-  StoreIcon
-} from '@shopify/polaris-icons';
+import { HomeIcon, OrderIcon, ProductIcon, StoreIcon } from '@shopify/polaris-icons';
 
 export function MobileBottomNav() {
   const pathname = usePathname();
@@ -44,7 +39,7 @@ export function MobileBottomNav() {
     <div className="mobile-bottom-nav">
       {navItems.map((item) => {
         const isActive = pathname === item.path || (item.path !== '/dashboard' && pathname.startsWith(item.path));
-        
+
         return (
           <button
             key={item.id}

@@ -13,14 +13,11 @@ import {
   BlockStack,
   Box,
   TextField,
-  Select,
   InlineGrid,
   Banner,
   Spinner,
-  Modal,
   Checkbox,
   ChoiceList,
-  RadioButton,
   Divider,
   Tag,
   Icon,
@@ -28,14 +25,7 @@ import {
   ProgressBar,
   EmptyState,
 } from '@shopify/polaris';
-import {
-  PlusIcon,
-  DeleteIcon,
-  EditIcon,
-  RefreshIcon,
-  SearchIcon,
-  XSmallIcon,
-} from '@shopify/polaris-icons';
+import { PlusIcon, DeleteIcon, EditIcon, RefreshIcon, SearchIcon } from '@shopify/polaris-icons';
 import {
   fetchPromotions,
   createPromotion,
@@ -56,7 +46,8 @@ function getStatusBadge(promo: Promotion) {
   if (!promo.active) return <Badge tone="critical">Inactiva</Badge>;
   if (now < start) return <Badge tone="info">Programada</Badge>;
   if (now > end) return <Badge>Expirada</Badge>;
-  if (promo.usageLimit != null && promo.usageCount >= promo.usageLimit) return <Badge tone="warning">Límite alcanzado</Badge>;
+  if (promo.usageLimit != null && promo.usageCount >= promo.usageLimit)
+    return <Badge tone="warning">Límite alcanzado</Badge>;
   return <Badge tone="success">Activa</Badge>;
 }
 
@@ -68,9 +59,7 @@ function getApplicableBadge(promo: Promotion, products: Product[], categories: P
       .map((id) => categories.find((c) => c.id === id)?.name)
       .filter(Boolean)
       .slice(0, 2);
-    const label = names.length > 0
-      ? names.join(', ') + (count > 2 ? ` +${count - 2}` : '')
-      : `${count} categorías`;
+    const label = names.length > 0 ? names.join(', ') + (count > 2 ? ` +${count - 2}` : '') : `${count} categorías`;
     return <Badge tone="info">{label}</Badge>;
   }
   const count = promo.applicableIds.length;
@@ -78,9 +67,7 @@ function getApplicableBadge(promo: Promotion, products: Product[], categories: P
     .map((id) => products.find((p) => p.id === id)?.name)
     .filter(Boolean)
     .slice(0, 2);
-  const label = names.length > 0
-    ? names.join(', ') + (count > 2 ? ` +${count - 2}` : '')
-    : `${count} productos`;
+  const label = names.length > 0 ? names.join(', ') + (count > 2 ? ` +${count - 2}` : '') : `${count} productos`;
   return <Badge tone="warning">{label}</Badge>;
 }
 
@@ -105,7 +92,9 @@ export default function PromotionsPage() {
     }
   }, [showError]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`¿Eliminar la promoción "${name}"?`)) return;
@@ -121,7 +110,7 @@ export default function PromotionsPage() {
   const handleToggle = async (id: string, active: boolean) => {
     try {
       await togglePromotionActive(id, !active);
-      setPromotions((prev) => prev.map((p) => p.id === id ? { ...p, active: !active } : p));
+      setPromotions((prev) => prev.map((p) => (p.id === id ? { ...p, active: !active } : p)));
     } catch {
       showError('Error al cambiar estado');
     }
@@ -144,10 +133,13 @@ export default function PromotionsPage() {
 
   const totalUsage = promotions.reduce((s, p) => s + p.usageCount, 0);
 
-    if (modalOpen) {
+  if (modalOpen) {
     return (
       <PromotionFormView
-        onClose={() => { setModalOpen(false); setEditingPromo(null); }}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingPromo(null);
+        }}
         editing={editingPromo}
         onSave={load}
         products={products}
@@ -162,9 +154,7 @@ export default function PromotionsPage() {
       subtitle={`${promotions.length} promociones — ${activePromos.length} activas ahora`}
       backAction={{ content: 'Dashboard', url: '/dashboard' }}
       primaryAction={{ content: 'Nueva promoción', icon: PlusIcon, onAction: handleNew }}
-      secondaryActions={[
-        { content: 'Actualizar', icon: RefreshIcon, onAction: load },
-      ]}
+      secondaryActions={[{ content: 'Actualizar', icon: RefreshIcon, onAction: load }]}
     >
       <Layout>
         {/* KPI cards */}
@@ -172,20 +162,32 @@ export default function PromotionsPage() {
           <InlineGrid columns={3} gap="400">
             <Card>
               <BlockStack gap="100">
-                <Text variant="bodySm" as="p" tone="subdued">Total promociones</Text>
-                <Text variant="headingLg" as="p">{String(promotions.length)}</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Total promociones
+                </Text>
+                <Text variant="headingLg" as="p">
+                  {String(promotions.length)}
+                </Text>
               </BlockStack>
             </Card>
             <Card>
               <BlockStack gap="100">
-                <Text variant="bodySm" as="p" tone="subdued">Activas ahora</Text>
-                <Text variant="headingLg" as="p" tone="success">{String(activePromos.length)}</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Activas ahora
+                </Text>
+                <Text variant="headingLg" as="p" tone="success">
+                  {String(activePromos.length)}
+                </Text>
               </BlockStack>
             </Card>
             <Card>
               <BlockStack gap="100">
-                <Text variant="bodySm" as="p" tone="subdued">Usos totales</Text>
-                <Text variant="headingLg" as="p">{String(totalUsage)}</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Usos totales
+                </Text>
+                <Text variant="headingLg" as="p">
+                  {String(totalUsage)}
+                </Text>
               </BlockStack>
             </Card>
           </InlineGrid>
@@ -195,7 +197,11 @@ export default function PromotionsPage() {
         <Layout.Section>
           <Card padding="0">
             {loading ? (
-              <Box padding="800"><InlineStack align="center"><Spinner /></InlineStack></Box>
+              <Box padding="800">
+                <InlineStack align="center">
+                  <Spinner />
+                </InlineStack>
+              </Box>
             ) : promotions.length === 0 ? (
               <Box paddingBlockStart="200">
                 <EmptyState
@@ -227,9 +233,13 @@ export default function PromotionsPage() {
                   <IndexTable.Row id={promo.id} key={promo.id} position={i}>
                     <IndexTable.Cell>
                       <BlockStack gap="050">
-                        <Text variant="bodyMd" as="span" fontWeight="semibold">{promo.name}</Text>
+                        <Text variant="bodyMd" as="span" fontWeight="semibold">
+                          {promo.name}
+                        </Text>
                         {promo.description && (
-                          <Text variant="bodySm" as="span" tone="subdued">{promo.description}</Text>
+                          <Text variant="bodySm" as="span" tone="subdued">
+                            {promo.description}
+                          </Text>
                         )}
                       </BlockStack>
                     </IndexTable.Cell>
@@ -246,14 +256,15 @@ export default function PromotionsPage() {
                         </Text>
                       )}
                     </IndexTable.Cell>
-                    <IndexTable.Cell>
-                      {getApplicableBadge(promo, products, categories)}
-                    </IndexTable.Cell>
+                    <IndexTable.Cell>{getApplicableBadge(promo, products, categories)}</IndexTable.Cell>
                     <IndexTable.Cell>
                       <Text variant="bodySm" as="span">
                         {new Date(promo.startDate).toLocaleDateString('es-MX')}
                       </Text>
-                      <Text variant="bodySm" as="span" tone="subdued"> → </Text>
+                      <Text variant="bodySm" as="span" tone="subdued">
+                        {' '}
+                        →{' '}
+                      </Text>
                       <Text variant="bodySm" as="span">
                         {new Date(promo.endDate).toLocaleDateString('es-MX')}
                       </Text>
@@ -261,9 +272,7 @@ export default function PromotionsPage() {
                     <IndexTable.Cell>
                       <BlockStack gap="050">
                         <Text as="span">
-                          {promo.usageLimit
-                            ? `${promo.usageCount}/${promo.usageLimit}`
-                            : `${promo.usageCount}`}
+                          {promo.usageLimit ? `${promo.usageCount}/${promo.usageLimit}` : `${promo.usageCount}`}
                         </Text>
                         {promo.usageLimit != null && (
                           <ProgressBar
@@ -277,14 +286,16 @@ export default function PromotionsPage() {
                     <IndexTable.Cell>{getStatusBadge(promo)}</IndexTable.Cell>
                     <IndexTable.Cell>
                       <InlineStack gap="100">
-                        <Button
-                          size="micro"
-                          onClick={() => handleToggle(promo.id, promo.active)}
-                        >
+                        <Button size="micro" onClick={() => handleToggle(promo.id, promo.active)}>
                           {promo.active ? 'Desactivar' : 'Activar'}
                         </Button>
                         <Button size="micro" icon={EditIcon} onClick={() => handleEdit(promo)} />
-                        <Button size="micro" icon={DeleteIcon} tone="critical" onClick={() => handleDelete(promo.id, promo.name)} />
+                        <Button
+                          size="micro"
+                          icon={DeleteIcon}
+                          tone="critical"
+                          onClick={() => handleDelete(promo.id, promo.name)}
+                        />
                       </InlineStack>
                     </IndexTable.Cell>
                   </IndexTable.Row>
@@ -294,8 +305,6 @@ export default function PromotionsPage() {
           </Card>
         </Layout.Section>
       </Layout>
-
-      
     </Page>
   );
 }
@@ -311,13 +320,7 @@ interface PromotionFormModalProps {
   categories: ProductCategory[];
 }
 
-function PromotionFormView({
-  onClose,
-  editing,
-  onSave,
-  products,
-  categories,
-}: Omit<PromotionFormModalProps, 'open'>) {
+function PromotionFormView({ onClose, editing, onSave, products, categories }: Omit<PromotionFormModalProps, 'open'>) {
   const { showSuccess, showError } = useToast();
   const [saving, setSaving] = useState(false);
 
@@ -357,11 +360,19 @@ function PromotionFormView({
       setStartDate(editing.startDate.split('T')[0]);
       setEndDate(editing.endDate.split('T')[0]);
     } else {
-      setName(''); setDescription(''); setType('percentage'); setValue('');
-      setMinPurchase('0'); setMaxDiscount(''); setApplicableTo('all');
-      setApplicableIds([]); setActive(true); setUsageLimit('');
+      setName('');
+      setDescription('');
+      setType('percentage');
+      setValue('');
+      setMinPurchase('0');
+      setMaxDiscount('');
+      setApplicableTo('all');
+      setApplicableIds([]);
+      setActive(true);
+      setUsageLimit('');
       setStartDate(new Date().toISOString().split('T')[0]);
-      const d = new Date(); d.setDate(d.getDate() + 7);
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
       setEndDate(d.toISOString().split('T')[0]);
     }
     setSearchQuery('');
@@ -379,18 +390,19 @@ function PromotionFormView({
     const query = searchQuery.trim().toLowerCase();
     if (applicableTo === 'product') {
       return products
-        .filter((p) =>
-          !applicableIds.includes(p.id) &&
-          (query === '' || p.name.toLowerCase().includes(query) || p.sku.toLowerCase().includes(query) || p.barcode.includes(query))
+        .filter(
+          (p) =>
+            !applicableIds.includes(p.id) &&
+            (query === '' ||
+              p.name.toLowerCase().includes(query) ||
+              p.sku.toLowerCase().includes(query) ||
+              p.barcode.includes(query)),
         )
         .slice(0, 20);
     }
     if (applicableTo === 'category') {
       return categories
-        .filter((c) =>
-          !applicableIds.includes(c.id) &&
-          (query === '' || c.name.toLowerCase().includes(query))
-        )
+        .filter((c) => !applicableIds.includes(c.id) && (query === '' || c.name.toLowerCase().includes(query)))
         .slice(0, 20);
     }
     return [];
@@ -479,11 +491,12 @@ function PromotionFormView({
         {/* Main Column */}
         <Layout.Section>
           <BlockStack gap="400">
-            
             {/* Información básica */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">Información general</Text>
+                <Text variant="headingMd" as="h2">
+                  Información general
+                </Text>
                 <TextField
                   label="Nombre de la promoción"
                   value={name}
@@ -505,7 +518,9 @@ function PromotionFormView({
             {/* Descuento */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">Valor del descuento</Text>
+                <Text variant="headingMd" as="h2">
+                  Valor del descuento
+                </Text>
                 <ChoiceList
                   title="Tipo"
                   titleHidden
@@ -513,36 +528,38 @@ function PromotionFormView({
                     {
                       label: 'Porcentaje de descuento',
                       value: 'percentage',
-                      renderChildren: (isSelected) => isSelected && (
-                        <Box paddingBlockStart="200" paddingInlineStart="400">
-                          <TextField
-                            label="Porcentaje (%)"
-                            type="number"
-                            value={value}
-                            onChange={setValue}
-                            placeholder="15"
-                            autoComplete="off"
-                            suffix="%"
-                          />
-                        </Box>
-                      ),
+                      renderChildren: (isSelected) =>
+                        isSelected && (
+                          <Box paddingBlockStart="200" paddingInlineStart="400">
+                            <TextField
+                              label="Porcentaje (%)"
+                              type="number"
+                              value={value}
+                              onChange={setValue}
+                              placeholder="15"
+                              autoComplete="off"
+                              suffix="%"
+                            />
+                          </Box>
+                        ),
                     },
                     {
                       label: 'Descuento fijo ($)',
                       value: 'fixed',
-                      renderChildren: (isSelected) => isSelected && (
-                        <Box paddingBlockStart="200" paddingInlineStart="400">
-                          <TextField
-                            label="Monto ($)"
-                            type="number"
-                            value={value}
-                            onChange={setValue}
-                            placeholder="50"
-                            autoComplete="off"
-                            suffix="MXN"
-                          />
-                        </Box>
-                      ),
+                      renderChildren: (isSelected) =>
+                        isSelected && (
+                          <Box paddingBlockStart="200" paddingInlineStart="400">
+                            <TextField
+                              label="Monto ($)"
+                              type="number"
+                              value={value}
+                              onChange={setValue}
+                              placeholder="50"
+                              autoComplete="off"
+                              suffix="MXN"
+                            />
+                          </Box>
+                        ),
                     },
                     { label: 'Compra X lleva Y (BOGO)', value: 'bogo' },
                     { label: 'Paquete / combo', value: 'bundle' },
@@ -550,12 +567,14 @@ function PromotionFormView({
                   selected={[type]}
                   onChange={(v) => setType(v[0] as PromotionType)}
                 />
-                
+
                 <Box paddingBlockStart="200">
                   <Divider />
                 </Box>
-                
-                <Text variant="headingSm" as="h3">Requisitos mínimos</Text>
+
+                <Text variant="headingSm" as="h3">
+                  Requisitos mínimos
+                </Text>
                 <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
                   <TextField
                     label="Compra mínima ($)"
@@ -584,7 +603,9 @@ function PromotionFormView({
             {/* Productos Aplicables */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">Aplica a</Text>
+                <Text variant="headingMd" as="h2">
+                  Aplica a
+                </Text>
                 <ChoiceList
                   title="Aplicable a"
                   titleHidden
@@ -679,7 +700,7 @@ function PromotionFormView({
                                   >
                                     <BlockStack gap="0">
                                       <Text as="span" variant="bodyMd" fontWeight="semibold">
-                                        {product ? product.name : category?.name ?? ''}
+                                        {product ? product.name : (category?.name ?? '')}
                                       </Text>
                                       {product && (
                                         <Text as="span" variant="bodySm" tone="subdued">
@@ -702,9 +723,7 @@ function PromotionFormView({
                     {searchQuery.trim() && searchResults.length === 0 && (
                       <Box padding="300">
                         <Text as="p" tone="subdued" alignment="center">
-                          {applicableTo === 'product'
-                            ? 'No se encontraron productos'
-                            : 'No se encontraron categorías'}
+                          {applicableTo === 'product' ? 'No se encontraron productos' : 'No se encontraron categorías'}
                         </Text>
                       </Box>
                     )}
@@ -722,7 +741,6 @@ function PromotionFormView({
                 )}
               </BlockStack>
             </Card>
-
           </BlockStack>
         </Layout.Section>
 
@@ -732,7 +750,9 @@ function PromotionFormView({
             {/* Status */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">Estado</Text>
+                <Text variant="headingMd" as="h2">
+                  Estado
+                </Text>
                 <Checkbox
                   label="Promoción activa"
                   helpText="Si está inactiva, no se aplicará en punto de venta"
@@ -745,7 +765,9 @@ function PromotionFormView({
             {/* Vigencia */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">Fechas de vigencia</Text>
+                <Text variant="headingMd" as="h2">
+                  Fechas de vigencia
+                </Text>
                 <BlockStack gap="300">
                   <TextField
                     label="Fecha de inicio"
@@ -770,7 +792,9 @@ function PromotionFormView({
             {/* Limits */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">Límites de uso</Text>
+                <Text variant="headingMd" as="h2">
+                  Límites de uso
+                </Text>
                 <TextField
                   label="Total de usos"
                   type="number"
@@ -782,7 +806,6 @@ function PromotionFormView({
                 />
               </BlockStack>
             </Card>
-            
           </BlockStack>
         </Layout.Section>
       </Layout>

@@ -47,7 +47,9 @@ export function MPDevicesPanel() {
         <Box padding="400">
           <InlineStack align="center">
             <Spinner size="small" />
-            <Text variant="bodySm" as="span" tone="subdued">Cargando dispositivos…</Text>
+            <Text variant="bodySm" as="span" tone="subdued">
+              Cargando dispositivos…
+            </Text>
           </InlineStack>
         </Box>
       </Card>
@@ -59,7 +61,9 @@ export function MPDevicesPanel() {
       <Banner tone="warning" title="Error al cargar dispositivos">
         <p>{error}</p>
         <Box paddingBlockStart="200">
-          <Button size="slim" onClick={loadDevices}>Reintentar</Button>
+          <Button size="slim" onClick={loadDevices}>
+            Reintentar
+          </Button>
         </Box>
       </Banner>
     );
@@ -70,7 +74,9 @@ export function MPDevicesPanel() {
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <InlineStack gap="200" blockAlign="center">
-            <Text variant="headingMd" as="h3">Terminales Point</Text>
+            <Text variant="headingMd" as="h3">
+              Terminales Point
+            </Text>
             <Badge>{String(devices.length)}</Badge>
           </InlineStack>
           <Button
@@ -85,43 +91,35 @@ export function MPDevicesPanel() {
         <Divider />
 
         {devices.length === 0 ? (
-          <EmptyState
-            heading="Sin terminales registradas"
-            image=""
-          >
+          <EmptyState heading="Sin terminales registradas" image="">
             <p>
-              Conecta una terminal MercadoPago Point desde la app de MercadoPago para cobrar con
-              tarjetas físicas. Las terminales vinculadas a tu cuenta aparecerán aquí.
+              Conecta una terminal MercadoPago Point desde la app de MercadoPago para cobrar con tarjetas físicas. Las
+              terminales vinculadas a tu cuenta aparecerán aquí.
             </p>
           </EmptyState>
         ) : (
           <IndexTable
             resourceName={{ singular: 'terminal', plural: 'terminales' }}
             itemCount={devices.length}
-            headings={[
-              { title: 'ID Dispositivo' },
-              { title: 'POS ID' },
-              { title: 'Tienda' },
-              { title: 'Modo' },
-            ]}
+            headings={[{ title: 'ID Dispositivo' }, { title: 'POS ID' }, { title: 'Tienda' }, { title: 'Modo' }]}
             selectable={false}
           >
             {devices.map((device, index) => (
-              <IndexTable.Row
-                id={device.id}
-                key={device.id}
-                position={index}
-              >
+              <IndexTable.Row id={device.id} key={device.id} position={index}>
                 <IndexTable.Cell>
                   <Text variant="bodyMd" fontWeight="semibold" as="span">
                     {device.id}
                   </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text variant="bodySm" as="span">{device.pos_id}</Text>
+                  <Text variant="bodySm" as="span">
+                    {device.pos_id}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text variant="bodySm" as="span">{device.store_id || '—'}</Text>
+                  <Text variant="bodySm" as="span">
+                    {device.store_id || '—'}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
                   <Badge tone={device.operating_mode === 'PDV' ? 'success' : 'info'}>

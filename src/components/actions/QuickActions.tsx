@@ -3,8 +3,6 @@
 import { useState, useCallback } from 'react';
 import {
   Card,
-  Button,
-  ButtonGroup,
   BlockStack,
   Text,
   Modal,
@@ -13,7 +11,6 @@ import {
   DatePicker,
   Banner,
   Icon,
-  Box,
   InlineGrid,
 } from '@shopify/polaris';
 import { FormSelect } from '@/components/ui/FormSelect';
@@ -22,9 +19,7 @@ import {
   PlusIcon,
   ArchiveIcon,
   AdjustIcon,
-  ProductIcon,
   CartIcon,
-  MobileIcon,
   CashDollarIcon,
   PlusIcon as PlusMinorIcon,
 } from '@shopify/polaris-icons';
@@ -52,7 +47,7 @@ export function QuickActions() {
   const canManageInventory = !permsLoaded || hasPermission('inventory.edit');
   const canCreateSales = !permsLoaded || hasPermission('sales.create');
   const canManagePedidos = !permsLoaded || hasPermission('pedidos.create');
-  const canManageServicios = !permsLoaded || hasPermission('servicios.create');
+  const _canManageServicios = !permsLoaded || hasPermission('servicios.create');
   const canCreateFiado = !permsLoaded || hasPermission('fiado.create');
 
   const [mermaModalOpen, setMermaModalOpen] = useState(false);
@@ -109,13 +104,9 @@ export function QuickActions() {
     { label: 'Otro', value: 'other' },
   ];
 
-  const selectedMermaProduct = inventoryAlerts.find(
-    (a) => a.product.id === mermaProducto
-  )?.product;
+  const selectedMermaProduct = inventoryAlerts.find((a) => a.product.id === mermaProducto)?.product;
 
-  const selectedAjusteProduct = inventoryAlerts.find(
-    (a) => a.product.id === ajusteProducto
-  )?.product;
+  const selectedAjusteProduct = inventoryAlerts.find((a) => a.product.id === ajusteProducto)?.product;
 
   const handleMermaSubmit = useCallback(async () => {
     if (!mermaProducto || !mermaCantidad || !selectedMermaProduct) return;
@@ -167,9 +158,7 @@ export function QuickActions() {
     await adjustStock(ajusteProducto, newQty, ajusteRazon);
 
     const diff = newQty - selectedAjusteProduct.currentStock;
-    toast.showSuccess(
-      `Stock de ${selectedAjusteProduct.name} ajustado: ${diff >= 0 ? '+' : ''}${diff} unidades`
-    );
+    toast.showSuccess(`Stock de ${selectedAjusteProduct.name} ajustado: ${diff >= 0 ? '+' : ''}${diff} unidades`);
     setAjusteModalOpen(false);
     setAjusteProducto('');
     setAjusteNuevaCantidad('');
@@ -195,27 +184,93 @@ export function QuickActions() {
     })),
   ];
 
-  const lowStockCount = inventoryAlerts.filter(
-    (a) => a.product.currentStock < a.product.minStock
-  ).length;
+  const lowStockCount = inventoryAlerts.filter((a) => a.product.currentStock < a.product.minStock).length;
 
   const actions = [
-    canCreateSales && { label: 'Punto de Venta', desc: 'Venta rápida', icon: CartIcon, onClick: () => setSaleTicketOpen(true), tone: 'var(--p-color-bg-fill-brand-subdued)', color: 'var(--p-color-text-brand)', disabled: false },
-    { label: 'Abrir Turno', desc: 'Fondo inicial', icon: PlusMinorIcon, onClick: () => setAperturaOpen(true), tone: 'var(--p-color-bg-fill-success-subdued)', color: 'var(--p-color-text-success)', disabled: false },
-    { label: 'Abrir Cajón', desc: 'Acceso físico', icon: CashDollarIcon, onClick: () => setPinPadOpen(true), tone: 'var(--p-color-bg-fill-info-subdued)', color: 'var(--p-color-text-info)', disabled: false },
-    canCreateFiado && { label: 'Abonos', desc: 'Registrar pagos', icon: CashDollarIcon, onClick: () => setAbonoOpen(true), tone: 'var(--p-color-bg-fill-warning-subdued)', color: 'var(--p-color-text-warning)', disabled: false },
-    canManageInventory && { label: 'Mermas', desc: 'Control de pérdidas', icon: ArchiveIcon, onClick: () => setMermaModalOpen(true), tone: 'var(--p-color-bg-fill-critical-subdued)', color: 'var(--p-color-text-critical)', disabled: false },
-    canManagePedidos && { label: 'Surtidos', desc: 'Pedido a proveedor', icon: PlusIcon, onClick: () => setPedidoModalOpen(true), tone: 'var(--p-color-bg-fill-info-subdued)', color: 'var(--p-color-text-info)', disabled: false },
-    canManageInventory && { label: 'Ajuste Manual', desc: 'Inventario físico', icon: AdjustIcon, onClick: () => setAjusteModalOpen(true), tone: '#f4f6f8', color: '#6d7175', disabled: false },
-  ].filter(Boolean) as { label: string; desc: string; icon: any; onClick: () => void; tone: string; color: string; disabled: boolean }[];
+    canCreateSales && {
+      label: 'Punto de Venta',
+      desc: 'Venta rápida',
+      icon: CartIcon,
+      onClick: () => setSaleTicketOpen(true),
+      tone: 'var(--p-color-bg-fill-brand-subdued)',
+      color: 'var(--p-color-text-brand)',
+      disabled: false,
+    },
+    {
+      label: 'Abrir Turno',
+      desc: 'Fondo inicial',
+      icon: PlusMinorIcon,
+      onClick: () => setAperturaOpen(true),
+      tone: 'var(--p-color-bg-fill-success-subdued)',
+      color: 'var(--p-color-text-success)',
+      disabled: false,
+    },
+    {
+      label: 'Abrir Cajón',
+      desc: 'Acceso físico',
+      icon: CashDollarIcon,
+      onClick: () => setPinPadOpen(true),
+      tone: 'var(--p-color-bg-fill-info-subdued)',
+      color: 'var(--p-color-text-info)',
+      disabled: false,
+    },
+    canCreateFiado && {
+      label: 'Abonos',
+      desc: 'Registrar pagos',
+      icon: CashDollarIcon,
+      onClick: () => setAbonoOpen(true),
+      tone: 'var(--p-color-bg-fill-warning-subdued)',
+      color: 'var(--p-color-text-warning)',
+      disabled: false,
+    },
+    canManageInventory && {
+      label: 'Mermas',
+      desc: 'Control de pérdidas',
+      icon: ArchiveIcon,
+      onClick: () => setMermaModalOpen(true),
+      tone: 'var(--p-color-bg-fill-critical-subdued)',
+      color: 'var(--p-color-text-critical)',
+      disabled: false,
+    },
+    canManagePedidos && {
+      label: 'Surtidos',
+      desc: 'Pedido a proveedor',
+      icon: PlusIcon,
+      onClick: () => setPedidoModalOpen(true),
+      tone: 'var(--p-color-bg-fill-info-subdued)',
+      color: 'var(--p-color-text-info)',
+      disabled: false,
+    },
+    canManageInventory && {
+      label: 'Ajuste Manual',
+      desc: 'Inventario físico',
+      icon: AdjustIcon,
+      onClick: () => setAjusteModalOpen(true),
+      tone: '#f4f6f8',
+      color: '#6d7175',
+      disabled: false,
+    },
+  ].filter(Boolean) as {
+    label: string;
+    desc: string;
+    icon: React.FunctionComponent<React.SVGProps<SVGSVGElement>>;
+    onClick: () => void;
+    tone: string;
+    color: string;
+    disabled: boolean;
+  }[];
 
   return (
     <>
       <Card>
         <BlockStack gap="400">
           <BlockStack gap="100">
-            <Text as="h2" variant="headingMd" fontWeight="semibold">Operaciones</Text>
-            <Text as="p" variant="bodySm" tone="subdued">Accesos directos a procesos del negocio</Text>
+            <Text as="h2" variant="headingMd" fontWeight="semibold">
+              Operaciones
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              Accesos directos a procesos del negocio
+            </Text>
           </BlockStack>
 
           <InlineGrid columns={{ xs: 2, sm: 3, md: 6 }} gap="300">
@@ -245,21 +300,27 @@ export function QuickActions() {
                 }}
               >
                 <BlockStack gap="300" align="center" inlineAlign="center">
-                  <div style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '10px',
-                    backgroundColor: action.tone,
-                    color: action.color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '10px',
+                      backgroundColor: action.tone,
+                      color: action.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
                     <Icon source={action.icon} />
                   </div>
                   <BlockStack gap="050">
-                    <Text as="p" variant="bodySm" fontWeight="semibold">{action.label}</Text>
-                    <Text as="p" variant="bodySm" tone="subdued">{action.desc}</Text>
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      {action.label}
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {action.desc}
+                    </Text>
                   </BlockStack>
                 </BlockStack>
               </div>
@@ -317,12 +378,7 @@ export function QuickActions() {
               helpText={selectedMermaProduct ? `Máximo: ${selectedMermaProduct.currentStock}` : undefined}
             />
 
-            <FormSelect
-              label="Razón de la merma"
-              options={razonOptions}
-              value={mermaRazon}
-              onChange={setMermaRazon}
-            />
+            <FormSelect label="Razón de la merma" options={razonOptions} value={mermaRazon} onChange={setMermaRazon} />
 
             <div>
               <Text as="p" variant="bodyMd">
@@ -375,9 +431,7 @@ export function QuickActions() {
         <Modal.Section>
           <FormLayout>
             <Banner tone="info">
-              <p>
-                Se generará un pedido automático con {lowStockCount} productos con stock bajo.
-              </p>
+              <p>Se generará un pedido automático con {lowStockCount} productos con stock bajo.</p>
             </Banner>
 
             <TextField
@@ -434,9 +488,7 @@ export function QuickActions() {
         <Modal.Section>
           <FormLayout>
             <Banner tone="warning">
-              <p>
-                Los ajustes de inventario deben estar justificados y serán registrados en el historial.
-              </p>
+              <p>Los ajustes de inventario deben estar justificados y serán registrados en el historial.</p>
             </Banner>
 
             <SearchableSelect
@@ -453,7 +505,7 @@ export function QuickActions() {
               <TextField
                 label="Cantidad actual"
                 value={selectedAjusteProduct.currentStock.toString()}
-                onChange={() => { }}
+                onChange={() => {}}
                 type="number"
                 autoComplete="off"
                 disabled
@@ -470,9 +522,13 @@ export function QuickActions() {
             />
 
             {selectedAjusteProduct && ajusteNuevaCantidad && (
-              <Text as="p" variant="bodySm" tone={
-                parseInt(ajusteNuevaCantidad, 10) - selectedAjusteProduct.currentStock >= 0 ? 'success' : 'critical'
-              }>
+              <Text
+                as="p"
+                variant="bodySm"
+                tone={
+                  parseInt(ajusteNuevaCantidad, 10) - selectedAjusteProduct.currentStock >= 0 ? 'success' : 'critical'
+                }
+              >
                 Diferencia: {parseInt(ajusteNuevaCantidad, 10) - selectedAjusteProduct.currentStock >= 0 ? '+' : ''}
                 {parseInt(ajusteNuevaCantidad, 10) - selectedAjusteProduct.currentStock} unidades
               </Text>
@@ -498,54 +554,63 @@ export function QuickActions() {
       >
         <Modal.Section>
           <FormLayout>
-            <Banner tone="success"><p>El abono reducirá la deuda del cliente dado de alta.</p></Banner>
-            <FormSelect label="Cliente" options={clientesWithDebtOptions} value={abonoClienteId} onChange={setAbonoClienteId} />
-            {abonoClienteId && (() => {
-              const c = clientes.find((cl) => cl.id === abonoClienteId);
-              return c ? (
-                <Text as="p" variant="bodySm" tone="critical">
-                  Deuda actual: {formatCurrency(c.balance)}
-                </Text>
-              ) : null;
-            })()}
-            <TextField label="Monto del abono (MXN)" type="number" value={abonoAmount} onChange={setAbonoAmount} autoComplete="off" prefix="$" placeholder="0.00" />
-            <TextField label="Descripción (opcional)" value={abonoDescription} onChange={setAbonoDescription} autoComplete="off" placeholder="Ej: Abono semanal" />
+            <Banner tone="success">
+              <p>El abono reducirá la deuda del cliente dado de alta.</p>
+            </Banner>
+            <FormSelect
+              label="Cliente"
+              options={clientesWithDebtOptions}
+              value={abonoClienteId}
+              onChange={setAbonoClienteId}
+            />
+            {abonoClienteId &&
+              (() => {
+                const c = clientes.find((cl) => cl.id === abonoClienteId);
+                return c ? (
+                  <Text as="p" variant="bodySm" tone="critical">
+                    Deuda actual: {formatCurrency(c.balance)}
+                  </Text>
+                ) : null;
+              })()}
+            <TextField
+              label="Monto del abono (MXN)"
+              type="number"
+              value={abonoAmount}
+              onChange={setAbonoAmount}
+              autoComplete="off"
+              prefix="$"
+              placeholder="0.00"
+            />
+            <TextField
+              label="Descripción (opcional)"
+              value={abonoDescription}
+              onChange={setAbonoDescription}
+              autoComplete="off"
+              placeholder="Ej: Abono semanal"
+            />
           </FormLayout>
         </Modal.Section>
       </Modal>
 
       {/* Modal para Registrar Producto */}
-      <RegisterProductModal
-        open={registerProductOpen}
-        onClose={() => setRegisterProductOpen(false)}
-      />
+      <RegisterProductModal open={registerProductOpen} onClose={() => setRegisterProductOpen(false)} />
 
       {/* Modal para Registrar Venta y Generar Ticket */}
-      <SaleTicketModal
-        open={saleTicketOpen}
-        onClose={() => setSaleTicketOpen(false)}
-      />
+      <SaleTicketModal open={saleTicketOpen} onClose={() => setSaleTicketOpen(false)} />
 
       {/* Modal para Recargas y Servicios */}
-      <ServiciosModal
-        open={serviciosOpen}
-        onClose={() => setServiciosOpen(false)}
-      />
+      <ServiciosModal open={serviciosOpen} onClose={() => setServiciosOpen(false)} />
 
-      <AperturaCajaModal
-        open={aperturaOpen}
-        onClose={() => setAperturaOpen(false)}
-      />
+      <AperturaCajaModal open={aperturaOpen} onClose={() => setAperturaOpen(false)} />
 
       <PinPadModal
         open={pinPadOpen}
         onClose={() => setPinPadOpen(false)}
         requiredPermission="cashdrawer.open"
-        onSuccess={(uid: string, name: string) => {
+        onSuccess={(_uid: string, _name: string) => {
           setPinPadOpen(false);
-          // 1. Enviar señal de apertura física (vía el driver industrial)
+          // Apertura autorizada — señal enviada al driver
           openDrawer();
-          console.log(`[Seguridad] Cajón abierto por: ${name} (UID: ${uid})`);
         }}
         title="Autorizar Apertura de Cajón"
         label="Ingresa PIN para abrir cajón de dinero"

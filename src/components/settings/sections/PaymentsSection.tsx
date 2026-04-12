@@ -20,11 +20,7 @@ import {
 } from '@shopify/polaris';
 import type { StoreConfig } from '@/types';
 import type { Field } from '@shopify/react-form';
-import {
-  initiateMPOAuth,
-  disconnectMPOAuth,
-  getMPConnectionStatus,
-} from '@/app/actions/oauth-actions';
+import { initiateMPOAuth, disconnectMPOAuth, getMPConnectionStatus } from '@/app/actions/oauth-actions';
 import {
   connectConektaAction,
   disconnectConektaAction,
@@ -290,7 +286,12 @@ export function PaymentsSection({
         environment: clipEnv,
       });
       if (result.success) {
-        setClipStatus({ connected: true, environment: clipEnv, apiKey: clipApiKey, serialNumber: clipSerialNumber || null });
+        setClipStatus({
+          connected: true,
+          environment: clipEnv,
+          apiKey: clipApiKey,
+          serialNumber: clipSerialNumber || null,
+        });
         updateField('clipEnabled', true);
         updateField('clipApiKey', clipApiKey);
         if (clipSerialNumber) updateField('clipSerialNumber', clipSerialNumber);
@@ -343,7 +344,9 @@ export function PaymentsSection({
                 alt="Mercado Pago"
                 width="30"
               />
-              <Text variant="headingSm" as="h3">MercadoPago</Text>
+              <Text variant="headingSm" as="h3">
+                MercadoPago
+              </Text>
               {loadingStatus ? (
                 <Spinner size="small" />
               ) : isConnected ? (
@@ -366,14 +369,18 @@ export function PaymentsSection({
                 <Card>
                   <BlockStack gap="200">
                     <InlineStack align="space-between">
-                      <Text variant="bodySm" as="span" tone="subdued">Cuenta conectada</Text>
+                      <Text variant="bodySm" as="span" tone="subdued">
+                        Cuenta conectada
+                      </Text>
                       <Text variant="bodyMd" fontWeight="semibold" as="span">
                         {mpConnection.email || 'Cuenta vinculada'}
                       </Text>
                     </InlineStack>
                     {mpConnection.expiresAt && (
                       <InlineStack align="space-between">
-                        <Text variant="bodySm" as="span" tone="subdued">Tokens vigentes hasta</Text>
+                        <Text variant="bodySm" as="span" tone="subdued">
+                          Tokens vigentes hasta
+                        </Text>
                         <Text variant="bodySm" as="span">
                           {formatExpiryDate(mpConnection.expiresAt)}
                         </Text>
@@ -381,7 +388,9 @@ export function PaymentsSection({
                     )}
                     {mpConnection.publicKey && (
                       <InlineStack align="space-between">
-                        <Text variant="bodySm" as="span" tone="subdued">Public Key</Text>
+                        <Text variant="bodySm" as="span" tone="subdued">
+                          Public Key
+                        </Text>
                         <Text variant="bodySm" as="span" tone="subdued">
                           {mpConnection.publicKey.slice(0, 20)}...
                         </Text>
@@ -391,7 +400,10 @@ export function PaymentsSection({
                 </Card>
 
                 <Banner tone="success">
-                  <p>Tu cuenta de MercadoPago est\u00e1 conectada. Los tokens se renuevan autom\u00e1ticamente antes de expirar.</p>
+                  <p>
+                    Tu cuenta de MercadoPago est\u00e1 conectada. Los tokens se renuevan autom\u00e1ticamente antes de
+                    expirar.
+                  </p>
                 </Banner>
 
                 <Divider />
@@ -428,7 +440,9 @@ export function PaymentsSection({
                     {mpDevices.length > 0 && (
                       <Box paddingBlockStart="200">
                         <BlockStack gap="300">
-                          <Text as="h3" variant="headingSm">Dispositivos detectados:</Text>
+                          <Text as="h3" variant="headingSm">
+                            Dispositivos detectados:
+                          </Text>
                           <Card>
                             <BlockStack gap="200">
                               {mpDevices.map((d) => (
@@ -437,7 +451,9 @@ export function PaymentsSection({
                                     <Badge tone={d.id === (config.mpDeviceId || '') ? 'success' : 'info'}>
                                       {d.id === (config.mpDeviceId || '') ? 'Enlazada' : 'Detectada'}
                                     </Badge>
-                                    <Text as="p" variant="bodyMd" fontWeight="medium">{d.id}</Text>
+                                    <Text as="p" variant="bodyMd" fontWeight="medium">
+                                      {d.id}
+                                    </Text>
                                   </InlineStack>
                                   {d.id !== (config.mpDeviceId || '') && (
                                     <Button size="slim" onClick={() => updateField('mpDeviceId', d.id)}>
@@ -464,24 +480,19 @@ export function PaymentsSection({
                 <Banner tone="warning">
                   <p>Tu conexi\u00f3n con MercadoPago expir\u00f3. Reconecta tu cuenta para seguir procesando pagos.</p>
                 </Banner>
-                <Button
-                  variant="primary"
-                  onClick={handleConnect}
-                  loading={mpConnecting}
-                >
+                <Button variant="primary" onClick={handleConnect} loading={mpConnecting}>
                   Reconectar con MercadoPago
                 </Button>
               </BlockStack>
             ) : (
               <BlockStack gap="300">
                 <Banner tone="info">
-                  <p>Conecta tu cuenta de MercadoPago para procesar cobros. Ser\u00e1s redirigido a MercadoPago para autorizar el acceso de forma segura.</p>
+                  <p>
+                    Conecta tu cuenta de MercadoPago para procesar cobros. Ser\u00e1s redirigido a MercadoPago para
+                    autorizar el acceso de forma segura.
+                  </p>
                 </Banner>
-                <Button
-                  variant="primary"
-                  onClick={handleConnect}
-                  loading={mpConnecting}
-                >
+                <Button variant="primary" onClick={handleConnect} loading={mpConnecting}>
                   Conectar con MercadoPago
                 </Button>
               </BlockStack>
@@ -535,7 +546,7 @@ export function PaymentsSection({
       {/* ── QR de Cobro ── */}
       <Layout.AnnotatedSection
         title="QR de Cobro (CoDi / Banco)"
-        description="Sube la URL de tu imagen QR de cobro (CoDi, BBVA, BBVA Wallet, etc.). Se mostrar\u00e1 al cajero para que el cliente escanee."
+        description="Sube la URL de tu imagen QR de cobro (CoDi, BBVA, BBVA Wallet, etc.). Se mostrará al cajero para que el cliente escanee. La confirmación automática vía Cobrar.io se activa al configurar COBRAR_WEBHOOK_SECRET en las variables de entorno."
       >
         <Card>
           <FormLayout>
@@ -554,7 +565,13 @@ export function PaymentsSection({
                 <img
                   src={cobrarQrUrlField.value}
                   alt="Vista previa QR"
-                  style={{ width: 150, height: 150, objectFit: 'contain', border: '1px solid #e1e3e5', borderRadius: 8 }}
+                  style={{
+                    width: 150,
+                    height: 150,
+                    objectFit: 'contain',
+                    border: '1px solid #e1e3e5',
+                    borderRadius: 8,
+                  }}
                 />
               </Box>
             )}
@@ -572,7 +589,9 @@ export function PaymentsSection({
         <Card>
           <BlockStack gap="400">
             <InlineStack gap="300" blockAlign="center">
-              <Text variant="headingSm" as="h3">Conekta</Text>
+              <Text variant="headingSm" as="h3">
+                Conekta
+              </Text>
               {loadingStatus ? (
                 <Spinner size="small" />
               ) : conektaStatus?.connected ? (
@@ -595,7 +614,9 @@ export function PaymentsSection({
                 </Banner>
                 {conektaStatus.publicKey && (
                   <InlineStack align="space-between">
-                    <Text variant="bodySm" as="span" tone="subdued">Public Key</Text>
+                    <Text variant="bodySm" as="span" tone="subdued">
+                      Public Key
+                    </Text>
                     <Text variant="bodySm" as="span" tone="subdued">
                       {conektaStatus.publicKey.slice(0, 20)}...
                     </Text>
@@ -613,11 +634,7 @@ export function PaymentsSection({
                 </Banner>
                 <FormLayout>
                   <InlineStack gap="300">
-                    <Button
-                      size="slim"
-                      pressed={conektaEnv === 'sandbox'}
-                      onClick={() => setConektaEnv('sandbox')}
-                    >
+                    <Button size="slim" pressed={conektaEnv === 'sandbox'} onClick={() => setConektaEnv('sandbox')}>
                       Sandbox
                     </Button>
                     <Button
@@ -668,7 +685,9 @@ export function PaymentsSection({
         <Card>
           <BlockStack gap="400">
             <InlineStack gap="300" blockAlign="center">
-              <Text variant="headingSm" as="h3">Stripe</Text>
+              <Text variant="headingSm" as="h3">
+                Stripe
+              </Text>
               {loadingStatus ? (
                 <Spinner size="small" />
               ) : stripeStatus?.connected ? (
@@ -691,7 +710,9 @@ export function PaymentsSection({
                 </Banner>
                 {stripeStatus.publishableKey && (
                   <InlineStack align="space-between">
-                    <Text variant="bodySm" as="span" tone="subdued">Publishable Key</Text>
+                    <Text variant="bodySm" as="span" tone="subdued">
+                      Publishable Key
+                    </Text>
                     <Text variant="bodySm" as="span" tone="subdued">
                       {stripeStatus.publishableKey.slice(0, 20)}...
                     </Text>
@@ -709,18 +730,10 @@ export function PaymentsSection({
                 </Banner>
                 <FormLayout>
                   <InlineStack gap="300">
-                    <Button
-                      size="slim"
-                      pressed={stripeEnv === 'sandbox'}
-                      onClick={() => setStripeEnv('sandbox')}
-                    >
+                    <Button size="slim" pressed={stripeEnv === 'sandbox'} onClick={() => setStripeEnv('sandbox')}>
                       Test
                     </Button>
-                    <Button
-                      size="slim"
-                      pressed={stripeEnv === 'production'}
-                      onClick={() => setStripeEnv('production')}
-                    >
+                    <Button size="slim" pressed={stripeEnv === 'production'} onClick={() => setStripeEnv('production')}>
                       Producción
                     </Button>
                   </InlineStack>
@@ -773,7 +786,9 @@ export function PaymentsSection({
         <Card>
           <BlockStack gap="400">
             <InlineStack gap="300" blockAlign="center">
-              <Text variant="headingSm" as="h3">Clip</Text>
+              <Text variant="headingSm" as="h3">
+                Clip
+              </Text>
               {loadingStatus ? (
                 <Spinner size="small" />
               ) : clipStatus?.connected ? (
@@ -796,7 +811,9 @@ export function PaymentsSection({
                 </Banner>
                 {clipStatus.apiKey && (
                   <InlineStack align="space-between">
-                    <Text variant="bodySm" as="span" tone="subdued">API Key</Text>
+                    <Text variant="bodySm" as="span" tone="subdued">
+                      API Key
+                    </Text>
                     <Text variant="bodySm" as="span" tone="subdued">
                       {clipStatus.apiKey.slice(0, 12)}...
                     </Text>
@@ -804,7 +821,9 @@ export function PaymentsSection({
                 )}
                 {clipStatus.serialNumber && (
                   <InlineStack align="space-between">
-                    <Text variant="bodySm" as="span" tone="subdued">Terminal</Text>
+                    <Text variant="bodySm" as="span" tone="subdued">
+                      Terminal
+                    </Text>
                     <Text variant="bodySm" as="span" tone="subdued">
                       {clipStatus.serialNumber}
                     </Text>
@@ -818,22 +837,17 @@ export function PaymentsSection({
             ) : (
               <BlockStack gap="300">
                 <Banner tone="info">
-                  <p>Ingresa tus credenciales de Clip. Las encuentras en Dashboard → Panel de Desarrollador → Credenciales.</p>
+                  <p>
+                    Ingresa tus credenciales de Clip. Las encuentras en Dashboard → Panel de Desarrollador →
+                    Credenciales.
+                  </p>
                 </Banner>
                 <FormLayout>
                   <InlineStack gap="300">
-                    <Button
-                      size="slim"
-                      pressed={clipEnv === 'sandbox'}
-                      onClick={() => setClipEnv('sandbox')}
-                    >
+                    <Button size="slim" pressed={clipEnv === 'sandbox'} onClick={() => setClipEnv('sandbox')}>
                       Pruebas
                     </Button>
-                    <Button
-                      size="slim"
-                      pressed={clipEnv === 'production'}
-                      onClick={() => setClipEnv('production')}
-                    >
+                    <Button size="slim" pressed={clipEnv === 'production'} onClick={() => setClipEnv('production')}>
                       Producción
                     </Button>
                   </InlineStack>
@@ -886,18 +900,22 @@ export function PaymentsSection({
           loading: mpDisconnecting,
           destructive: true,
         }}
-        secondaryActions={[
-          { content: 'Cancelar', onAction: () => setDisconnectModalOpen(false) },
-        ]}
+        secondaryActions={[{ content: 'Cancelar', onAction: () => setDisconnectModalOpen(false) }]}
       >
         <Modal.Section>
           <BlockStack gap="300">
             <Banner tone="warning">
-              <p>Al desconectar, se eliminar\u00e1n los tokens de acceso almacenados y no podr\u00e1s procesar pagos con MercadoPago hasta reconectar.</p>
+              <p>
+                Al desconectar, se eliminar\u00e1n los tokens de acceso almacenados y no podr\u00e1s procesar pagos con
+                MercadoPago hasta reconectar.
+              </p>
             </Banner>
             {mpConnection?.email && (
               <Text variant="bodyMd" as="p">
-                Cuenta: <Text as="span" fontWeight="semibold">{mpConnection.email}</Text>
+                Cuenta:{' '}
+                <Text as="span" fontWeight="semibold">
+                  {mpConnection.email}
+                </Text>
               </Text>
             )}
           </BlockStack>
@@ -914,13 +932,14 @@ export function PaymentsSection({
           onAction: handleConektaDisconnect,
           destructive: true,
         }}
-        secondaryActions={[
-          { content: 'Cancelar', onAction: () => setConektaDisconnectOpen(false) },
-        ]}
+        secondaryActions={[{ content: 'Cancelar', onAction: () => setConektaDisconnectOpen(false) }]}
       >
         <Modal.Section>
           <Banner tone="warning">
-            <p>Al desconectar, se eliminarán las API Keys almacenadas y los pagos SPEI/OXXO automáticos vía Conekta dejarán de funcionar.</p>
+            <p>
+              Al desconectar, se eliminarán las API Keys almacenadas y los pagos SPEI/OXXO automáticos vía Conekta
+              dejarán de funcionar.
+            </p>
           </Banner>
         </Modal.Section>
       </Modal>
@@ -935,13 +954,14 @@ export function PaymentsSection({
           onAction: handleStripeDisconnect,
           destructive: true,
         }}
-        secondaryActions={[
-          { content: 'Cancelar', onAction: () => setStripeDisconnectOpen(false) },
-        ]}
+        secondaryActions={[{ content: 'Cancelar', onAction: () => setStripeDisconnectOpen(false) }]}
       >
         <Modal.Section>
           <Banner tone="warning">
-            <p>Al desconectar, se eliminarán las API Keys almacenadas y los pagos SPEI/OXXO automáticos vía Stripe dejarán de funcionar.</p>
+            <p>
+              Al desconectar, se eliminarán las API Keys almacenadas y los pagos SPEI/OXXO automáticos vía Stripe
+              dejarán de funcionar.
+            </p>
           </Banner>
         </Modal.Section>
       </Modal>
@@ -956,13 +976,14 @@ export function PaymentsSection({
           onAction: handleClipDisconnect,
           destructive: true,
         }}
-        secondaryActions={[
-          { content: 'Cancelar', onAction: () => setClipDisconnectOpen(false) },
-        ]}
+        secondaryActions={[{ content: 'Cancelar', onAction: () => setClipDisconnectOpen(false) }]}
       >
         <Modal.Section>
           <Banner tone="warning">
-            <p>Al desconectar, se eliminarán las credenciales almacenadas y los pagos con tarjeta vía Clip dejarán de funcionar.</p>
+            <p>
+              Al desconectar, se eliminarán las credenciales almacenadas y los pagos con tarjeta vía Clip dejarán de
+              funcionar.
+            </p>
           </Banner>
         </Modal.Section>
       </Modal>

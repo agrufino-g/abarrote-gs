@@ -53,26 +53,29 @@ export function MPSearchPanel() {
   const [results, setResults] = useState<MPSearchResult | null>(null);
   const [offset, setOffset] = useState(0);
 
-  const handleSearch = useCallback(async (pageOffset = 0) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await searchMPPayments({
-        status: status || undefined,
-        beginDate: beginDate || undefined,
-        endDate: endDate || undefined,
-        externalReference: reference || undefined,
-        offset: pageOffset,
-        limit: 30,
-      });
-      setResults(data);
-      setOffset(pageOffset);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al buscar');
-    } finally {
-      setLoading(false);
-    }
-  }, [status, beginDate, endDate, reference]);
+  const handleSearch = useCallback(
+    async (pageOffset = 0) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await searchMPPayments({
+          status: status || undefined,
+          beginDate: beginDate || undefined,
+          endDate: endDate || undefined,
+          externalReference: reference || undefined,
+          offset: pageOffset,
+          limit: 30,
+        });
+        setResults(data);
+        setOffset(pageOffset);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al buscar');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [status, beginDate, endDate, reference],
+  );
 
   const handleClear = useCallback(() => {
     setStatus('');
@@ -93,16 +96,18 @@ export function MPSearchPanel() {
     { label: 'Cancelados', value: 'cancelled' },
   ];
 
-  const hasNextPage = results && (offset + 30) < results.paging.total;
+  const hasNextPage = results && offset + 30 < results.paging.total;
   const hasPrevPage = offset > 0;
 
   return (
     <Card>
       <BlockStack gap="400">
-        <Text variant="headingMd" as="h3">Buscar pagos en MercadoPago</Text>
+        <Text variant="headingMd" as="h3">
+          Buscar pagos en MercadoPago
+        </Text>
         <Text variant="bodySm" as="p" tone="subdued">
-          Busca directamente en la API de MercadoPago. Incluye todos los pagos de tu cuenta,
-          no solo los registrados en el sistema.
+          Busca directamente en la API de MercadoPago. Incluye todos los pagos de tu cuenta, no solo los registrados en
+          el sistema.
         </Text>
 
         <Divider />
@@ -115,30 +120,13 @@ export function MPSearchPanel() {
 
         <InlineStack gap="300" wrap>
           <Box minWidth="160px">
-            <Select
-              label="Estatus"
-              options={statusOptions}
-              value={status}
-              onChange={setStatus}
-            />
+            <Select label="Estatus" options={statusOptions} value={status} onChange={setStatus} />
           </Box>
           <Box minWidth="160px">
-            <TextField
-              label="Desde"
-              type="date"
-              value={beginDate}
-              onChange={setBeginDate}
-              autoComplete="off"
-            />
+            <TextField label="Desde" type="date" value={beginDate} onChange={setBeginDate} autoComplete="off" />
           </Box>
           <Box minWidth="160px">
-            <TextField
-              label="Hasta"
-              type="date"
-              value={endDate}
-              onChange={setEndDate}
-              autoComplete="off"
-            />
+            <TextField label="Hasta" type="date" value={endDate} onChange={setEndDate} autoComplete="off" />
           </Box>
           <Box minWidth="200px">
             <TextField
@@ -177,8 +165,7 @@ export function MPSearchPanel() {
         {results && results.results.length > 0 && (
           <BlockStack gap="300">
             <Text variant="bodySm" as="p" tone="subdued">
-              Mostrando {offset + 1}–{Math.min(offset + 30, results.paging.total)} de{' '}
-              {results.paging.total} pagos
+              Mostrando {offset + 1}–{Math.min(offset + 30, results.paging.total)} de {results.paging.total} pagos
             </Text>
 
             <IndexTable
@@ -198,11 +185,7 @@ export function MPSearchPanel() {
               {results.results.map((payment, index) => {
                 const totalFee = payment.fee_details?.reduce((sum, f) => sum + f.amount, 0) ?? 0;
                 return (
-                  <IndexTable.Row
-                    id={String(payment.id)}
-                    key={payment.id}
-                    position={index}
-                  >
+                  <IndexTable.Row id={String(payment.id)} key={payment.id} position={index}>
                     <IndexTable.Cell>
                       <Text variant="bodySm" fontWeight="semibold" as="span">
                         {payment.id}
@@ -223,9 +206,7 @@ export function MPSearchPanel() {
                         {payment.payment_method_id} ({payment.payment_type_id})
                       </Text>
                     </IndexTable.Cell>
-                    <IndexTable.Cell>
-                      {statusBadge(payment.status)}
-                    </IndexTable.Cell>
+                    <IndexTable.Cell>{statusBadge(payment.status)}</IndexTable.Cell>
                     <IndexTable.Cell>
                       <Text variant="bodySm" as="span" truncate>
                         {payment.description || payment.external_reference || '—'}
@@ -242,16 +223,8 @@ export function MPSearchPanel() {
             </IndexTable>
 
             <InlineStack align="center" gap="200">
-              {hasPrevPage && (
-                <Button onClick={() => handleSearch(Math.max(0, offset - 30))}>
-                  ← Anterior
-                </Button>
-              )}
-              {hasNextPage && (
-                <Button onClick={() => handleSearch(offset + 30)}>
-                  Siguiente →
-                </Button>
-              )}
+              {hasPrevPage && <Button onClick={() => handleSearch(Math.max(0, offset - 30))}>← Anterior</Button>}
+              {hasNextPage && <Button onClick={() => handleSearch(offset + 30)}>Siguiente →</Button>}
             </InlineStack>
           </BlockStack>
         )}

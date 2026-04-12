@@ -20,13 +20,7 @@ import {
   Tabs,
   Thumbnail,
 } from '@shopify/polaris';
-import {
-  PlusIcon,
-  SearchIcon,
-  EditIcon,
-  DeleteIcon,
-  ImageIcon,
-} from '@shopify/polaris-icons';
+import { PlusIcon, SearchIcon, EditIcon, DeleteIcon, ImageIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
 
@@ -67,29 +61,27 @@ export default function CategoriesPage() {
     return counts;
   }, [products]);
 
-  const uncategorizedCount = useMemo(
-    () => products.filter((p) => !p.category).length,
-    [products],
-  );
+  const uncategorizedCount = useMemo(() => products.filter((p) => !p.category).length, [products]);
 
   const totalCategorized = products.length - uncategorizedCount;
-  const coveragePercent = products.length > 0
-    ? Math.round((totalCategorized / products.length) * 100)
-    : 0;
+  const coveragePercent = products.length > 0 ? Math.round((totalCategorized / products.length) * 100) : 0;
 
-  const tabs = useMemo(() => [
-    { id: 'all', content: `Todas (${categories.length})`, panelID: 'all-panel' },
-    {
-      id: 'active',
-      content: `Con productos (${categories.filter((c) => (productCounts.get(c.id) ?? productCounts.get(c.name) ?? 0) > 0).length})`,
-      panelID: 'active-panel',
-    },
-    {
-      id: 'empty',
-      content: `Vacías (${categories.filter((c) => (productCounts.get(c.id) ?? productCounts.get(c.name) ?? 0) === 0).length})`,
-      panelID: 'empty-panel',
-    },
-  ], [categories, productCounts]);
+  const tabs = useMemo(
+    () => [
+      { id: 'all', content: `Todas (${categories.length})`, panelID: 'all-panel' },
+      {
+        id: 'active',
+        content: `Con productos (${categories.filter((c) => (productCounts.get(c.id) ?? productCounts.get(c.name) ?? 0) > 0).length})`,
+        panelID: 'active-panel',
+      },
+      {
+        id: 'empty',
+        content: `Vacías (${categories.filter((c) => (productCounts.get(c.id) ?? productCounts.get(c.name) ?? 0) === 0).length})`,
+        panelID: 'empty-panel',
+      },
+    ],
+    [categories, productCounts],
+  );
 
   const filteredCategories = useMemo(() => {
     let list = [...categories];
@@ -105,9 +97,7 @@ export default function CategoriesPage() {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          (c.description && c.description.toLowerCase().includes(q)),
+        (c) => c.name.toLowerCase().includes(q) || (c.description && c.description.toLowerCase().includes(q)),
       );
     }
 
@@ -134,15 +124,12 @@ export default function CategoriesPage() {
     }
   }, [newName, newDescription, createCategory, showSuccess, showError]);
 
-  const openEditModal = useCallback(
-    (cat: { id: string; name: string; description?: string | null }) => {
-      setEditId(cat.id);
-      setEditName(cat.name);
-      setEditDescription(cat.description || '');
-      setEditModalOpen(true);
-    },
-    [],
-  );
+  const openEditModal = useCallback((cat: { id: string; name: string; description?: string | null }) => {
+    setEditId(cat.id);
+    setEditName(cat.name);
+    setEditDescription(cat.description || '');
+    setEditModalOpen(true);
+  }, []);
 
   const handleUpdate = useCallback(async () => {
     if (!editId || !editName.trim()) return;
@@ -161,24 +148,16 @@ export default function CategoriesPage() {
     }
   }, [editId, editName, editDescription, updateCategory, showSuccess, showError]);
 
-  const openDeleteModal = useCallback(
-    (id: string, name: string) => {
-      setDeleteTarget({ id, name });
-      setDeleteModalOpen(true);
-    },
-    [],
-  );
+  const openDeleteModal = useCallback((id: string, name: string) => {
+    setDeleteTarget({ id, name });
+    setDeleteModalOpen(true);
+  }, []);
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
-    const count =
-      productCounts.get(deleteTarget.id) ??
-      productCounts.get(deleteTarget.name) ??
-      0;
+    const count = productCounts.get(deleteTarget.id) ?? productCounts.get(deleteTarget.name) ?? 0;
     if (count > 0) {
-      showError(
-        `No se puede eliminar "${deleteTarget.name}" porque tiene ${count} productos asignados`,
-      );
+      showError(`No se puede eliminar "${deleteTarget.name}" porque tiene ${count} productos asignados`);
       setDeleteModalOpen(false);
       return;
     }
@@ -205,7 +184,6 @@ export default function CategoriesPage() {
       }}
     >
       <BlockStack gap="400">
-
         {/* ── Coverage indicator ── */}
         {products.length > 0 && (
           <Card padding="400">
@@ -263,7 +241,7 @@ export default function CategoriesPage() {
                   image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                   action={{
                     content: 'Crear primera categoría',
-                    onAction: () => setCreateModalOpen(true)
+                    onAction: () => setCreateModalOpen(true),
                   }}
                 >
                   <Text as="p" tone="subdued">
@@ -276,7 +254,10 @@ export default function CategoriesPage() {
                   image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                   action={{
                     content: 'Limpiar filtros',
-                    onAction: () => { setSearchQuery(''); setSelectedTab(0); }
+                    onAction: () => {
+                      setSearchQuery('');
+                      setSelectedTab(0);
+                    },
                   }}
                 >
                   <Text as="p" tone="subdued">
@@ -297,19 +278,16 @@ export default function CategoriesPage() {
                 >
                   {filteredCategories.map((cat, index) => {
                     const count = productCounts.get(cat.id) ?? productCounts.get(cat.name) ?? 0;
-                    const initials = cat.name.trim().split(/\s+/).length >= 2
-                      ? (cat.name.trim().split(/\s+/)[0][0] + cat.name.trim().split(/\s+/)[1][0]).toUpperCase()
-                      : cat.name.slice(0, 2).toUpperCase();
+                    const initials =
+                      cat.name.trim().split(/\s+/).length >= 2
+                        ? (cat.name.trim().split(/\s+/)[0][0] + cat.name.trim().split(/\s+/)[1][0]).toUpperCase()
+                        : cat.name.slice(0, 2).toUpperCase();
 
                     return (
                       <IndexTable.Row id={cat.id} key={cat.id} position={index}>
                         <IndexTable.Cell>
                           <InlineStack gap="300" blockAlign="center">
-                            <Thumbnail
-                              source={ImageIcon}
-                              alt={cat.name}
-                              size="small"
-                            />
+                            <Thumbnail source={ImageIcon} alt={cat.name} size="small" />
                             <BlockStack gap="050">
                               <Text variant="bodyMd" as="span" fontWeight="semibold">
                                 {cat.name}
@@ -327,16 +305,17 @@ export default function CategoriesPage() {
                           </InlineStack>
                         </IndexTable.Cell>
                         <IndexTable.Cell>
-                          <Text as="span" variant="bodyMd" alignment="end" fontWeight={count > 0 ? 'semibold' : 'regular'}>
+                          <Text
+                            as="span"
+                            variant="bodyMd"
+                            alignment="end"
+                            fontWeight={count > 0 ? 'semibold' : 'regular'}
+                          >
                             {String(count)}
                           </Text>
                         </IndexTable.Cell>
                         <IndexTable.Cell>
-                          {count > 0 ? (
-                            <Badge tone="success">Activa</Badge>
-                          ) : (
-                            <Badge>Vacía</Badge>
-                          )}
+                          {count > 0 ? <Badge tone="success">Activa</Badge> : <Badge>Vacía</Badge>}
                         </IndexTable.Cell>
                         <IndexTable.Cell>
                           <InlineStack gap="100" align="end">
@@ -382,9 +361,7 @@ export default function CategoriesPage() {
           loading: isSubmitting,
           disabled: !newName.trim(),
         }}
-        secondaryActions={[
-          { content: 'Cancelar', onAction: () => setCreateModalOpen(false) },
-        ]}
+        secondaryActions={[{ content: 'Cancelar', onAction: () => setCreateModalOpen(false) }]}
       >
         <Modal.Section>
           <BlockStack gap="400">
@@ -424,9 +401,7 @@ export default function CategoriesPage() {
           loading: isUpdating,
           disabled: !editName.trim(),
         }}
-        secondaryActions={[
-          { content: 'Cancelar', onAction: () => setEditModalOpen(false) },
-        ]}
+        secondaryActions={[{ content: 'Cancelar', onAction: () => setEditModalOpen(false) }]}
       >
         <Modal.Section>
           <BlockStack gap="400">
@@ -462,15 +437,11 @@ export default function CategoriesPage() {
           loading: isDeleting,
           destructive: true,
         }}
-        secondaryActions={[
-          { content: 'Cancelar', onAction: () => setDeleteModalOpen(false) },
-        ]}
+        secondaryActions={[{ content: 'Cancelar', onAction: () => setDeleteModalOpen(false) }]}
       >
         <Modal.Section>
           <BlockStack gap="300">
-            <Text as="p">
-              {`¿Estás seguro de eliminar la categoría "${deleteTarget?.name}"?`}
-            </Text>
+            <Text as="p">{`¿Estás seguro de eliminar la categoría "${deleteTarget?.name}"?`}</Text>
             <Text as="p" tone="subdued" variant="bodySm">
               Esta acción no se puede deshacer. Los productos asignados quedarán sin categoría.
             </Text>

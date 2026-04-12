@@ -10,7 +10,7 @@ import { CortesHistory } from '@/components/caja/CortesHistory';
 export default function CortePage() {
   const [corteModalOpen, setCorteModalOpen] = useState(false);
 
-  const fancyTitle = (
+  const _fancyTitle = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <Icon source={OrderFilledIcon} tone="base" />
       <span>Corte de Caja</span>
@@ -19,7 +19,7 @@ export default function CortePage() {
 
   return (
     <>
-      <Page fullWidth title={fancyTitle as any}>
+      <Page fullWidth title="Corte de Caja">
         <BlockStack gap="400">
           <InlineStack align="end">
             <Button variant="primary" onClick={() => setCorteModalOpen(true)}>

@@ -45,66 +45,71 @@ describe('Product Entity', () => {
 
   describe('invariant validation', () => {
     it('should throw if ID is empty', () => {
-      expect(() => Product.create({ ...validProductProps(), id: '' }))
-        .toThrow('Product: ID is required');
+      expect(() => Product.create({ ...validProductProps(), id: '' })).toThrow('Product: ID is required');
     });
 
     it('should throw if ID is whitespace', () => {
-      expect(() => Product.create({ ...validProductProps(), id: '   ' }))
-        .toThrow('Product: ID is required');
+      expect(() => Product.create({ ...validProductProps(), id: '   ' })).toThrow('Product: ID is required');
     });
 
     it('should throw if name is empty', () => {
-      expect(() => Product.create({ ...validProductProps(), name: '' }))
-        .toThrow('Product: Name is required');
+      expect(() => Product.create({ ...validProductProps(), name: '' })).toThrow('Product: Name is required');
     });
 
     it('should throw if SKU is empty', () => {
-      expect(() => Product.create({ ...validProductProps(), sku: '' }))
-        .toThrow('Product: SKU is required');
+      expect(() => Product.create({ ...validProductProps(), sku: '' })).toThrow('Product: SKU is required');
     });
 
     it('should throw if barcode is empty', () => {
-      expect(() => Product.create({ ...validProductProps(), barcode: '' }))
-        .toThrow('Product: Barcode is required');
+      expect(() => Product.create({ ...validProductProps(), barcode: '' })).toThrow('Product: Barcode is required');
     });
 
     it('should throw if cost price is zero', () => {
-      expect(() => Product.create({
-        ...validProductProps(),
-        costPrice: Money.zero(),
-      })).toThrow('Product: Cost price must be positive');
+      expect(() =>
+        Product.create({
+          ...validProductProps(),
+          costPrice: Money.zero(),
+        }),
+      ).toThrow('Product: Cost price must be positive');
     });
 
     it('should throw if unit price is zero', () => {
-      expect(() => Product.create({
-        ...validProductProps(),
-        unitPrice: Money.zero(),
-      })).toThrow('Product: Unit price must be positive');
+      expect(() =>
+        Product.create({
+          ...validProductProps(),
+          unitPrice: Money.zero(),
+        }),
+      ).toThrow('Product: Unit price must be positive');
     });
 
     it('should throw if unit price is less than cost price', () => {
-      expect(() => Product.create({
-        ...validProductProps(),
-        costPrice: Money.fromPesos(25),
-        unitPrice: Money.fromPesos(20),
-      })).toThrow('Product: Unit price must be greater than cost price');
+      expect(() =>
+        Product.create({
+          ...validProductProps(),
+          costPrice: Money.fromPesos(25),
+          unitPrice: Money.fromPesos(20),
+        }),
+      ).toThrow('Product: Unit price must be greater than cost price');
     });
 
     it('should throw if unit price equals cost price', () => {
-      expect(() => Product.create({
-        ...validProductProps(),
-        costPrice: Money.fromPesos(20),
-        unitPrice: Money.fromPesos(20),
-      })).toThrow('Product: Unit price must be greater than cost price');
+      expect(() =>
+        Product.create({
+          ...validProductProps(),
+          costPrice: Money.fromPesos(20),
+          unitPrice: Money.fromPesos(20),
+        }),
+      ).toThrow('Product: Unit price must be greater than cost price');
     });
 
     it('should throw if perishable without expiration date', () => {
-      expect(() => Product.create({
-        ...validProductProps(),
-        isPerishable: true,
-        expirationDate: null,
-      })).toThrow('Product: Perishable products require expiration date');
+      expect(() =>
+        Product.create({
+          ...validProductProps(),
+          isPerishable: true,
+          expirationDate: null,
+        }),
+      ).toThrow('Product: Perishable products require expiration date');
     });
 
     it('should allow perishable with expiration date', () => {

@@ -1,13 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Modal,
-  FormLayout,
-  TextField,
-  Select,
-  Banner,
-} from '@shopify/polaris';
+import { Modal, FormLayout, TextField, Select, Banner } from '@shopify/polaris';
 import type { RoleDefinition } from '@/types';
 
 interface AddUserModalProps {
@@ -42,6 +36,7 @@ export function AddUserModal({
   const [formPinCode, setFormPinCode] = useState('');
 
   // Reset form when modal opens
+  /* eslint-disable react-hooks/set-state-in-effect -- intentional form reset on open */
   useEffect(() => {
     if (open) {
       setFormEmail('');
@@ -51,6 +46,7 @@ export function AddUserModal({
       setFormPinCode('');
     }
   }, [open, defaultRoleId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleClose = useCallback(() => {
     onClose();
@@ -106,12 +102,7 @@ export function AddUserModal({
             placeholder="Min. 6 caracteres"
             helpText="La contraseña inicial para que el usuario inicie sesión."
           />
-          <Select
-            label="Rol"
-            options={roleSelectOptions}
-            value={formRoleId}
-            onChange={setFormRoleId}
-          />
+          <Select label="Rol" options={roleSelectOptions} value={formRoleId} onChange={setFormRoleId} />
           <TextField
             label="PIN de Aprobación (Opcional)"
             type="password"
@@ -124,7 +115,9 @@ export function AddUserModal({
           />
           {formRoleId && roleMap.get(formRoleId) && (
             <Banner tone="info">
-              <p><strong>{roleMap.get(formRoleId)!.name}:</strong> {roleMap.get(formRoleId)!.description}</p>
+              <p>
+                <strong>{roleMap.get(formRoleId)!.name}:</strong> {roleMap.get(formRoleId)!.description}
+              </p>
             </Banner>
           )}
         </FormLayout>

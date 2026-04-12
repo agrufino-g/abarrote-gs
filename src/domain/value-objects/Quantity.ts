@@ -1,6 +1,6 @@
 /**
  * Quantity Value Object
- * 
+ *
  * Represents a non-negative quantity of items.
  * Used for stock counts, sale quantities, order quantities, etc.
  *

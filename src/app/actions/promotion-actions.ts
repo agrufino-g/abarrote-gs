@@ -1,6 +1,6 @@
 'use server';
 
-import { requirePermission, validateId, sanitize } from '@/lib/auth/guard';
+import { requirePermission, sanitize } from '@/lib/auth/guard';
 import { withLogging } from '@/lib/errors';
 import { db } from '@/db';
 import { promotions } from '@/db/schema';
@@ -34,9 +34,7 @@ async function _fetchActivePromotions(): Promise<Promotion[]> {
     )
     .orderBy(desc(promotions.createdAt));
 
-  return rows
-    .filter((r) => r.usageLimit === null || r.usageCount < r.usageLimit!)
-    .map(mapRow);
+  return rows.filter((r) => r.usageLimit === null || r.usageCount < r.usageLimit!).map(mapRow);
 }
 
 // ==================== CRUD ====================
@@ -90,7 +88,8 @@ async function _updatePromotion(id: string, data: Partial<Promotion>): Promise<v
   if (data.type !== undefined) updateData.type = data.type;
   if (data.value !== undefined) updateData.value = String(data.value);
   if (data.minPurchase !== undefined) updateData.minPurchase = String(data.minPurchase);
-  if (data.maxDiscount !== undefined) updateData.maxDiscount = data.maxDiscount != null ? String(data.maxDiscount) : null;
+  if (data.maxDiscount !== undefined)
+    updateData.maxDiscount = data.maxDiscount != null ? String(data.maxDiscount) : null;
   if (data.applicableTo !== undefined) updateData.applicableTo = data.applicableTo;
   if (data.applicableIds !== undefined) updateData.applicableIds = data.applicableIds;
   if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
@@ -116,9 +115,12 @@ async function _togglePromotionActive(id: string, active: boolean): Promise<void
 async function _incrementPromotionUsage(id: string): Promise<void> {
   await requirePermission('sales.create');
   validateSchema(idSchema, id, 'incrementPromotionUsage:id');
-  await db.update(promotions).set({
-    usageCount: sql`${promotions.usageCount} + 1`,
-  }).where(eq(promotions.id, id));
+  await db
+    .update(promotions)
+    .set({
+      usageCount: sql`${promotions.usageCount} + 1`,
+    })
+    .where(eq(promotions.id, id));
 }
 
 // ==================== HELPERS ====================

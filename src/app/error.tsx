@@ -71,20 +71,13 @@ function categorizeError(error: Error & { digest?: string }): ErrorInfo {
   };
 }
 
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const info = categorizeError(error);
 
   useEffect(() => {
     // Log error digest for server-side correlation
     // In production, this could send to an observability platform
     if (error.digest) {
-      // eslint-disable-next-line no-console
       console.error(`[ErrorBoundary] digest=${error.digest}`);
     }
   }, [error.digest]);
@@ -105,9 +98,7 @@ export default function GlobalError({
         )}
 
         <InlineStack gap="200">
-          {info.recoverable && (
-            <Button onClick={reset}>Reintentar</Button>
-          )}
+          {info.recoverable && <Button onClick={reset}>Reintentar</Button>}
           <Button url="/dashboard" variant="plain">
             Ir al Dashboard
           </Button>

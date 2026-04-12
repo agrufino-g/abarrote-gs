@@ -5,16 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signInWithEmailAndPassword, OAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import {
-  Card,
-  FormLayout,
-  TextField,
-  Button,
-  BlockStack,
-  Box,
-  Text,
-  InlineStack,
-} from '@shopify/polaris';
+import { Card, FormLayout, TextField, Button, BlockStack, Box, Text, InlineStack } from '@shopify/polaris';
 import { useToast } from '@/components/notifications/ToastProvider';
 
 export function LoginForm() {
@@ -46,12 +37,17 @@ export function LoginForm() {
       await signInWithPopup(auth, provider);
       toast.showSuccess('Bienvenido al sistema con Microsoft');
       router.push('/');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Microsoft SignIn error:', error);
-      if (error?.code === 'auth/account-exists-with-different-credential') {
-        toast.showError('Ya existe una cuenta con este correo. Inicia sesión con contraseña y ve a "Perfil" para vincular.');
-      } else if (error?.message?.includes('not configured as a multi-tenant application')) {
-        toast.showError('Error: Configura el NEXT_PUBLIC_MICROSOFT_TENANT_ID en tu archivo .env.local, o convierte tu app de Azure en Multi-Tenant.');
+      const err = error as { code?: string; message?: string };
+      if (err.code === 'auth/account-exists-with-different-credential') {
+        toast.showError(
+          'Ya existe una cuenta con este correo. Inicia sesión con contraseña y ve a "Perfil" para vincular.',
+        );
+      } else if (err.message?.includes('not configured as a multi-tenant application')) {
+        toast.showError(
+          'Error: Configura el NEXT_PUBLIC_MICROSOFT_TENANT_ID en tu archivo .env.local, o convierte tu app de Azure en Multi-Tenant.',
+        );
       } else {
         toast.showError('Error al conectarse a Microsoft. Contacta al administrador.');
       }
@@ -60,50 +56,57 @@ export function LoginForm() {
     }
   }, [router, toast]);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    if (!email || !password) {
-      toast.showError('Por favor completa todos los campos');
-      return;
-    }
+      if (!email || !password) {
+        toast.showError('Por favor completa todos los campos');
+        return;
+      }
 
-    setIsLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast.showSuccess('Bienvenido al sistema');
-      router.push('/');
-    } catch (error: any) {
-      console.error('SignIn error:', error);
-      const errorMessage = error?.code === 'auth/invalid-credential'
-        ? 'Correo o contraseña incorrectos'
-        : 'Error al iniciar sesión. Inténtalo de nuevo.';
-      toast.showError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email, password, router, toast]);
+      setIsLoading(true);
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        toast.showSuccess('Bienvenido al sistema');
+        router.push('/');
+      } catch (error: unknown) {
+        console.error('SignIn error:', error);
+        const err = error as { code?: string };
+        const errorMessage =
+          err.code === 'auth/invalid-credential'
+            ? 'Correo o contraseña incorrectos'
+            : 'Error al iniciar sesión. Inténtalo de nuevo.';
+        toast.showError(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [email, password, router, toast],
+  );
 
   return (
     <Box width="100%" maxWidth="440px">
       <Card>
         <BlockStack gap="600">
           <BlockStack gap="400" align="center">
-            <div style={{
-              padding: '24px 0 12px 0',
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <img 
-                src="/login-brand.svg" 
-                alt="Logo" 
-                style={{ 
-                  width: '200px', 
-                  height: 'auto'
-                }} 
+            <div
+              style={{
+                padding: '24px 0 12px 0',
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <img
+                src="/login-brand.svg"
+                alt="Logo"
+                style={{
+                  width: '200px',
+                  height: 'auto',
+                }}
               />
             </div>
             <BlockStack gap="200" align="center">
@@ -144,7 +147,7 @@ export function LoginForm() {
                       fontSize: '13px',
                       color: '#0518d2',
                       textDecoration: 'none',
-                      fontWeight: '500'
+                      fontWeight: '500',
                     }}
                   >
                     ¿Olvidaste tu contraseña?
@@ -170,7 +173,9 @@ export function LoginForm() {
           <Box>
             <BlockStack gap="300">
               <div style={{ textAlign: 'center' }}>
-                <Text as="p" variant="bodyMd" tone="subdued">— o —</Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  — o —
+                </Text>
               </div>
               <Button
                 onClick={handleMicrosoftLogin}
@@ -201,7 +206,7 @@ export function LoginForm() {
                   style={{
                     color: '#0518d2',
                     fontWeight: '600',
-                    textDecoration: 'none'
+                    textDecoration: 'none',
                   }}
                 >
                   Contacta a TI para ayuda

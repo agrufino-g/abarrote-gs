@@ -10,10 +10,23 @@ const authHandler = auth.middleware({ loginUrl: '/auth/login' });
 // ══════════════════════════════════════════════════════════════
 
 const BOT_UA_PATTERNS = [
-  /sqlmap/i, /nikto/i, /masscan/i, /nmap/i, /zgrab/i,
-  /dirbuster/i, /gobuster/i, /nuclei/i, /hydra/i,
-  /metasploit/i, /havij/i, /acunetix/i, /nessus/i,
-  /openvas/i, /burpsuite/i, /\bscanner\b/i, /\bfuzzer\b/i,
+  /sqlmap/i,
+  /nikto/i,
+  /masscan/i,
+  /nmap/i,
+  /zgrab/i,
+  /dirbuster/i,
+  /gobuster/i,
+  /nuclei/i,
+  /hydra/i,
+  /metasploit/i,
+  /havij/i,
+  /acunetix/i,
+  /nessus/i,
+  /openvas/i,
+  /burpsuite/i,
+  /\bscanner\b/i,
+  /\bfuzzer\b/i,
 ];
 
 function isBlockedBot(request: NextRequest): boolean {
@@ -123,7 +136,7 @@ const CSP = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "upgrade-insecure-requests",
+  'upgrade-insecure-requests',
 ].join('; ');
 
 function applySecurityHeaders(response: NextResponse): NextResponse {
@@ -142,10 +155,7 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('Server', 'abarrote');
 
   if (!isDev) {
-    response.headers.set(
-      'Strict-Transport-Security',
-      'max-age=63072000; includeSubDomains; preload',
-    );
+    response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   }
 
   response.headers.set('Content-Security-Policy', CSP);

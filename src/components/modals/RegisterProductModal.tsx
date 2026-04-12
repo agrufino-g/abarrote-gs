@@ -7,7 +7,6 @@ import {
   FormLayout,
   TextField,
   Checkbox,
-  Banner,
   BlockStack,
   InlineStack,
   Text,
@@ -19,7 +18,7 @@ import {
   DatePicker,
   Icon,
 } from '@shopify/polaris';
-import { NoteIcon, CalendarIcon } from '@shopify/polaris-icons';
+import { CalendarIcon } from '@shopify/polaris-icons';
 import { FormSelect } from '@/components/ui/FormSelect';
 import { uploadFile, getProductImagePath } from '@/lib/storage';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -48,10 +47,10 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
   const categories = useDashboardStore((s) => s.categories);
   const storeConfig = useDashboardStore((s) => s.storeConfig);
   const { showSuccess, showError } = useToast();
-  
+
   const categoryOptions = [
     { label: 'Seleccionar categoría...', value: '' },
-    ...categories.map(c => ({ label: c.name, value: c.id }))
+    ...categories.map((c) => ({ label: c.name, value: c.id })),
   ];
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [{ month, year }, setDate] = useState({ month: new Date().getMonth(), year: new Date().getFullYear() });
@@ -60,9 +59,9 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
     fields,
     submit,
     submitting,
-    dirty,
+    dirty: _dirty,
     reset,
-    makeClean,
+    makeClean: _makeClean,
   } = useForm({
     fields: {
       name: useField({
@@ -108,10 +107,7 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
       unitMultiple: useField('1'),
       currentStock: useField({
         value: '',
-        validates: [
-          notEmpty('Ingresa el stock'),
-          (val) => (parseInt(val) < 0 ? 'No puede ser negativo' : undefined),
-        ],
+        validates: [notEmpty('Ingresa el stock'), (val) => (parseInt(val) < 0 ? 'No puede ser negativo' : undefined)],
       }),
       minStock: useField({
         value: '',
@@ -135,6 +131,7 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
       try {
         let imageUrl = undefined;
         if (file) {
+          // eslint-disable-next-line react-hooks/purity -- Date.now() used as fallback ID in event handler
           const path = getProductImagePath(form.sku || Date.now().toString(), file.name);
           imageUrl = await uploadFile(file, path);
         }
@@ -159,7 +156,7 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
         onClose();
         reset();
         setFile(null);
-      } catch (err: any) {
+      } catch (err: unknown) {
         const parsed = parseError(err);
         showError(parsed);
         return { status: 'fail', errors: [{ message: parsed.description }] };
@@ -171,8 +168,7 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
   const [file, setFile] = useState<File | null>(null);
 
   const handleDropZoneDrop = useCallback(
-    (_dropFiles: File[], acceptedFiles: File[], _rejectedFiles: File[]) =>
-      setFile(acceptedFiles[0]),
+    (_dropFiles: File[], acceptedFiles: File[], _rejectedFiles: File[]) => setFile(acceptedFiles[0]),
     [],
   );
 
@@ -181,14 +177,19 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
     const cost = parseFloat(fields.costPrice.value);
     if (!isNaN(cost) && cost > 0 && !fields.unitPrice.dirty) {
       const defaultMargin = parseFloat(storeConfig.defaultMargin || '30');
-      const calculatedPrice = cost + (cost * (defaultMargin / 100));
+      const calculatedPrice = cost + cost * (defaultMargin / 100);
       fields.unitPrice.onChange(calculatedPrice.toFixed(2));
     }
   }, [fields.costPrice.value, storeConfig.defaultMargin, fields.unitPrice]);
 
-  const margin = parseFloat(fields.unitPrice.value) > 0 && parseFloat(fields.costPrice.value) > 0
-    ? (((parseFloat(fields.unitPrice.value) - parseFloat(fields.costPrice.value)) / parseFloat(fields.costPrice.value)) * 100).toFixed(1)
-    : null;
+  const margin =
+    parseFloat(fields.unitPrice.value) > 0 && parseFloat(fields.costPrice.value) > 0
+      ? (
+          ((parseFloat(fields.unitPrice.value) - parseFloat(fields.costPrice.value)) /
+            parseFloat(fields.costPrice.value)) *
+          100
+        ).toFixed(1)
+      : null;
 
   const handleClose = useCallback(() => {
     reset();
@@ -199,11 +200,7 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
   const fileUploadMarkup = !file && <DropZone.FileUpload actionHint="Archivos permitidos: .jpg, .png, .gif" />;
   const uploadedFileMarkup = file && (
     <InlineStack gap="300" blockAlign="center">
-      <Thumbnail
-        size="small"
-        alt={file.name}
-        source={window.URL.createObjectURL(file)}
-      />
+      <Thumbnail size="small" alt={file.name} source={window.URL.createObjectURL(file)} />
       <div>
         {file.name}{' '}
         <Text variant="bodySm" as="span" tone="subdued">
@@ -227,7 +224,9 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
     >
       <Modal.Section>
         <BlockStack gap="400">
-          <Text as="h3" variant="headingMd">Imagen del producto</Text>
+          <Text as="h3" variant="headingMd">
+            Imagen del producto
+          </Text>
           <Box padding="200" borderStyle="dashed" borderWidth="025" borderColor="border" borderRadius="200">
             <DropZone
               onDrop={handleDropZoneDrop}
@@ -245,7 +244,9 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
 
           <Divider />
 
-          <Text as="h3" variant="headingMd">Información básica</Text>
+          <Text as="h3" variant="headingMd">
+            Información básica
+          </Text>
 
           <FormLayout>
             <FormLayout.Group>
@@ -281,11 +282,7 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
               compact
             />
 
-            <FormSelect
-              label="Categoría"
-              options={categoryOptions}
-              {...fields.category}
-            />
+            <FormSelect label="Categoría" options={categoryOptions} {...fields.category} />
 
             <FormLayout.Group>
               <TextField
@@ -306,11 +303,7 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
                 helpText={margin ? `Margen: ${margin}%` : 'Para venta'}
                 {...fields.unitPrice}
               />
-              <FormSelect
-                label="Se vende por"
-                options={unitOptions}
-                {...fields.unit}
-              />
+              <FormSelect label="Se vende por" options={unitOptions} {...fields.unit} />
               <TextField
                 label="Cantidad por venta"
                 type="number"
@@ -350,7 +343,9 @@ export function RegisterProductModal({ open, onClose }: RegisterProductModalProp
             {fields.isPerishable.value && (
               <Box paddingBlockStart="200" paddingBlockEnd="200">
                 <Box paddingBlockEnd="200">
-                   <Text as="p" variant="bodySm" tone="subdued">La fecha de vencimiento es obligatoria para perecederos.</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    La fecha de vencimiento es obligatoria para perecederos.
+                  </Text>
                 </Box>
                 <Popover
                   active={isDatePickerOpen}

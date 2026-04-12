@@ -4,12 +4,18 @@ import { requirePermission, requireAuth, validateId } from '@/lib/auth/guard';
 import { db } from '@/db';
 import { products, mermaRecords, inventoryAudits, inventoryAuditItems } from '@/db/schema';
 import { eq, gte, lte, and, desc, sql } from 'drizzle-orm';
-import type { Product, InventoryAlert, KPIData, MermaRecord } from '@/types';
+import type { InventoryAlert, KPIData, MermaRecord } from '@/types';
 import type { InventoryAudit, InventoryAuditItem } from '@/types';
 import { numVal } from './_helpers';
 import { sendNotification } from './_notifications';
 import { fetchAllProducts } from './product-actions';
-import { validateSchema, createMermaSchema, createInventoryAuditSchema, saveAuditItemSchema, idSchema } from '@/lib/validation/schemas';
+import {
+  validateSchema,
+  createMermaSchema,
+  createInventoryAuditSchema,
+  saveAuditItemSchema,
+  idSchema,
+} from '@/lib/validation/schemas';
 import { withLogging } from '@/lib/errors';
 
 // ==================== INVENTORY ALERTS (computed) ====================
@@ -25,9 +31,7 @@ async function _fetchInventoryAlerts(): Promise<InventoryAlert[]> {
     const isExpiring = product.expirationDate
       ? new Date(product.expirationDate).getTime() - now.getTime() < 7 * 24 * 60 * 60 * 1000
       : false;
-    const isExpired = product.expirationDate
-      ? new Date(product.expirationDate) < now
-      : false;
+    const isExpired = product.expirationDate ? new Date(product.expirationDate) < now : false;
 
     if (isLowStock || isExpiring || isExpired) {
       const severity: 'critical' | 'warning' | 'info' = isExpired
@@ -86,51 +90,46 @@ async function _fetchKPIData(): Promise<KPIData> {
   const { saleRecords } = await import('@/db/schema');
 
   // Todas las queries son independientes — se ejecutan en paralelo
-  const [
-    todaySalesResult,
-    yesterdaySalesResult,
-    lowStockResult,
-    expiringResult,
-    mermaResult,
-    inventoryResult,
-  ] = await Promise.all([
-    db.select({ total: sql<string>`coalesce(sum(total::numeric), 0)` })
-      .from(saleRecords)
-      .where(sql`date::date = ${todayStr}`),
-    db.select({ total: sql<string>`coalesce(sum(total::numeric), 0)` })
-      .from(saleRecords)
-      .where(sql`date::date = ${yesterdayStr}`),
-    db.select({ count: sql<number>`count(*)` })
-      .from(products)
-      .where(sql`current_stock < min_stock`),
-    db.select({ count: sql<number>`count(*)` })
-      .from(products)
-      .where(
-        and(
-          sql`expiration_date is not null`,
-          lte(products.expirationDate, sevenDaysLater.toISOString().split('T')[0]),
-          gte(products.expirationDate, todayStr)
-        )
-      ),
-    db.select({ total: sql<string>`coalesce(sum(value::numeric), 0)` })
-      .from(mermaRecords)
-      .where(gte(mermaRecords.date, thirtyDaysAgo)),
-    db.select({ total: sql<string>`coalesce(sum(unit_price::numeric * current_stock), 0)` })
-      .from(products),
-  ]);
+  const [todaySalesResult, yesterdaySalesResult, lowStockResult, expiringResult, mermaResult, inventoryResult] =
+    await Promise.all([
+      db
+        .select({ total: sql<string>`coalesce(sum(total::numeric), 0)` })
+        .from(saleRecords)
+        .where(sql`date::date = ${todayStr}`),
+      db
+        .select({ total: sql<string>`coalesce(sum(total::numeric), 0)` })
+        .from(saleRecords)
+        .where(sql`date::date = ${yesterdayStr}`),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(products)
+        .where(sql`current_stock < min_stock`),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(products)
+        .where(
+          and(
+            sql`expiration_date is not null`,
+            lte(products.expirationDate, sevenDaysLater.toISOString().split('T')[0]),
+            gte(products.expirationDate, todayStr),
+          ),
+        ),
+      db
+        .select({ total: sql<string>`coalesce(sum(value::numeric), 0)` })
+        .from(mermaRecords)
+        .where(gte(mermaRecords.date, thirtyDaysAgo)),
+      db.select({ total: sql<string>`coalesce(sum(unit_price::numeric * current_stock), 0)` }).from(products),
+    ]);
 
   const dailySales = numVal(todaySalesResult[0]?.total);
   const yesterdaySales = numVal(yesterdaySalesResult[0]?.total);
-  const dailySalesChange = yesterdaySales > 0
-    ? Math.round(((dailySales - yesterdaySales) / yesterdaySales) * 100 * 10) / 10
-    : 0;
+  const dailySalesChange =
+    yesterdaySales > 0 ? Math.round(((dailySales - yesterdaySales) / yesterdaySales) * 100 * 10) / 10 : 0;
   const lowStockProducts = Number(lowStockResult[0]?.count ?? 0);
   const expiringProducts = Number(expiringResult[0]?.count ?? 0);
   const totalMermaValue = numVal(mermaResult[0]?.total);
   const totalInventoryValue = numVal(inventoryResult[0]?.total);
-  const mermaRate = totalInventoryValue > 0
-    ? Math.round((totalMermaValue / totalInventoryValue) * 100 * 10) / 10
-    : 0;
+  const mermaRate = totalInventoryValue > 0 ? Math.round((totalMermaValue / totalInventoryValue) * 100 * 10) / 10 : 0;
 
   return {
     dailySales,
@@ -198,11 +197,7 @@ async function _fetchInventoryAudits(): Promise<InventoryAudit[]> {
   }));
 }
 
-async function _createInventoryAudit(data: {
-  title: string;
-  auditor: string;
-  notes: string;
-}): Promise<string> {
+async function _createInventoryAudit(data: { title: string; auditor: string; notes: string }): Promise<string> {
   await requirePermission('inventory.edit');
   validateSchema(createInventoryAuditSchema, data, 'createInventoryAudit');
   const id = `audit-${crypto.randomUUID()}`;
@@ -232,7 +227,7 @@ async function _getInventoryAudit(id: string): Promise<InventoryAudit | null> {
     auditor: audit.auditor,
     status: audit.status as 'draft' | 'completed',
     notes: audit.notes,
-    items: items.map(i => ({
+    items: items.map((i) => ({
       id: i.id,
       auditId: i.auditId,
       productId: i.productId,
@@ -248,6 +243,12 @@ async function _getInventoryAudit(id: string): Promise<InventoryAudit | null> {
 async function _saveAuditItem(data: Omit<InventoryAuditItem, 'id'>): Promise<void> {
   await requirePermission('inventory.edit');
   validateSchema(saveAuditItemSchema, data, 'saveAuditItem');
+
+  // Upsert: remove existing entry for this product in this audit, then insert
+  await db
+    .delete(inventoryAuditItems)
+    .where(and(eq(inventoryAuditItems.auditId, data.auditId), eq(inventoryAuditItems.productId, data.productId)));
+
   const id = `ai-${crypto.randomUUID()}`;
   await db.insert(inventoryAuditItems).values({
     id,
@@ -267,37 +268,49 @@ async function _completeInventoryAudit(id: string): Promise<void> {
   const audit = await getInventoryAudit(id);
   if (!audit || audit.status === 'completed') return;
 
+  let adjustedCount = 0;
+  let surplusCount = 0;
+
   for (const item of audit.items || []) {
     if (item.difference !== 0) {
-      await db.update(products)
+      // Adjust stock to match physical count
+      await db
+        .update(products)
         .set({ currentStock: item.countedStock, updatedAt: new Date() })
         .where(eq(products.id, item.productId));
 
+      adjustedCount++;
+
       if (item.difference < 0) {
-        await createMerma({
+        // Shrinkage: insert merma record directly (do NOT call createMerma which
+        // would subtract stock a second time — we already set countedStock above)
+        await db.insert(mermaRecords).values({
+          id: `merma-audit-${crypto.randomUUID()}`,
           productId: item.productId,
           productName: item.productName,
           quantity: Math.abs(item.difference),
-          reason: 'other',
-          date: new Date().toISOString(),
-          value: Math.abs(item.adjustmentValue),
+          reason: 'audit_adjustment',
+          date: new Date(),
+          value: String(Math.abs(item.adjustmentValue)),
         });
+      } else {
+        // Surplus found — stock already adjusted above, log it
+        surplusCount++;
       }
     }
   }
 
-  await db.update(inventoryAudits)
-    .set({ status: 'completed' })
-    .where(eq(inventoryAudits.id, id));
+  await db.update(inventoryAudits).set({ status: 'completed' }).where(eq(inventoryAudits.id, id));
 
   // Import escapeHTML for the notification message
   const { escapeHTML } = await import('./_notifications');
-  
+
   await sendNotification(
     `<b>REPORTE DE AUDITORÍA FINALIZADA</b>\n\n` +
-    `Título: ${escapeHTML(audit.title)}\n` +
-    `Auditor: ${escapeHTML(audit.auditor)}\n` +
-    `Resultado: Se revisaron ${audit.items?.length || 0} productos.`
+      `Título: ${escapeHTML(audit.title)}\n` +
+      `Auditor: ${escapeHTML(audit.auditor)}\n` +
+      `Resultado: Se revisaron ${audit.items?.length || 0} productos.\n` +
+      `Ajustados: ${adjustedCount} (${surplusCount} sobrantes encontrados).`,
   );
 }
 
@@ -308,7 +321,7 @@ async function _sendStockReport(): Promise<void> {
 
   const stockList = allProducts
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map(p => {
+    .map((p) => {
       const isLow = p.currentStock < p.minStock;
       const status = isLow ? ' [STOCK BAJO]' : '';
       return `• ${escapeHTML(p.name)} (${p.sku}): ${p.currentStock} ${p.unit}${status}`;
@@ -317,11 +330,11 @@ async function _sendStockReport(): Promise<void> {
 
   await sendNotification(
     `<b>REPORTE DE EXISTENCIAS DE INVENTARIO</b>\n\n` +
-    `Total de productos: ${allProducts.length}\n` +
-    `---------------------------------\n` +
-    `${stockList}\n` +
-    `---------------------------------\n` +
-    `Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`
+      `Total de productos: ${allProducts.length}\n` +
+      `---------------------------------\n` +
+      `${stockList}\n` +
+      `---------------------------------\n` +
+      `Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
   );
 }
 

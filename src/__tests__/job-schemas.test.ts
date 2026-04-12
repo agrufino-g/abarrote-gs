@@ -131,10 +131,7 @@ describe('Job Payload Schemas', () => {
 
   describe('parseJobPayload', () => {
     it('should parse valid JSON', () => {
-      const result = parseJobPayload(
-        notificationPayloadSchema,
-        '{"message": "hello"}',
-      );
+      const result = parseJobPayload(notificationPayloadSchema, '{"message": "hello"}');
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.message).toBe('hello');
@@ -147,10 +144,7 @@ describe('Job Payload Schemas', () => {
     });
 
     it('should return error for invalid JSON', () => {
-      const result = parseJobPayload(
-        notificationPayloadSchema,
-        'not-json',
-      );
+      const result = parseJobPayload(notificationPayloadSchema, 'not-json');
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toContain('JSON');
@@ -158,10 +152,7 @@ describe('Job Payload Schemas', () => {
     });
 
     it('should return error for schema mismatch', () => {
-      const result = parseJobPayload(
-        stockAlertPayloadSchema,
-        '{"wrong": "field"}',
-      );
+      const result = parseJobPayload(stockAlertPayloadSchema, '{"wrong": "field"}');
       expect(result.success).toBe(false);
     });
   });

@@ -6,12 +6,16 @@ import { ABCAnalysisView } from '@/components/analytics/ABCAnalysisView';
 import { SmartReorderView } from '@/components/analytics/SmartReorderView';
 import { RFMAnalysisView } from '@/components/analytics/RFMAnalysisView';
 import { DemandForecastView } from '@/components/analytics/DemandForecastView';
+import { InventoryAgingView } from '@/components/analytics/InventoryAgingView';
+import { ProductMarginsView } from '@/components/analytics/ProductMarginsView';
 
 const TABS = [
   { id: 'abc', content: 'ABC Inventario', panelID: 'abc-panel' },
   { id: 'reorder', content: 'Reorden Inteligente', panelID: 'reorder-panel' },
   { id: 'rfm', content: 'Segmentación Clientes', panelID: 'rfm-panel' },
   { id: 'forecast', content: 'Pronóstico Demanda', panelID: 'forecast-panel' },
+  { id: 'aging', content: 'Aging Inventario', panelID: 'aging-panel' },
+  { id: 'margins', content: 'Márgenes Producto', panelID: 'margins-panel' },
 ];
 
 export default function AdvancedAnalyticsPage() {
@@ -20,7 +24,7 @@ export default function AdvancedAnalyticsPage() {
   return (
     <Page
       title="Analítica Avanzada"
-      subtitle="Clasificación ABC, reorden inteligente, segmentación RFM y pronóstico de demanda"
+      subtitle="Clasificación ABC, reorden inteligente, segmentación RFM, pronóstico, aging y márgenes"
       backAction={{ content: 'Analytics', url: '/dashboard/analytics' }}
     >
       <Layout>
@@ -30,6 +34,8 @@ export default function AdvancedAnalyticsPage() {
             {selected === 1 && <SmartReorderView />}
             {selected === 2 && <RFMAnalysisView />}
             {selected === 3 && <DemandForecastView />}
+            {selected === 4 && <InventoryAgingView />}
+            {selected === 5 && <ProductMarginsView />}
           </Tabs>
         </Layout.Section>
       </Layout>

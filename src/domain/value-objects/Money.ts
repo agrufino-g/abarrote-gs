@@ -1,9 +1,9 @@
 /**
  * Money Value Object
- * 
+ *
  * Immutable representation of monetary values with safe arithmetic operations.
  * Prevents floating-point precision issues by using integer cents internally.
- * 
+ *
  * @example
  * const price = Money.fromPesos(99.99);
  * const tax = price.multiply(0.16);

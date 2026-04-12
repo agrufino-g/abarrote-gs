@@ -37,9 +37,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     logger.error('Daily report cron failed', { error: error instanceof Error ? error.message : error });
-    return NextResponse.json(
-      { error: 'Error al generar reporte diario' },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'Error al generar reporte diario' }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Card,
   BlockStack,
@@ -27,24 +27,43 @@ interface CardFormProps {
 }
 
 // ── Tipos del SDK ─────────────────────────────────────────────────────────
+interface SecureFieldEvent {
+  bin?: string;
+  error?: { message: string };
+  [key: string]: unknown;
+}
+
 interface SecureField {
   mount: (elementId: string) => void;
   unmount: () => void;
-  on: (event: string, callback: (event: any) => void) => void;
-  update: (options: any) => void;
+  on: (event: string, callback: (event: SecureFieldEvent) => void) => void;
+  update: (options: Record<string, unknown>) => void;
+}
+
+interface MPPaymentMethod {
+  id: string;
+  name: string;
+  secure_thumbnail: string;
+  thumbnail?: string;
+  [key: string]: unknown;
+}
+
+interface MPInstallmentOption {
+  issuer: { id: string };
+  payer_costs: Array<{ recommended_message: string; installments: number }>;
 }
 
 interface MPInstance {
   fields: {
-    create: (type: string, options?: any) => SecureField;
+    create: (type: string, options?: Record<string, unknown>) => SecureField;
     createCardToken: (options: {
       cardholderName: string;
       identificationType?: string;
       identificationNumber?: string;
     }) => Promise<{ id: string }>;
   };
-  getPaymentMethods: (params: { bin: string }) => Promise<{ results: any[] }>;
-  getInstallments: (params: { amount: string; bin: string }) => Promise<any[]>;
+  getPaymentMethods: (params: { bin: string }) => Promise<{ results: MPPaymentMethod[] }>;
+  getInstallments: (params: { amount: string; bin: string }) => Promise<MPInstallmentOption[]>;
 }
 
 declare global {
@@ -75,12 +94,7 @@ const MP_STYLES = `
   }
 `;
 
-export function CustomCardPaymentForm({
-  amount,
-  externalReference,
-  onSuccess,
-  onError,
-}: CardFormProps) {
+export function CustomCardPaymentForm({ amount, externalReference, onSuccess, onError }: CardFormProps) {
   // Estado de carga y config
   const [isSdkLoaded, setIsSdkLoaded] = useState(false);
   const [publicKey, setPublicKey] = useState<string | null>(null);
@@ -91,7 +105,7 @@ export function CustomCardPaymentForm({
   const [cardholderName, setCardholderName] = useState('');
   const [email, setEmail] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  
+
   // Estado dinámico detectado por BIN
   const [paymentMethodName, setPaymentMethodName] = useState('');
   const [paymentMethodThumb, setPaymentMethodThumb] = useState('');
@@ -141,28 +155,28 @@ export function CustomCardPaymentForm({
 
     try {
       mpInstance.current = new window.MercadoPago(publicKey, { locale: 'es-MX' });
-      
+
       const themeData = {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         fontSize: '14px',
         color: '#202223',
-        placeholderColor: '#6d7175'
+        placeholderColor: '#6d7175',
       };
 
       // Crear campos
       cardNumberField.current = mpInstance.current.fields.create('cardNumber', {
         placeholder: '1234 5678 9012 3456',
-        style: themeData
+        style: themeData,
       });
-      
+
       securityCodeField.current = mpInstance.current.fields.create('securityCode', {
         placeholder: 'CVV',
-        style: themeData
+        style: themeData,
       });
 
       expirationDateField.current = mpInstance.current.fields.create('expirationDate', {
         placeholder: 'MM/AA',
-        style: themeData
+        style: themeData,
       });
 
       // Montarlos
@@ -171,7 +185,7 @@ export function CustomCardPaymentForm({
       expirationDateField.current.mount('form-checkout__expirationDate');
 
       // Escuchar eventos de cambio de BIN (6 primeros digitos) para detectar tarjeta
-      cardNumberField.current.on('binChange', async (data: any) => {
+      cardNumberField.current.on('binChange', async (data: SecureFieldEvent) => {
         if (!data.bin) {
           setPaymentMethodName('');
           setPaymentMethodThumb('');
@@ -186,40 +200,43 @@ export function CustomCardPaymentForm({
           if (pm?.results?.length > 0) {
             const method = pm.results[0];
             setPaymentMethodName(method.name);
-            setPaymentMethodThumb(method.secure_thumbnail || method.thumbnail);
+            setPaymentMethodThumb(method.secure_thumbnail || method.thumbnail || '');
             setPaymentMethodId(method.id);
 
             // Obtener cuotas
             const inst = await mpInstance.current.getInstallments({
               amount: amount.toString(),
-              bin: data.bin
+              bin: data.bin,
             });
-            
+
             if (inst?.length > 0) {
               setIssuerId(inst[0].issuer?.id || '');
-              const opts = inst[0].payer_costs.map((cost: any) => ({
+              const opts = inst[0].payer_costs.map((cost) => ({
                 label: cost.recommended_message,
-                value: String(cost.installments)
+                value: String(cost.installments),
               }));
               setInstallmentOptions(opts);
               setSelectedInstallments(opts[0]?.value || '1');
             }
           }
         } catch (err) {
-          console.error("Error al obtener método de pago", err);
+          console.error('Error al obtener método de pago', err);
         }
       });
 
       // Manejar foco/blur/error visualmente en los divs contenedores
       ['cardNumber', 'securityCode', 'expirationDate'].forEach((type) => {
-        const field = type === 'cardNumber' ? cardNumberField.current : 
-                      type === 'securityCode' ? securityCodeField.current : 
-                      expirationDateField.current;
+        const field =
+          type === 'cardNumber'
+            ? cardNumberField.current
+            : type === 'securityCode'
+              ? securityCodeField.current
+              : expirationDateField.current;
         const div = document.getElementById(`form-checkout__${type}`);
-        
+
         field?.on('focus', () => div?.classList.add('mp-focus'));
         field?.on('blur', () => div?.classList.remove('mp-focus'));
-        field?.on('validityChange', (result: any) => {
+        field?.on('validityChange', (result: SecureFieldEvent) => {
           if (result.error) {
             div?.classList.add('mp-error');
           } else {
@@ -228,7 +245,6 @@ export function CustomCardPaymentForm({
           }
         });
       });
-
     } catch (err) {
       console.error(err);
       setConfigError('Error inicializando campos seguros.');
@@ -243,17 +259,17 @@ export function CustomCardPaymentForm({
 
   // Manejar el submit (Tokenizar -> Backend)
   const handleSubmit = async () => {
-    if (!cardholderName.trim()) { 
-      setErrorMsg('Falta el nombre del titular'); 
-      return; 
+    if (!cardholderName.trim()) {
+      setErrorMsg('Falta el nombre del titular');
+      return;
     }
-    
+
     setIsProcessing(true);
     setErrorMsg('');
 
     try {
-      if (!mpInstance.current) throw new Error("Instancia MP no disponible");
-      
+      if (!mpInstance.current) throw new Error('Instancia MP no disponible');
+
       const tokenResult = await mpInstance.current.fields.createCardToken({
         cardholderName,
       });
@@ -293,16 +309,16 @@ export function CustomCardPaymentForm({
         if (msg.includes('cc_rejected_bad_filled_security_code')) uiMsg = 'CVV incorrecto.';
         if (msg.includes('cc_rejected_bad_filled_date')) uiMsg = 'Fecha de expiración incorrecta.';
         if (msg.includes('cc_rejected_other_reason')) uiMsg = 'La tarjeta fue rechazada por el banco emisor.';
-        
+
         setErrorMsg(uiMsg);
         onError(uiMsg);
       }
-
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErrorMsg(err.message || 'Error al procesar el pago.');
-      if (err.message && !err.message.includes('No route')) {
-        onError(err.message);
+      const message = err instanceof Error ? err.message : 'Error al procesar el pago.';
+      setErrorMsg(message);
+      if (!message.includes('No route')) {
+        onError(message);
       }
     } finally {
       setIsProcessing(false);
@@ -310,7 +326,11 @@ export function CustomCardPaymentForm({
   };
 
   if (configError) {
-    return <Banner tone="critical"><p>{configError}</p></Banner>;
+    return (
+      <Banner tone="critical">
+        <p>{configError}</p>
+      </Banner>
+    );
   }
 
   return (
@@ -342,14 +362,18 @@ export function CustomCardPaymentForm({
             {(!isSdkLoaded || !publicKey) && !configError && (
               <InlineStack gap="200" blockAlign="center">
                 <Spinner size="small" />
-                <Text as="p" variant="bodySm" tone="subdued">Cargando campos seguros...</Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Cargando campos seguros...
+                </Text>
               </InlineStack>
             )}
 
             {/* Formulario */}
             <BlockStack gap="400" align="start">
               <BlockStack gap="100" inlineAlign="start">
-                <Text as="p" variant="bodySm" fontWeight="medium">Número de tarjeta</Text>
+                <Text as="p" variant="bodySm" fontWeight="medium">
+                  Número de tarjeta
+                </Text>
                 <div id="form-checkout__cardNumber" className="mp-secure-field" />
               </BlockStack>
 
@@ -364,18 +388,21 @@ export function CustomCardPaymentForm({
               <InlineStack gap="400" align="start">
                 <Box width="50%">
                   <BlockStack gap="100">
-                    <Text as="p" variant="bodySm" fontWeight="medium">Caducidad</Text>
+                    <Text as="p" variant="bodySm" fontWeight="medium">
+                      Caducidad
+                    </Text>
                     <div id="form-checkout__expirationDate" className="mp-secure-field" />
                   </BlockStack>
                 </Box>
                 <Box width="50%">
                   <BlockStack gap="100">
-                    <Text as="p" variant="bodySm" fontWeight="medium">Código de seguridad (CVV)</Text>
+                    <Text as="p" variant="bodySm" fontWeight="medium">
+                      Código de seguridad (CVV)
+                    </Text>
                     <div id="form-checkout__securityCode" className="mp-secure-field" />
                   </BlockStack>
                 </Box>
               </InlineStack>
-
             </BlockStack>
           </BlockStack>
         </Card>
@@ -384,7 +411,7 @@ export function CustomCardPaymentForm({
         {(installmentOptions.length > 1 || !email) && (
           <Card>
             <BlockStack gap="300">
-             {installmentOptions.length > 1 && (
+              {installmentOptions.length > 1 && (
                 <Select
                   label="Meses sin intereses / Cuotas"
                   options={installmentOptions}
@@ -407,7 +434,9 @@ export function CustomCardPaymentForm({
         {/* Resumen */}
         <Card background="bg-surface-secondary">
           <InlineStack align="space-between" blockAlign="center">
-            <Text as="p" variant="bodyMd" tone="subdued">A cobrar ahora</Text>
+            <Text as="p" variant="bodyMd" tone="subdued">
+              A cobrar ahora
+            </Text>
             <Text as="p" variant="headingLg" fontWeight="bold">
               {formatCurrency(amount)}
             </Text>

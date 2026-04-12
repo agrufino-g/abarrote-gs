@@ -4,13 +4,13 @@ import { cache } from '@/infrastructure/redis';
 import { requirePermission, requireAuth, sanitize, validateNumber, validateId } from '@/lib/auth/guard';
 import { validateSchema, createProductSchema, updateProductSchema, idSchema } from '@/lib/validation/schemas';
 import { db } from '@/db';
-import { products, saleItems, mermaRecords, pedidoItems, fiadoItems } from '@/db/schema';
+import { products } from '@/db/schema';
 import { eq, or, and } from 'drizzle-orm';
 import type { Product } from '@/types';
 import { numVal } from './_helpers';
 import { AppError, withLogging } from '@/lib/errors';
 import { isNotDeleted, softDelete } from '@/infrastructure/soft-delete';
-import { withRateLimit, STRICT } from '@/infrastructure/redis';
+import { withRateLimit } from '@/infrastructure/redis';
 import { emitDomainEvent } from '@/domain/events';
 
 // ==================== PRODUCTS ====================
@@ -49,35 +49,31 @@ async function _fetchAllProducts(): Promise<Product[]> {
 async function _createProduct(data: Omit<Product, 'id'>): Promise<Product> {
   await requirePermission('inventory.edit');
   validateSchema(createProductSchema, data, 'createProduct');
-  
+
   const sanitizedSku = sanitize(data.sku);
   const sanitizedBarcode = sanitize(data.barcode);
-  
+
   // Check for existing products with same SKU or barcode (exclude soft-deleted)
   const existing = await db
     .select({ sku: products.sku, barcode: products.barcode, name: products.name })
     .from(products)
     .where(and(isNotDeleted(products), or(eq(products.sku, sanitizedSku), eq(products.barcode, sanitizedBarcode))))
     .limit(1);
-  
+
   if (existing.length > 0) {
     const match = existing[0];
     if (match.sku === sanitizedSku) {
-      throw new AppError(
-        'DUPLICATE_SKU',
-        `Ya existe un producto con el SKU "${sanitizedSku}": ${match.name}`,
-        409
-      );
+      throw new AppError('DUPLICATE_SKU', `Ya existe un producto con el SKU "${sanitizedSku}": ${match.name}`, 409);
     }
     if (match.barcode === sanitizedBarcode) {
       throw new AppError(
         'DUPLICATE_BARCODE',
         `Ya existe un producto con el código de barras "${sanitizedBarcode}": ${match.name}`,
-        409
+        409,
       );
     }
   }
-  
+
   const id = `p-${crypto.randomUUID()}`;
 
   await cache.invalidatePattern('products:');
@@ -90,7 +86,7 @@ async function _createProduct(data: Omit<Product, 'id'>): Promise<Product> {
     barcode: sanitizedBarcode,
     currentStock: validateNumber(data.currentStock, { label: 'Stock' }),
     minStock: validateNumber(data.minStock, { label: 'Stock mínimo' }),
-    expirationDate: data.expirationDate,
+    expirationDate: data.expirationDate || undefined,
     category: sanitize(data.category),
     costPrice: String(validateNumber(data.costPrice, { label: 'Precio de costo' })),
     unitPrice: String(validateNumber(data.unitPrice, { label: 'Precio de venta' })),

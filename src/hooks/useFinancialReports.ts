@@ -45,34 +45,30 @@ function getDateRange(periodo: ReportePeriodo): { start: string; end: string } {
   return { start: '2000-01-01', end };
 }
 
-export function useFinancialReports(
-  saleRecords: SaleRecord[],
-  gastos: Gasto[],
-  products: Product[],
-) {
+export function useFinancialReports(saleRecords: SaleRecord[], gastos: Gasto[], products: Product[]) {
   const [periodo, setPeriodo] = useState<ReportePeriodo>('month');
 
   const { start, end } = useMemo(() => getDateRange(periodo), [periodo]);
 
   // ── Datos filtrados por período ──
   const filteredSales = useMemo(
-    () => saleRecords.filter(s => s.date >= start && s.date <= end + 'T23:59:59'),
+    () => saleRecords.filter((s) => s.date >= start && s.date <= end + 'T23:59:59'),
     [saleRecords, start, end],
   );
   const filteredGastos = useMemo(
-    () => gastos.filter(g => g.fecha >= start && g.fecha <= end + 'T23:59:59'),
+    () => gastos.filter((g) => g.fecha >= start && g.fecha <= end + 'T23:59:59'),
     [gastos, start, end],
   );
 
-  const productMap = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
+  const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   // ── Estado de Resultados ──
   const estadoResultados = useMemo<EstadoResultados>(() => {
     let ingresos = 0;
     let costoMercancia = 0;
 
-    filteredSales.forEach(s => {
-      s.items.forEach(item => {
+    filteredSales.forEach((s) => {
+      s.items.forEach((item) => {
         const prod = productMap.get(item.productId);
         costoMercancia += (prod?.costPrice ?? 0) * item.quantity;
         ingresos += item.subtotal;
@@ -84,7 +80,7 @@ export function useFinancialReports(
 
     const gastosByCategory: Record<string, number> = {};
     let totalGastos = 0;
-    filteredGastos.forEach(g => {
+    filteredGastos.forEach((g) => {
       gastosByCategory[g.categoria] = (gastosByCategory[g.categoria] || 0) + g.monto;
       totalGastos += g.monto;
     });
@@ -92,15 +88,24 @@ export function useFinancialReports(
     const utilidadNeta = utilidadBruta - totalGastos;
     const margenNeto = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
 
-    return { ingresos, costoMercancia, utilidadBruta, margenBruto, gastosByCategory, totalGastos, utilidadNeta, margenNeto };
+    return {
+      ingresos,
+      costoMercancia,
+      utilidadBruta,
+      margenBruto,
+      gastosByCategory,
+      totalGastos,
+      utilidadNeta,
+      margenNeto,
+    };
   }, [filteredSales, filteredGastos, productMap]);
 
   // ── Márgenes por Categoría ──
   const margenesPorCategoria = useMemo<MargenCategoria[]>(() => {
     const catData: Record<string, { ingresos: number; costo: number; qty: number }> = {};
 
-    filteredSales.forEach(s => {
-      s.items.forEach(item => {
+    filteredSales.forEach((s) => {
+      s.items.forEach((item) => {
         const prod = productMap.get(item.productId);
         const cat = prod?.category || 'Sin categoría';
         if (!catData[cat]) catData[cat] = { ingresos: 0, costo: 0, qty: 0 };
@@ -131,19 +136,15 @@ export function useFinancialReports(
     }
 
     return months.map(({ label, key }) => {
-      const ingresos = saleRecords
-        .filter(s => s.date.startsWith(key))
-        .reduce((sum, s) => sum + s.total, 0);
-      const egresos = gastos
-        .filter(g => g.fecha.startsWith(key))
-        .reduce((sum, g) => sum + g.monto, 0);
+      const ingresos = saleRecords.filter((s) => s.date.startsWith(key)).reduce((sum, s) => sum + s.total, 0);
+      const egresos = gastos.filter((g) => g.fecha.startsWith(key)).reduce((sum, g) => sum + g.monto, 0);
       const utilidad = ingresos - egresos;
       return { label, ingresos, egresos, utilidad };
     });
   }, [saleRecords, gastos]);
 
   const maxFlujo = useMemo(
-    () => Math.max(...flujoMensual.map(m => Math.max(m.ingresos, m.egresos, 1))),
+    () => Math.max(...flujoMensual.map((m) => Math.max(m.ingresos, m.egresos, 1))),
     [flujoMensual],
   );
 
@@ -155,7 +156,7 @@ export function useFinancialReports(
       transferencia: { total: 0, count: 0 },
       fiado: { total: 0, count: 0 },
     };
-    filteredSales.forEach(s => {
+    filteredSales.forEach((s) => {
       if (!methods[s.paymentMethod]) methods[s.paymentMethod] = { total: 0, count: 0 };
       methods[s.paymentMethod].total += s.total;
       methods[s.paymentMethod].count += 1;

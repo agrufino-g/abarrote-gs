@@ -16,10 +16,7 @@ import {
   Badge,
   ContextualSaveBar,
 } from '@shopify/polaris';
-import {
-  getDevices,
-  getMPConfigFromStore,
-} from '@/lib/mercadopago';
+import { getDevices } from '@/lib/mercadopago';
 import type { MercadoPagoConfig } from '@/lib/mercadopago';
 import { useDashboardStore } from '@/store/dashboardStore';
 import type { StoreConfig } from '@/types';
@@ -46,18 +43,70 @@ import { InventorySection } from './sections/InventorySection';
 import { NotificationsSection } from './sections/NotificationsSection';
 import { PaymentsSection } from './sections/PaymentsSection';
 import { CustomerDisplaySectionV4 } from './sections/CustomerDisplaySectionV4';
+import { ServiciosSection } from './sections/ServiciosSection';
 import { parseError } from '@/lib/errors';
 
 const SETTINGS_CATEGORIES = [
-  { id: 'general', title: 'Detalles de la tienda', description: 'Gestiona la identidad de tu negocio, dirección y preferencias básicas.', icon: StoreIcon },
-  { id: 'fiscal', title: 'Fiscales e Impuestos', description: 'Configura tu RFC, régimen fiscal, moneda y tasas de IVA.', icon: NoteIcon },
-  { id: 'pos', title: 'Punto de Venta y Recibos', description: 'Personaliza los tickets impresos y la estructura de códigos de barras.', icon: ReceiptIcon },
-  { id: 'hardware', title: 'Hardware y Periféricos', description: 'Configura IPs de impresoras, cajones de dinero y básculas seriales.', icon: PrintIcon },
-  { id: 'loyalty', title: 'Loyalty y Puntos', description: 'Configura las conversiones y recompensas para la fidelización de clientes.', icon: StarFilledIcon },
-  { id: 'inventory', title: 'Inventario de productos', description: 'Establece reglas y umbrales para alertas de stock y caducidad.', icon: InventoryIcon },
-  { id: 'notifications', title: 'Notificaciones', description: 'Conecta notificaciones push a tu celular mediante Telegram.', icon: ChatIcon },
-  { id: 'payments', title: 'Pagos Integrados', description: 'Vincula tu terminal Point de Mercado Pago para cobros físicos.', icon: CreditCardIcon },
-  { id: 'customer-display', title: 'Pantalla del Cliente', description: 'Muestra al cliente sus productos y totales en un segundo monitor o tablet.', icon: ViewIcon },
+  {
+    id: 'general',
+    title: 'Detalles de la tienda',
+    description: 'Gestiona la identidad de tu negocio, dirección y preferencias básicas.',
+    icon: StoreIcon,
+  },
+  {
+    id: 'fiscal',
+    title: 'Fiscales e Impuestos',
+    description: 'Configura tu RFC, régimen fiscal, moneda y tasas de IVA.',
+    icon: NoteIcon,
+  },
+  {
+    id: 'pos',
+    title: 'Punto de Venta y Recibos',
+    description: 'Personaliza los tickets impresos y la estructura de códigos de barras.',
+    icon: ReceiptIcon,
+  },
+  {
+    id: 'hardware',
+    title: 'Hardware y Periféricos',
+    description: 'Configura IPs de impresoras, cajones de dinero y básculas seriales.',
+    icon: PrintIcon,
+  },
+  {
+    id: 'loyalty',
+    title: 'Loyalty y Puntos',
+    description: 'Configura las conversiones y recompensas para la fidelización de clientes.',
+    icon: StarFilledIcon,
+  },
+  {
+    id: 'inventory',
+    title: 'Inventario de productos',
+    description: 'Establece reglas y umbrales para alertas de stock y caducidad.',
+    icon: InventoryIcon,
+  },
+  {
+    id: 'notifications',
+    title: 'Notificaciones',
+    description: 'Conecta notificaciones push a tu celular mediante Telegram.',
+    icon: ChatIcon,
+  },
+  {
+    id: 'payments',
+    title: 'Pagos Integrados',
+    description: 'Vincula tu terminal Point de Mercado Pago para cobros físicos.',
+    icon: CreditCardIcon,
+  },
+  {
+    id: 'customer-display',
+    title: 'Pantalla del Cliente',
+    description: 'Muestra al cliente sus productos y totales en un segundo monitor o tablet.',
+    icon: ViewIcon,
+  },
+  {
+    id: 'servicios',
+    title: 'Servicios y Recargas',
+    description: 'Configura el proveedor para recargas telefónicas y pagos de servicios.',
+    icon: SettingsFilledIcon,
+  },
 ];
 
 import { uploadFile } from '@/lib/storage';
@@ -65,7 +114,6 @@ import { uploadFile } from '@/lib/storage';
 export function ConfiguracionPage() {
   const storeConfig = useDashboardStore((s) => s.storeConfig);
   const saveStoreConfig = useDashboardStore((s) => s.saveStoreConfig);
-
 
   const {
     fields,
@@ -134,7 +182,7 @@ export function ConfiguracionPage() {
     },
     onSubmit: async (f) => {
       try {
-        await saveStoreConfig(f as any);
+        await saveStoreConfig(f as Partial<StoreConfig>);
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
         return { status: 'success' };
@@ -148,7 +196,7 @@ export function ConfiguracionPage() {
 
   const [saved, setSaved] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [quickSavingDisplay, setQuickSavingDisplay] = useState(false);
+  const [_quickSavingDisplay, setQuickSavingDisplay] = useState(false);
   const [quickSaveError, setQuickSaveError] = useState<string | null>(null);
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -158,9 +206,13 @@ export function ConfiguracionPage() {
   const STATUS_MAP = useMemo(() => {
     const storeConfigured = !!(storeConfig.storeName && storeConfig.address);
     const fiscalConfigured = !!(storeConfig.rfc && storeConfig.regimenFiscal);
-    const notificationsConfigured = !!(storeConfig.enableNotifications && storeConfig.telegramToken && storeConfig.telegramChatId);
+    const notificationsConfigured = !!(
+      storeConfig.enableNotifications &&
+      storeConfig.telegramToken &&
+      storeConfig.telegramChatId
+    );
     const mpLinked = storeConfig.mpEnabled;
-    const hardwareConfigured = !!(storeConfig.printerIp);
+    const hardwareConfigured = !!storeConfig.printerIp;
     const loyaltyConfigured = storeConfig.loyaltyEnabled;
     const displayEnabled = storeConfig.customerDisplayEnabled;
 
@@ -171,9 +223,16 @@ export function ConfiguracionPage() {
       hardware: { configured: hardwareConfigured, label: hardwareConfigured ? 'Conectado' : 'Sin conectar' },
       loyalty: { configured: loyaltyConfigured, label: loyaltyConfigured ? 'Activo' : 'Inactivo' },
       inventory: { configured: true, label: 'Activo' },
-      notifications: { configured: notificationsConfigured, label: notificationsConfigured ? 'Conectado' : 'Sin conectar' },
+      notifications: {
+        configured: notificationsConfigured,
+        label: notificationsConfigured ? 'Conectado' : 'Sin conectar',
+      },
       payments: { configured: mpLinked, label: mpLinked ? 'Vinculado' : 'Sin vincular' },
       'customer-display': { configured: displayEnabled, label: displayEnabled ? 'Activo' : 'Inactivo' },
+      servicios: {
+        configured: storeConfig.serviciosProvider !== 'local',
+        label: storeConfig.serviciosProvider !== 'local' ? 'Vinculado' : 'Local',
+      },
     } as Record<string, { configured: boolean; label: string }>;
   }, [storeConfig]);
 
@@ -196,40 +255,50 @@ export function ConfiguracionPage() {
 
   // Derived config object for sub-components (read-only or for preview)
   const config = useMemo(() => {
-    const obj: any = {};
-    Object.keys(fields).forEach(key => {
-      obj[key] = (fields as any)[key].value;
+    const obj: Record<string, unknown> = {};
+    const f = fields as Record<string, { value: unknown }>;
+    Object.keys(fields).forEach((key) => {
+      obj[key] = f[key].value;
     });
-    return obj as StoreConfig;
+    return obj as unknown as StoreConfig;
   }, [fields]);
 
-  const updateField = useCallback(<K extends keyof StoreConfig>(field: K, value: StoreConfig[K]) => {
-    (fields as any)[field].onChange(value);
-  }, [fields]);
+  const updateField = useCallback(
+    <K extends keyof StoreConfig>(field: K, value: StoreConfig[K]) => {
+      const f = fields as Record<string, { onChange: (v: unknown) => void }>;
+      f[field as string].onChange(value);
+    },
+    [fields],
+  );
 
-  const savePatch = useCallback(async (patch: Partial<StoreConfig>) => {
-    setQuickSavingDisplay(true);
-    setQuickSaveError(null);
-    try {
-      await saveStoreConfig(patch);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (error) {
-      const { description } = parseError(error);
-      setSaved(false);
-      setQuickSaveError(description);
-    } finally {
-      setQuickSavingDisplay(false);
-    }
-  }, [saveStoreConfig]);
-
+  const _savePatch = useCallback(
+    async (patch: Partial<StoreConfig>) => {
+      setQuickSavingDisplay(true);
+      setQuickSaveError(null);
+      try {
+        await saveStoreConfig(patch);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      } catch (error) {
+        const { description } = parseError(error);
+        setSaved(false);
+        setQuickSaveError(description);
+      } finally {
+        setQuickSavingDisplay(false);
+      }
+    },
+    [saveStoreConfig],
+  );
 
   // Mercado Pago — derived from form fields (persisted to DB)
-  const mpConfig = useMemo<MercadoPagoConfig>(() => ({
-    enabled: fields.mpEnabled.value,
-    publicKey: fields.mpPublicKey.value,
-    deviceId: fields.mpDeviceId.value,
-  }), [fields.mpEnabled.value, fields.mpPublicKey.value, fields.mpDeviceId.value]);
+  const _mpConfig = useMemo<MercadoPagoConfig>(
+    () => ({
+      enabled: fields.mpEnabled.value,
+      publicKey: fields.mpPublicKey.value,
+      deviceId: fields.mpDeviceId.value,
+    }),
+    [fields.mpEnabled.value, fields.mpPublicKey.value, fields.mpDeviceId.value],
+  );
 
   const [mpTesting, setMpTesting] = useState(false);
   const [mpTestResult, setMpTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -249,23 +318,26 @@ export function ConfiguracionPage() {
     }
   }, []);
 
-  const handleLogoDropAccepted = useCallback(async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
-    setLogoUploading(true);
-    setLogoError(null);
-    try {
-      const path = `logos/store-logo-${Date.now()}.${file.name.split('.').pop()}`;
-      const url = await uploadFile(file, path);
-      updateField('logoUrl', url);
-    } catch {
-      setLogoError('No se pudo subir el logo. Intenta de nuevo.');
-    } finally {
-      setLogoUploading(false);
-    }
-  }, [updateField]);
+  const handleLogoDropAccepted = useCallback(
+    async (files: File[]) => {
+      const file = files[0];
+      if (!file) return;
+      setLogoUploading(true);
+      setLogoError(null);
+      try {
+        const path = `logos/store-logo-${Date.now()}.${file.name.split('.').pop()}`;
+        const url = await uploadFile(file, path);
+        updateField('logoUrl', url);
+      } catch {
+        setLogoError('No se pudo subir el logo. Intenta de nuevo.');
+      } finally {
+        setLogoUploading(false);
+      }
+    },
+    [updateField],
+  );
 
-  const handleMPSave = useCallback(() => {
+  const _handleMPSave = useCallback(() => {
     handleSave();
   }, [handleSave]);
 
@@ -284,7 +356,10 @@ export function ConfiguracionPage() {
         setMpTestResult({ success: false, message: 'Conexión exitosa pero no se encontraron terminales vinculadas.' });
       }
     } catch (err) {
-      setMpTestResult({ success: false, message: err instanceof Error ? err.message : 'Error al conectar con Mercado Pago' });
+      setMpTestResult({
+        success: false,
+        message: err instanceof Error ? err.message : 'Error al conectar con Mercado Pago',
+      });
     }
     setMpTesting(false);
   }, [fields.mpDeviceId]);
@@ -313,7 +388,7 @@ export function ConfiguracionPage() {
       } else {
         setTgTestResult({ success: false, message: `Error de Telegram: ${data.description}` });
       }
-    } catch (err) {
+    } catch (_err) {
       setTgTestResult({ success: false, message: 'Error al conectar con Telegram API' });
     }
     setTgTesting(false);
@@ -373,12 +448,14 @@ export function ConfiguracionPage() {
         // CustomerDisplaySectionV4 is self-sufficient: uses store directly,
         // each field auto-saves independently. No props needed.
         return <CustomerDisplaySectionV4 />;
+      case 'servicios':
+        return <ServiciosSection />;
       default:
         return null;
     }
   };
 
-  const activeCategory = SETTINGS_CATEGORIES.find(c => c.id === selectedCategory);
+  const activeCategory = SETTINGS_CATEGORIES.find((c) => c.id === selectedCategory);
 
   // ── Detail view when a category is selected ──
   if (selectedCategory !== null) {
@@ -401,8 +478,8 @@ export function ConfiguracionPage() {
           title={activeCategory?.title || 'Configuración'}
           subtitle={activeCategory?.description}
         >
-          <form 
-            data-save-bar 
+          <form
+            data-save-bar
             onSubmit={(e) => {
               e.preventDefault();
               handleSave();
@@ -412,9 +489,7 @@ export function ConfiguracionPage() {
               resetConfig();
             }}
           >
-            <Box paddingBlockEnd="1200">
-              {getActiveView()}
-            </Box>
+            <Box paddingBlockEnd="1200">{getActiveView()}</Box>
           </form>
         </Page>
       </>
@@ -426,22 +501,22 @@ export function ConfiguracionPage() {
     {
       title: 'Negocio',
       description: 'Identidad, datos fiscales y configuración operativa de tu tienda.',
-      items: SETTINGS_CATEGORIES.filter(c => ['general', 'fiscal'].includes(c.id)),
+      items: SETTINGS_CATEGORIES.filter((c) => ['general', 'fiscal'].includes(c.id)),
     },
     {
       title: 'Punto de Venta',
       description: 'Tickets, periféricos y configuración del mostrador.',
-      items: SETTINGS_CATEGORIES.filter(c => ['pos', 'hardware', 'customer-display'].includes(c.id)),
+      items: SETTINGS_CATEGORIES.filter((c) => ['pos', 'hardware', 'customer-display'].includes(c.id)),
     },
     {
       title: 'Comercial',
       description: 'Programas de lealtad y reglas de inventario.',
-      items: SETTINGS_CATEGORIES.filter(c => ['loyalty', 'inventory'].includes(c.id)),
+      items: SETTINGS_CATEGORIES.filter((c) => ['loyalty', 'inventory'].includes(c.id)),
     },
     {
       title: 'Integraciones',
       description: 'Servicios externos y canales de comunicación.',
-      items: SETTINGS_CATEGORIES.filter(c => ['notifications', 'payments'].includes(c.id)),
+      items: SETTINGS_CATEGORIES.filter((c) => ['notifications', 'payments'].includes(c.id)),
     },
   ];
 
@@ -499,8 +574,12 @@ export function ConfiguracionPage() {
             {GROUPS.map((group) => (
               <BlockStack gap="400" key={group.title}>
                 <BlockStack gap="100">
-                  <Text variant="headingMd" as="h2">{group.title}</Text>
-                  <Text variant="bodySm" as="p" tone="subdued">{group.description}</Text>
+                  <Text variant="headingMd" as="h2">
+                    {group.title}
+                  </Text>
+                  <Text variant="bodySm" as="p" tone="subdued">
+                    {group.description}
+                  </Text>
                 </BlockStack>
 
                 <Box borderStyle="solid" borderWidth="025" borderColor="border" borderRadius="300" overflowX="hidden">
@@ -515,21 +594,29 @@ export function ConfiguracionPage() {
                             onClick={() => setSelectedCategory(cat.id)}
                             role="button"
                             tabIndex={0}
-                            onKeyDown={(e) => { if (e.key === 'Enter') setSelectedCategory(cat.id); }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') setSelectedCategory(cat.id);
+                            }}
                           >
                             <Box padding="400">
                               <InlineStack align="space-between" blockAlign="center" gap="400">
                                 <InlineStack gap="400" blockAlign="center">
                                   <Box
                                     padding="300"
-                                    background={status?.configured ? 'bg-fill-success-secondary' : 'bg-surface-secondary'}
+                                    background={
+                                      status?.configured ? 'bg-fill-success-secondary' : 'bg-surface-secondary'
+                                    }
                                     borderRadius="200"
                                   >
                                     <Icon source={cat.icon} tone={status?.configured ? 'success' : 'subdued'} />
                                   </Box>
                                   <BlockStack gap="050">
-                                    <Text variant="bodyMd" fontWeight="semibold" as="span">{cat.title}</Text>
-                                    <Text variant="bodySm" as="span" tone="subdued">{cat.description}</Text>
+                                    <Text variant="bodyMd" fontWeight="semibold" as="span">
+                                      {cat.title}
+                                    </Text>
+                                    <Text variant="bodySm" as="span" tone="subdued">
+                                      {cat.description}
+                                    </Text>
                                   </BlockStack>
                                 </InlineStack>
 
@@ -553,24 +640,36 @@ export function ConfiguracionPage() {
             {/* Tools section */}
             <BlockStack gap="400">
               <BlockStack gap="100">
-                <Text variant="headingMd" as="h2">Herramientas</Text>
-                <Text variant="bodySm" as="p" tone="subdued">Mantenimiento y respaldo de la configuración del sistema.</Text>
+                <Text variant="headingMd" as="h2">
+                  Herramientas
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Mantenimiento y respaldo de la configuración del sistema.
+                </Text>
               </BlockStack>
 
               <Card>
                 <BlockStack gap="400">
                   <InlineStack align="space-between" blockAlign="center" wrap={false}>
                     <BlockStack gap="100">
-                      <Text variant="bodyMd" fontWeight="semibold" as="span">Respaldo de configuración</Text>
-                      <Text variant="bodySm" as="span" tone="subdued">Descarga un archivo JSON con toda la configuración del POS.</Text>
+                      <Text variant="bodyMd" fontWeight="semibold" as="span">
+                        Respaldo de configuración
+                      </Text>
+                      <Text variant="bodySm" as="span" tone="subdued">
+                        Descarga un archivo JSON con toda la configuración del POS.
+                      </Text>
                     </BlockStack>
                     <Button>Exportar</Button>
                   </InlineStack>
                   <Divider />
                   <InlineStack align="space-between" blockAlign="center" wrap={false}>
                     <BlockStack gap="100">
-                      <Text variant="bodyMd" fontWeight="semibold" as="span">Restablecer valores de fábrica</Text>
-                      <Text variant="bodySm" as="span" tone="subdued">Restablece IPs, folios y parámetros a sus valores originales.</Text>
+                      <Text variant="bodyMd" fontWeight="semibold" as="span">
+                        Restablecer valores de fábrica
+                      </Text>
+                      <Text variant="bodySm" as="span" tone="subdued">
+                        Restablece IPs, folios y parámetros a sus valores originales.
+                      </Text>
                     </BlockStack>
                     <Button tone="critical">Resetear</Button>
                   </InlineStack>
@@ -583,7 +682,11 @@ export function ConfiguracionPage() {
               <BlockStack align="center" gap="200">
                 <div style={{ textAlign: 'center' }}>
                   <Text variant="bodySm" tone="subdued" as="p">
-                    Versión del sistema: <Text as="span" fontWeight="semibold">v0.12.568</Text> · Última actualización: {new Date().toLocaleDateString('es-MX')}
+                    Versión del sistema:{' '}
+                    <Text as="span" fontWeight="semibold">
+                      v0.12.568
+                    </Text>{' '}
+                    · Última actualización: {new Date().toLocaleDateString('es-MX')}
                   </Text>
                 </div>
               </BlockStack>

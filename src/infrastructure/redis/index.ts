@@ -18,22 +18,10 @@
 //   import { cache, checkRateLimit, withLock } from '@/infrastructure/redis';
 
 // ── Connection ──
-export {
-  getRedisClient,
-  checkRedisHealth,
-  getLastRedisHealth,
-  isRedisAvailable,
-  type RedisHealth,
-} from './connection';
+export { getRedisClient, checkRedisHealth, getLastRedisHealth, isRedisAvailable, type RedisHealth } from './connection';
 
 // ── Key Management ──
-export {
-  REDIS_PREFIXES,
-  buildKey,
-  deleteKeysByPattern,
-  countKeysByPrefix,
-  type RedisPrefix,
-} from './keys';
+export { REDIS_PREFIXES, buildKey, deleteKeysByPattern, countKeysByPrefix, type RedisPrefix } from './keys';
 
 // ── Cache ──
 export {
@@ -79,16 +67,7 @@ export {
 } from './rate-limit-tiers';
 
 // ── Distributed Locks ──
-export {
-  acquireLock,
-  withLock,
-  type Lock,
-  type LockOptions,
-} from './lock';
+export { acquireLock, withLock, type Lock, type LockOptions } from './lock';
 
 // ── Idempotency ──
-export {
-  idempotencyCheck,
-  idempotencyClear,
-  type IdempotencyOptions,
-} from './idempotency';
+export { idempotencyCheck, idempotencyClear, type IdempotencyOptions } from './idempotency';

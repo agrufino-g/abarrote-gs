@@ -1,10 +1,7 @@
 import { create } from 'zustand';
 import { DEFAULT_STORE_CONFIG } from '@/types';
 import type { DashboardStore } from './types';
-import {
-  fetchDashboardFromDB,
-  saveStoreConfig as dbSaveStoreConfig,
-} from '@/app/actions/db-actions';
+import { fetchDashboardFromDB, saveStoreConfig as dbSaveStoreConfig } from '@/app/actions/db-actions';
 import { logger } from '@/lib/logger';
 import { parseError } from '@/lib/errors';
 
@@ -48,6 +45,18 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
     error: null,
     lastSyncAt: 0,
 
+    // ── Multi-tienda ──
+    activeStoreId: 'main',
+    stores: [{ id: 'main', name: 'Tienda Principal' }],
+    switchStore: (storeId: string) => {
+      const store = get().stores.find((s) => s.id === storeId);
+      if (store) {
+        set({ activeStoreId: storeId });
+        // Reload data for the new store
+        get().fetchDashboardData();
+      }
+    },
+
     // ── Core setters ──
     setKPIData: (data) => set({ kpiData: data }),
     setInventoryAlerts: (alerts) => set({ inventoryAlerts: alerts }),
@@ -63,20 +72,20 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
     // isFetching flag to prevent duplicate calls during HMR or rapid navigation.
     fetchDashboardData: (() => {
       let isFetching = false; // Closure-based mutex to prevent concurrent calls
-      
+
       return async () => {
         // Prevent concurrent fetches — if a fetch is in progress, skip this one
         if (isFetching) {
           return;
         }
-        
+
         isFetching = true;
         const isInitialLoad = get().kpiData === null;
-        
+
         if (isInitialLoad) {
           set({ isLoading: true, error: null });
         }
-        
+
         try {
           const data = await fetchDashboardFromDB();
           set({
@@ -91,73 +100,74 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
             fiadoTransactions: data.fiadoTransactions,
             gastos: data.gastos,
             proveedores: data.proveedores,
-          cortesHistory: data.cortesHistory,
-          inventoryAudits: data.inventoryAudits,
-          storeConfig: data.storeConfig,
-          devoluciones: data.devoluciones,
-          cashMovements: data.cashMovements,
-          loyaltyTransactions: data.loyaltyTransactions,
-          hourlySalesData: data.hourlySalesData,
-          categories: data.categories || [],
-          isLoading: false,
-          lastSyncAt: Date.now(),
-        });
-
-        // ── Partial error handling ──
-        // Only show errors if there are significant failures (>2 modules)
-        // Single module failures are often transient and self-heal
-        if (data.partialErrors && data.partialErrors.length > 2) {
-          import('sileo').then(({ sileo }) => {
-            sileo.warning({
-              title: 'Algunos datos no cargaron',
-              description: `${data.partialErrors!.length} módulos tuvieron problemas. La app sigue funcionando.`,
-              duration: 5000,
-            });
-          });
-        }
-      } catch (error) {
-        // En caso de que falle toda la llamada fetchDashboardFromDB
-        const { title, description } = parseError(error);
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        const isNetworkError = errorMsg.toLowerCase() === 'failed to fetch' || 
-                               errorMsg.toLowerCase().includes('network') ||
-                               errorMsg.toLowerCase().includes('timeout') ||
-                               errorMsg.toLowerCase().includes('abort');
-        
-        // Only log non-network errors or first occurrence to reduce noise
-        if (!isNetworkError || isInitialLoad) {
-          logger.error('Dashboard fetch failed', {
-            error: errorMsg,
-            action: 'fetchDashboardData',
-            isInitialLoad,
-          });
-        }
-        
-        if (isInitialLoad) {
-          set({
-            error: `${title}: ${description}`,
+            cortesHistory: data.cortesHistory,
+            inventoryAudits: data.inventoryAudits,
+            storeConfig: data.storeConfig,
+            devoluciones: data.devoluciones,
+            cashMovements: data.cashMovements,
+            loyaltyTransactions: data.loyaltyTransactions,
+            hourlySalesData: data.hourlySalesData,
+            categories: data.categories || [],
             isLoading: false,
+            lastSyncAt: Date.now(),
           });
+
+          // ── Partial error handling ──
+          // Only show errors if there are significant failures (>2 modules)
+          // Single module failures are often transient and self-heal
+          if (data.partialErrors && data.partialErrors.length > 2) {
+            import('sileo').then(({ sileo }) => {
+              sileo.warning({
+                title: 'Algunos datos no cargaron',
+                description: `${data.partialErrors!.length} módulos tuvieron problemas. La app sigue funcionando.`,
+                duration: 5000,
+              });
+            });
+          }
+        } catch (error) {
+          // En caso de que falle toda la llamada fetchDashboardFromDB
+          const { title, description } = parseError(error);
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isNetworkError =
+            errorMsg.toLowerCase() === 'failed to fetch' ||
+            errorMsg.toLowerCase().includes('network') ||
+            errorMsg.toLowerCase().includes('timeout') ||
+            errorMsg.toLowerCase().includes('abort');
+
+          // Only log non-network errors or first occurrence to reduce noise
+          if (!isNetworkError || isInitialLoad) {
+            logger.error('Dashboard fetch failed', {
+              error: errorMsg,
+              action: 'fetchDashboardData',
+              isInitialLoad,
+            });
+          }
+
+          if (isInitialLoad) {
+            set({
+              error: `${title}: ${description}`,
+              isLoading: false,
+            });
+          }
+
+          // Only show toast for initial load failures or non-network errors
+          // Background polling errors are handled silently by circuit breaker
+          if (isInitialLoad) {
+            import('sileo').then(({ sileo }) => {
+              sileo.error({ title, description, duration: isNetworkError ? 5000 : 10000 });
+            });
+          }
+        } finally {
+          isFetching = false;
         }
-        
-        // Only show toast for initial load failures or non-network errors
-        // Background polling errors are handled silently by circuit breaker
-        if (isInitialLoad) {
-          import('sileo').then(({ sileo }) => {
-            sileo.error({ title, description, duration: isNetworkError ? 5000 : 10000 });
-          });
-        }
-      } finally {
-        isFetching = false;
-      }
-    };
-  })(),
+      };
+    })(),
 
     saveStoreConfig: async (data) => {
       try {
         const updatedConfig = await dbSaveStoreConfig(data);
         set({ storeConfig: updatedConfig });
-        
+
         // Broadcast config change to /display window
         try {
           const channel = new BroadcastChannel('customer_display');
@@ -166,7 +176,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => {
         } catch {
           // BroadcastChannel not available (SSR or unsupported browser)
         }
-        
+
         return updatedConfig;
       } catch (error) {
         const { title, description } = parseError(error);

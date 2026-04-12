@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  formatCurrency,
-  formatNumber,
-  getStockStatus,
-  getDaysUntil,
-} from '@/lib/utils';
+import { formatCurrency, formatNumber, getStockStatus, getDaysUntil } from '@/lib/utils';
 
 describe('formatCurrency', () => {
   it('formats positive amounts as MXN', () => {

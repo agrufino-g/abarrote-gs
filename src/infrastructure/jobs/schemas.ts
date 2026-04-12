@@ -12,9 +12,12 @@ import { z } from 'zod';
 // Shared Primitives
 // ══════════════════════════════════════════════════════════════
 
-const sanitizedString = z.string().trim().min(1).max(1000).transform((s) =>
-  s.replace(/[<>&"']/g, ''),
-);
+const sanitizedString = z
+  .string()
+  .trim()
+  .min(1)
+  .max(1000)
+  .transform((s) => s.replace(/[<>&"']/g, ''));
 
 const positiveInt = z.number().int().nonnegative();
 
@@ -45,7 +48,12 @@ export type NotificationPayload = z.infer<typeof notificationPayloadSchema>;
 // ══════════════════════════════════════════════════════════════
 
 export const paymentPollPayloadSchema = z.object({
-  chargeId: z.string().trim().min(1).max(128).regex(/^[\w\-:.]+$/, 'chargeId formato inválido'),
+  chargeId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .regex(/^[\w\-:.]+$/, 'chargeId formato inválido'),
   provider: z.enum(['conekta', 'stripe', 'clip']),
 });
 
@@ -55,9 +63,15 @@ export type PaymentPollPayload = z.infer<typeof paymentPollPayloadSchema>;
 // Daily Report Job (empty or with optional date override)
 // ══════════════════════════════════════════════════════════════
 
-export const dailyReportPayloadSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato YYYY-MM-DD requerido').optional(),
-}).optional().default({});
+export const dailyReportPayloadSchema = z
+  .object({
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato YYYY-MM-DD requerido')
+      .optional(),
+  })
+  .optional()
+  .default({});
 
 export type DailyReportPayload = z.infer<typeof dailyReportPayloadSchema>;
 

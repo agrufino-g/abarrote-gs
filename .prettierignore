@@ -1,0 +1,15 @@
+# Prettier Ignore
+node_modules/
+.next/
+out/
+build/
+drizzle/
+*.sql
+bun.lock
+pnpm-lock.yaml
+package-lock.json
+*.min.js
+*.min.css
+public/
+coverage/
+.vercel/

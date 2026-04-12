@@ -1,15 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Modal,
-  FormLayout,
-  TextField,
-  Select,
-  Text,
-  Badge,
-  Banner,
-} from '@shopify/polaris';
+import { Modal, FormLayout, TextField, Select, Text, Badge, Banner } from '@shopify/polaris';
 import type { RoleDefinition, UserRoleRecord } from '@/types';
 
 interface EditUserModalProps {
@@ -35,12 +27,14 @@ export function EditUserModal({
   const [editPinCode, setEditPinCode] = useState('');
 
   // Sync internal state when selectedUser changes
+  /* eslint-disable react-hooks/set-state-in-effect -- prop-derived state sync */
   useEffect(() => {
     if (selectedUser) {
       setEditRoleId(selectedUser.roleId);
       setEditPinCode(selectedUser.pinCode || '');
     }
   }, [selectedUser]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSave = useCallback(() => {
     return onSave({ roleId: editRoleId, pinCode: editPinCode });
@@ -66,12 +60,7 @@ export function EditUserModal({
           <Text as="p">
             Rol actual: <Badge tone="info">{roleMap.get(selectedUser?.roleId ?? '')?.name || 'Sin rol'}</Badge>
           </Text>
-          <Select
-            label="Nuevo rol"
-            options={roleSelectOptions}
-            value={editRoleId}
-            onChange={setEditRoleId}
-          />
+          <Select label="Nuevo rol" options={roleSelectOptions} value={editRoleId} onChange={setEditRoleId} />
           <TextField
             label="Cambiar o Establecer PIN de Aprobación"
             type="password"
@@ -84,7 +73,9 @@ export function EditUserModal({
           />
           {editRoleId && roleMap.get(editRoleId) && (
             <Banner tone="info">
-              <p><strong>{roleMap.get(editRoleId)!.name}:</strong> {roleMap.get(editRoleId)!.description}</p>
+              <p>
+                <strong>{roleMap.get(editRoleId)!.name}:</strong> {roleMap.get(editRoleId)!.description}
+              </p>
             </Banner>
           )}
         </FormLayout>

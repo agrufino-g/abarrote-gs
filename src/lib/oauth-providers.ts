@@ -136,7 +136,10 @@ export async function exchangeMPAuthorizationCode(
         status: tokenResponse.status,
         error: (errorData as Record<string, unknown>).error,
       });
-      return { success: false, error: 'Error al obtener tokens de MercadoPago. Verifica tus credenciales de aplicación.' };
+      return {
+        success: false,
+        error: 'Error al obtener tokens de MercadoPago. Verifica tus credenciales de aplicación.',
+      };
     }
 
     const tokens = (await tokenResponse.json()) as OAuthTokenResponse;
@@ -168,10 +171,7 @@ export async function exchangeMPAuthorizationCode(
       .select({ id: paymentProviderConnections.id })
       .from(paymentProviderConnections)
       .where(
-        and(
-          eq(paymentProviderConnections.provider, 'mercadopago'),
-          eq(paymentProviderConnections.storeId, 'main'),
-        ),
+        and(eq(paymentProviderConnections.provider, 'mercadopago'), eq(paymentProviderConnections.storeId, 'main')),
       )
       .limit(1);
 
@@ -241,10 +241,7 @@ export async function exchangeMPAuthorizationCode(
  * Refreshes an expired/expiring MercadoPago access token.
  * Called automatically when getting the access token.
  */
-export async function refreshMPAccessToken(
-  connectionId: string,
-  refreshTokenEnc: string,
-): Promise<boolean> {
+export async function refreshMPAccessToken(connectionId: string, refreshTokenEnc: string): Promise<boolean> {
   const appId = env.MP_APP_ID;
   const clientSecret = env.MP_CLIENT_SECRET;
 
@@ -311,10 +308,7 @@ export async function getMPAccessToken(): Promise<string | null> {
       .select()
       .from(paymentProviderConnections)
       .where(
-        and(
-          eq(paymentProviderConnections.provider, 'mercadopago'),
-          eq(paymentProviderConnections.storeId, 'main'),
-        ),
+        and(eq(paymentProviderConnections.provider, 'mercadopago'), eq(paymentProviderConnections.storeId, 'main')),
       )
       .limit(1);
 
@@ -326,8 +320,7 @@ export async function getMPAccessToken(): Promise<string | null> {
     // Check if token needs refresh (within 24 hours of expiry)
     const refreshThreshold = 24 * 60 * 60 * 1000; // 24h
     const needsRefresh =
-      connection.tokenExpiresAt &&
-      connection.tokenExpiresAt.getTime() - Date.now() < refreshThreshold;
+      connection.tokenExpiresAt && connection.tokenExpiresAt.getTime() - Date.now() < refreshThreshold;
 
     if (needsRefresh && connection.refreshTokenEnc) {
       const refreshed = await refreshMPAccessToken(connection.id, connection.refreshTokenEnc);
@@ -377,20 +370,12 @@ export async function disconnectProvider(provider: ProviderType): Promise<void> 
       disconnectedAt: now,
       updatedAt: now,
     })
-    .where(
-      and(
-        eq(paymentProviderConnections.provider, provider),
-        eq(paymentProviderConnections.storeId, 'main'),
-      ),
-    );
+    .where(and(eq(paymentProviderConnections.provider, provider), eq(paymentProviderConnections.storeId, 'main')));
 
   // Disable MP in storeConfig
   if (provider === 'mercadopago') {
     const { storeConfig: storeConfigTable } = await import('@/db/schema');
-    await db
-      .update(storeConfigTable)
-      .set({ mpEnabled: false, updatedAt: now })
-      .where(eq(storeConfigTable.id, 'main'));
+    await db.update(storeConfigTable).set({ mpEnabled: false, updatedAt: now }).where(eq(storeConfigTable.id, 'main'));
   }
 
   logger.info(`${provider} disconnected`);
@@ -399,9 +384,7 @@ export async function disconnectProvider(provider: ProviderType): Promise<void> 
 /**
  * Gets the connection status for display in the UI.
  */
-export async function getProviderConnectionStatus(
-  provider: ProviderType,
-): Promise<{
+export async function getProviderConnectionStatus(provider: ProviderType): Promise<{
   connected: boolean;
   email: string | null;
   expiresAt: string | null;
@@ -412,12 +395,7 @@ export async function getProviderConnectionStatus(
     const [connection] = await db
       .select()
       .from(paymentProviderConnections)
-      .where(
-        and(
-          eq(paymentProviderConnections.provider, provider),
-          eq(paymentProviderConnections.storeId, 'main'),
-        ),
-      )
+      .where(and(eq(paymentProviderConnections.provider, provider), eq(paymentProviderConnections.storeId, 'main')))
       .limit(1);
 
     if (!connection || connection.status === 'disconnected') {

@@ -2,7 +2,22 @@
 
 // === Enums / Constantes de Dominio ===
 
-export const PAYMENT_METHODS = ['efectivo', 'tarjeta', 'tarjeta_web', 'transferencia', 'fiado', 'spei', 'paypal', 'qr_cobro', 'spei_conekta', 'spei_stripe', 'oxxo_conekta', 'oxxo_stripe', 'tarjeta_clip', 'clip_terminal'] as const;
+export const PAYMENT_METHODS = [
+  'efectivo',
+  'tarjeta',
+  'tarjeta_web',
+  'transferencia',
+  'fiado',
+  'spei',
+  'paypal',
+  'qr_cobro',
+  'spei_conekta',
+  'spei_stripe',
+  'oxxo_conekta',
+  'oxxo_stripe',
+  'tarjeta_clip',
+  'clip_terminal',
+] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const MERMA_REASONS = ['expiration', 'damage', 'spoilage', 'other'] as const;
@@ -11,7 +26,15 @@ export type MermaReason = (typeof MERMA_REASONS)[number];
 export const PEDIDO_ESTADOS = ['pendiente', 'enviado', 'recibido'] as const;
 export type PedidoEstado = (typeof PEDIDO_ESTADOS)[number];
 
-export const GASTO_CATEGORIAS = ['renta', 'servicios', 'proveedores', 'salarios', 'mantenimiento', 'impuestos', 'otro'] as const;
+export const GASTO_CATEGORIAS = [
+  'renta',
+  'servicios',
+  'proveedores',
+  'salarios',
+  'mantenimiento',
+  'impuestos',
+  'otro',
+] as const;
 export type GastoCategoria = (typeof GASTO_CATEGORIAS)[number];
 
 export const ALERT_TYPES = ['low_stock', 'expiration', 'expired', 'merma'] as const;
@@ -29,14 +52,32 @@ export type CorteStatus = (typeof CORTE_STATUSES)[number];
 export const AUDIT_STATUSES = ['draft', 'completed'] as const;
 export type AuditStatus = (typeof AUDIT_STATUSES)[number];
 
-export const SERVICIO_ESTADOS = ['completado', 'pendiente', 'cancelado'] as const;
+export const SERVICIO_ESTADOS = ['completado', 'pendiente', 'procesando', 'fallido', 'cancelado'] as const;
 export type ServicioEstado = (typeof SERVICIO_ESTADOS)[number];
 
 // === Customer Display Animation Types ===
-export const CUSTOMER_DISPLAY_ANIMATIONS = ['none', 'fade', 'slideUp', 'slideDown', 'slideLeft', 'slideRight', 'zoom', 'bounce'] as const;
+export const CUSTOMER_DISPLAY_ANIMATIONS = [
+  'none',
+  'fade',
+  'slideUp',
+  'slideDown',
+  'slideLeft',
+  'slideRight',
+  'zoom',
+  'bounce',
+] as const;
 export type CustomerDisplayAnimation = (typeof CUSTOMER_DISPLAY_ANIMATIONS)[number];
 
-export const CUSTOMER_DISPLAY_PROMO_ANIMATIONS = ['none', 'slideUp', 'slideLeft', 'slideRight', 'fade', 'zoom', 'pulse', 'kenBurns'] as const;
+export const CUSTOMER_DISPLAY_PROMO_ANIMATIONS = [
+  'none',
+  'slideUp',
+  'slideLeft',
+  'slideRight',
+  'fade',
+  'zoom',
+  'pulse',
+  'kenBurns',
+] as const;
 export type CustomerDisplayPromoAnimation = (typeof CUSTOMER_DISPLAY_PROMO_ANIMATIONS)[number];
 
 export const TRANSITION_SPEEDS = ['slow', 'normal', 'fast'] as const;
@@ -107,6 +148,11 @@ export type TicketFontSize = (typeof TICKET_FONT_SIZES)[number];
 export const TICKET_HEADER_ALIGNMENTS = ['left', 'center'] as const;
 export type TicketHeaderAlignment = (typeof TICKET_HEADER_ALIGNMENTS)[number];
 
+export type TicketSectionKey = 'header' | 'supplier' | 'items' | 'totals' | 'footer' | 'barcode';
+
+export const DEFAULT_SECTION_ORDER: TicketSectionKey[] = ['header', 'items', 'totals', 'barcode', 'footer'];
+export const DEFAULT_SECTION_ORDER_PROVEEDOR: TicketSectionKey[] = ['header', 'supplier', 'items', 'totals', 'footer'];
+
 export interface TicketDesignConfig {
   // Header
   showLogo: boolean;
@@ -158,6 +204,8 @@ export interface TicketDesignConfig {
   showCostPrice: boolean;
   showTotalPieces: boolean;
   showDestination: boolean;
+  // Section order (for drag-and-drop reordering)
+  sectionOrder: TicketSectionKey[];
 }
 
 export const DEFAULT_TICKET_DESIGN: TicketDesignConfig = {
@@ -203,6 +251,7 @@ export const DEFAULT_TICKET_DESIGN: TicketDesignConfig = {
   showCostPrice: false,
   showTotalPieces: false,
   showDestination: false,
+  sectionOrder: [...DEFAULT_SECTION_ORDER],
 };
 
 export const DEFAULT_TICKET_DESIGN_PROVEEDOR: TicketDesignConfig = {
@@ -225,6 +274,7 @@ export const DEFAULT_TICKET_DESIGN_PROVEEDOR: TicketDesignConfig = {
   showCostPrice: true,
   showTotalPieces: true,
   showDestination: true,
+  sectionOrder: [...DEFAULT_SECTION_ORDER_PROVEEDOR],
 };
 
 // === Configuración de Tienda (Ticket) ===
@@ -322,6 +372,11 @@ export interface StoreConfig {
   customerDisplayOrientation: string;
   // Customer Display - Message Styling (JSON)
   customerDisplayMessageStyle: CustomerDisplayMessageStyle;
+  // Servicios (recargas / pagos)
+  serviciosProvider: string;
+  serviciosApiKey?: string;
+  serviciosApiSecret?: string;
+  serviciosSandbox: boolean;
 }
 
 export const DEFAULT_STORE_CONFIG: StoreConfig = {
@@ -379,8 +434,16 @@ export const DEFAULT_STORE_CONFIG: StoreConfig = {
   customerDisplaySoundEnabled: false,
   customerDisplayOrientation: 'landscape',
   customerDisplayMessageStyle: { ...DEFAULT_CUSTOMER_DISPLAY_MESSAGE_STYLE },
+  serviciosProvider: 'local',
+  serviciosSandbox: true,
   ticketDesignVenta: { ...DEFAULT_TICKET_DESIGN },
-  ticketDesignCorte: { ...DEFAULT_TICKET_DESIGN, headerNote: 'CORTE DE CAJA', showItemCount: false, showDiscount: false, showUnitDetail: false },
+  ticketDesignCorte: {
+    ...DEFAULT_TICKET_DESIGN,
+    headerNote: 'CORTE DE CAJA',
+    showItemCount: false,
+    showDiscount: false,
+    showUnitDetail: false,
+  },
   ticketDesignProveedor: { ...DEFAULT_TICKET_DESIGN_PROVEEDOR },
 };
 
@@ -447,6 +510,8 @@ export interface MermaRecord {
   productName: string;
   quantity: number;
   reason: MermaReason;
+  notes?: string;
+  evidenceUrl?: string;
   date: string;
   value: number;
 }
@@ -692,9 +757,9 @@ export interface UserRoleRecord {
   displayName: string;
   avatarUrl: string;
   employeeNumber: string;
-  globalId?: string;         // Permanent unique ID, generated once, never reused
+  globalId?: string; // Permanent unique ID, generated once, never reused
   status: UserStatus; // Active or deactivated
-  deactivatedAt?: string;    // ISO date when deactivated
+  deactivatedAt?: string; // ISO date when deactivated
   pinCode?: string;
   roleId: string;
   assignedBy: string;
@@ -747,25 +812,89 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
 
 export const PERMISSION_GROUPS: { title: string; permissions: PermissionKey[] }[] = [
   { title: 'Dashboard', permissions: ['dashboard.view'] },
-  { title: 'Ventas', permissions: ['sales.create', 'sales.view', 'sales.cancel', 'sales.refund', 'sales.discount', 'sales.delete_item', 'sales.change_price', 'corte.create', 'corte.view', 'corte.blind_view', 'cashdrawer.open'] },
-  { title: 'Inventario', permissions: ['inventory.view', 'inventory.edit', 'inventory.create', 'inventory.delete', 'inventory.audit'] },
+  {
+    title: 'Ventas',
+    permissions: [
+      'sales.create',
+      'sales.view',
+      'sales.cancel',
+      'sales.refund',
+      'sales.discount',
+      'sales.delete_item',
+      'sales.change_price',
+      'corte.create',
+      'corte.view',
+      'corte.blind_view',
+      'cashdrawer.open',
+    ],
+  },
+  {
+    title: 'Inventario',
+    permissions: ['inventory.view', 'inventory.edit', 'inventory.create', 'inventory.delete', 'inventory.audit'],
+  },
   { title: 'Clientes', permissions: ['customers.view', 'customers.edit', 'fiado.create', 'fiado.view'] },
   { title: 'Gastos', permissions: ['expenses.view', 'expenses.create', 'expenses.edit', 'expenses.delete'] },
-  { title: 'Proveedores y Pedidos', permissions: ['suppliers.view', 'suppliers.edit', 'pedidos.view', 'pedidos.create'] },
+  {
+    title: 'Proveedores y Pedidos',
+    permissions: ['suppliers.view', 'suppliers.edit', 'pedidos.view', 'pedidos.create'],
+  },
   { title: 'Reportes', permissions: ['analytics.view', 'reports.view', 'reports.export'] },
-  { title: 'Sistema y Avanzados', permissions: ['settings.view', 'settings.edit', 'roles.manage', 'pos.settings', 'notifications.edit', 'servicios.view', 'servicios.create', 'servicios.edit'] },
+  {
+    title: 'Sistema y Avanzados',
+    permissions: [
+      'settings.view',
+      'settings.edit',
+      'roles.manage',
+      'pos.settings',
+      'notifications.edit',
+      'servicios.view',
+      'servicios.create',
+      'servicios.edit',
+    ],
+  },
 ];
 
 export const ALL_PERMISSIONS: PermissionKey[] = [
-  'dashboard.view', 'sales.create', 'sales.view', 'sales.cancel', 'sales.refund', 'sales.discount', 'sales.delete_item', 'sales.change_price',
-  'inventory.view', 'inventory.edit', 'inventory.create', 'inventory.delete', 'inventory.audit',
-  'customers.view', 'customers.edit', 'fiado.create', 'fiado.view',
-  'expenses.view', 'expenses.create', 'expenses.edit', 'expenses.delete',
-  'suppliers.view', 'suppliers.edit', 'pedidos.view', 'pedidos.create',
-  'analytics.view', 'reports.view', 'reports.export',
-  'corte.create', 'corte.view', 'corte.blind_view', 'cashdrawer.open',
-  'settings.view', 'settings.edit', 'roles.manage', 'pos.settings', 'notifications.edit',
-  'servicios.view', 'servicios.create', 'servicios.edit',
+  'dashboard.view',
+  'sales.create',
+  'sales.view',
+  'sales.cancel',
+  'sales.refund',
+  'sales.discount',
+  'sales.delete_item',
+  'sales.change_price',
+  'inventory.view',
+  'inventory.edit',
+  'inventory.create',
+  'inventory.delete',
+  'inventory.audit',
+  'customers.view',
+  'customers.edit',
+  'fiado.create',
+  'fiado.view',
+  'expenses.view',
+  'expenses.create',
+  'expenses.edit',
+  'expenses.delete',
+  'suppliers.view',
+  'suppliers.edit',
+  'pedidos.view',
+  'pedidos.create',
+  'analytics.view',
+  'reports.view',
+  'reports.export',
+  'corte.create',
+  'corte.view',
+  'corte.blind_view',
+  'cashdrawer.open',
+  'settings.view',
+  'settings.edit',
+  'roles.manage',
+  'pos.settings',
+  'notifications.edit',
+  'servicios.view',
+  'servicios.create',
+  'servicios.edit',
 ];
 
 /** Default system roles seeded on first use */
@@ -788,13 +917,29 @@ export const DEFAULT_SYSTEM_ROLES: Omit<RoleDefinition, 'id' | 'createdAt' | 'up
     name: 'Gerente',
     description: 'Gestion de inventario, proveedores, reportes y gastos.',
     permissions: [
-      'dashboard.view', 'sales.view',
-      'inventory.view', 'inventory.edit', 'inventory.create',
-      'customers.view', 'customers.edit', 'fiado.create', 'fiado.view',
-      'expenses.view', 'expenses.create', 'expenses.edit',
-      'suppliers.view', 'suppliers.edit', 'pedidos.view', 'pedidos.create',
-      'analytics.view', 'reports.view', 'reports.export', 'corte.view',
-      'servicios.view', 'servicios.create', 'servicios.edit',
+      'dashboard.view',
+      'sales.view',
+      'inventory.view',
+      'inventory.edit',
+      'inventory.create',
+      'customers.view',
+      'customers.edit',
+      'fiado.create',
+      'fiado.view',
+      'expenses.view',
+      'expenses.create',
+      'expenses.edit',
+      'suppliers.view',
+      'suppliers.edit',
+      'pedidos.view',
+      'pedidos.create',
+      'analytics.view',
+      'reports.view',
+      'reports.export',
+      'corte.view',
+      'servicios.view',
+      'servicios.create',
+      'servicios.edit',
     ],
     isSystem: true,
     createdBy: 'system',
@@ -803,9 +948,17 @@ export const DEFAULT_SYSTEM_ROLES: Omit<RoleDefinition, 'id' | 'createdAt' | 'up
     name: 'Cajero',
     description: 'Punto de venta, cortes de caja y consulta de inventario.',
     permissions: [
-      'dashboard.view', 'sales.create', 'sales.view',
-      'inventory.view', 'customers.view', 'fiado.create', 'fiado.view',
-      'corte.create', 'corte.view', 'servicios.create', 'servicios.view',
+      'dashboard.view',
+      'sales.create',
+      'sales.view',
+      'inventory.view',
+      'customers.view',
+      'fiado.create',
+      'fiado.view',
+      'corte.create',
+      'corte.view',
+      'servicios.create',
+      'servicios.view',
     ],
     isSystem: true,
     createdBy: 'system',
@@ -814,10 +967,18 @@ export const DEFAULT_SYSTEM_ROLES: Omit<RoleDefinition, 'id' | 'createdAt' | 'up
     name: 'Solo lectura',
     description: 'Solo puede ver informacion. No puede modificar nada.',
     permissions: [
-      'dashboard.view', 'sales.view', 'inventory.view',
-      'customers.view', 'fiado.view', 'expenses.view',
-      'suppliers.view', 'pedidos.view', 'analytics.view',
-      'reports.view', 'corte.view', 'servicios.view',
+      'dashboard.view',
+      'sales.view',
+      'inventory.view',
+      'customers.view',
+      'fiado.view',
+      'expenses.view',
+      'suppliers.view',
+      'pedidos.view',
+      'analytics.view',
+      'reports.view',
+      'corte.view',
+      'servicios.view',
     ],
     isSystem: true,
     createdBy: 'system',
@@ -901,6 +1062,12 @@ export interface Servicio {
   estado: ServicioEstado;
   cajero: string;
   fecha: string;
+  // Provider tracking
+  providerId: string;
+  providerTransactionId?: string;
+  providerAuthCode?: string;
+  providerError?: string;
+  providerRespondedAt?: string;
 }
 
 // === ABC Inventory Classification (Pareto) ===
@@ -919,6 +1086,53 @@ export interface ABCProduct {
   currentStock: number;
   costPrice: number;
   unitPrice: number;
+}
+
+// === Inventory Aging ===
+export type AgingBucket = '0-30' | '30-60' | '60-90' | '90+';
+export interface AgingProduct {
+  productId: string;
+  productName: string;
+  sku: string;
+  category: string;
+  currentStock: number;
+  costPrice: number;
+  stockValue: number;
+  daysSinceLastSale: number | null;
+  bucket: AgingBucket;
+  expirationDate: string | null;
+  isPerishable: boolean;
+}
+export interface InventoryAgingAnalysis {
+  products: AgingProduct[];
+  buckets: Record<AgingBucket, { count: number; value: number; skuCount: number }>;
+  totalStockValue: number;
+  deadStockCount: number;
+}
+
+// === Product Margin Report ===
+export interface ProductMarginRow {
+  productId: string;
+  productName: string;
+  sku: string;
+  category: string;
+  costPrice: number;
+  unitPrice: number;
+  marginPercent: number;
+  unitsSold: number;
+  totalRevenue: number;
+  totalCost: number;
+  totalProfit: number;
+}
+export interface ProductMarginReport {
+  products: ProductMarginRow[];
+  summary: {
+    totalRevenue: number;
+    totalCost: number;
+    totalProfit: number;
+    avgMargin: number;
+  };
+  byCategory: Array<{ category: string; revenue: number; cost: number; profit: number; margin: number }>;
 }
 
 export interface ABCAnalysis {
@@ -963,12 +1177,12 @@ export interface RFMCustomer {
   clienteId: string;
   clienteName: string;
   phone: string;
-  recency: number;       // days since last purchase
-  frequency: number;     // purchases in period
-  monetary: number;      // total spent in period
-  rScore: number;        // 1-5
-  fScore: number;        // 1-5
-  mScore: number;        // 1-5
+  recency: number; // days since last purchase
+  frequency: number; // purchases in period
+  monetary: number; // total spent in period
+  rScore: number; // 1-5
+  fScore: number; // 1-5
+  mScore: number; // 1-5
   segment: RFMSegment;
   balance: number;
   points: number;
@@ -1008,10 +1222,10 @@ export interface ForecastProduct {
   forecastNextMonth: number;
   daysOfStock: number;
   confidence: 'high' | 'medium' | 'low';
-  historicalWeekly: number[];  // last 8 weeks of sales
+  historicalWeekly: number[]; // last 8 weeks of sales
 }
 
-// === CFDI / Facturación Electrónica ===
+// === CFDI / Facturación Electrónica (Próximamente — pendiente integración con PAC) ===
 export const CFDI_USOS = [
   { clave: 'G01', descripcion: 'Adquisición de mercancías' },
   { clave: 'G03', descripcion: 'Gastos en general' },
@@ -1028,7 +1242,10 @@ export const CFDI_REGIMENES = [
   { clave: '612', descripcion: 'Personas Físicas con Actividades Empresariales y Profesionales' },
   { clave: '616', descripcion: 'Sin obligaciones fiscales' },
   { clave: '621', descripcion: 'Incorporación Fiscal' },
-  { clave: '625', descripcion: 'Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas' },
+  {
+    clave: '625',
+    descripcion: 'Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas',
+  },
   { clave: '626', descripcion: 'Régimen Simplificado de Confianza' },
 ] as const;
 

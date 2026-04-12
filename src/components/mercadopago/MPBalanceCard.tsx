@@ -46,7 +46,9 @@ export function MPBalanceCard() {
         <Box padding="400">
           <InlineStack align="center">
             <Spinner size="small" />
-            <Text variant="bodySm" as="span" tone="subdued">Consultando saldo…</Text>
+            <Text variant="bodySm" as="span" tone="subdued">
+              Consultando saldo…
+            </Text>
           </InlineStack>
         </Box>
       </Card>
@@ -58,7 +60,9 @@ export function MPBalanceCard() {
       <Banner tone="warning" title="Saldo no disponible">
         <p>{error}</p>
         <Box paddingBlockStart="200">
-          <Button size="slim" onClick={loadBalance}>Reintentar</Button>
+          <Button size="slim" onClick={loadBalance}>
+            Reintentar
+          </Button>
         </Box>
       </Banner>
     );
@@ -76,7 +80,9 @@ export function MPBalanceCard() {
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <InlineStack gap="200" blockAlign="center">
-            <Text variant="headingMd" as="h3">Cuenta MercadoPago</Text>
+            <Text variant="headingMd" as="h3">
+              Cuenta MercadoPago
+            </Text>
             <Badge tone="success">Conectada</Badge>
           </InlineStack>
           <Button
@@ -92,7 +98,9 @@ export function MPBalanceCard() {
           <Text variant="bodySm" as="span" tone="subdued">
             {data.nickname}
           </Text>
-          <Text variant="bodySm" as="span" tone="subdued">•</Text>
+          <Text variant="bodySm" as="span" tone="subdued">
+            •
+          </Text>
           <Text variant="bodySm" as="span" tone="subdued">
             {data.email}
           </Text>
@@ -102,19 +110,25 @@ export function MPBalanceCard() {
 
         <InlineStack gap="800" wrap>
           <BlockStack gap="100">
-            <Text variant="bodySm" as="p" tone="subdued">Disponible</Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              Disponible
+            </Text>
             <Text variant="headingLg" as="p" fontWeight="bold">
               {formatCurrency(available)}
             </Text>
           </BlockStack>
           <BlockStack gap="100">
-            <Text variant="bodySm" as="p" tone="subdued">Retenido</Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              Retenido
+            </Text>
             <Text variant="headingLg" as="p" tone="caution">
               {formatCurrency(unavailable)}
             </Text>
           </BlockStack>
           <BlockStack gap="100">
-            <Text variant="bodySm" as="p" tone="subdued">Total</Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              Total
+            </Text>
             <Text variant="headingLg" as="p">
               {formatCurrency(total)}
             </Text>

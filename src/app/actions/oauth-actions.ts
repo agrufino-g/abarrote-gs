@@ -2,11 +2,7 @@
 
 import { requireOwner } from '@/lib/auth/guard';
 import { withLogging } from '@/lib/errors';
-import {
-  generateMPAuthorizationUrl,
-  disconnectProvider,
-  getProviderConnectionStatus,
-} from '@/lib/oauth-providers';
+import { generateMPAuthorizationUrl, disconnectProvider, getProviderConnectionStatus } from '@/lib/oauth-providers';
 import { logAudit } from '@/lib/audit';
 
 /**

@@ -27,7 +27,7 @@ export function exportDashboardData(
     shrinkage?: unknown[];
     dailySales?: unknown[];
     topProducts?: unknown[];
-  }
+  },
 ): void {
   const timestamp = new Date().toISOString().split('T')[0];
 
@@ -37,7 +37,7 @@ export function exportDashboardData(
       const filename = `${section}_${timestamp}.${options.format}`;
 
       if (options.format === 'pdf') {
-        const titleLabel = sectionOptions.find(o => o.value === section)?.label || section;
+        const titleLabel = sectionOptions.find((o) => o.value === section)?.label || section;
         import('./generatePDF').then(({ generatePDF }) => {
           generatePDF(titleLabel, sectionData as Record<string, unknown>[], filename);
         });

@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  Modal,
-  Text,
-  BlockStack,
-} from '@shopify/polaris';
+import { Modal, Text, BlockStack } from '@shopify/polaris';
 import type { RoleDefinition } from '@/types';
 
 interface DeleteRoleDefinitionModalProps {

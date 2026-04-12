@@ -1,7 +1,14 @@
 'use server';
 
-import { requirePermission, requireAuth, validateId } from '@/lib/auth/guard';
-import { validateSchema, createClienteSchema, updateClienteSchema, createFiadoSchema, createAbonoSchema, idSchema } from '@/lib/validation/schemas';
+import { requirePermission, validateId } from '@/lib/auth/guard';
+import {
+  validateSchema,
+  createClienteSchema,
+  updateClienteSchema,
+  createFiadoSchema,
+  createAbonoSchema,
+  idSchema,
+} from '@/lib/validation/schemas';
 import { db } from '@/db';
 import { clientes, fiadoTransactions, fiadoItems } from '@/db/schema';
 import { eq, desc, sql, inArray } from 'drizzle-orm';
@@ -9,7 +16,7 @@ import type { Cliente, FiadoTransaction, SaleItem } from '@/types';
 import { numVal } from './_helpers';
 import { withLogging, AppError } from '@/lib/errors';
 import { isNotDeleted, softDelete } from '@/infrastructure/soft-delete';
-import { withRateLimit, STRICT } from '@/infrastructure/redis';
+import { withRateLimit } from '@/infrastructure/redis';
 import { emitDomainEvent } from '@/domain/events';
 
 // ==================== CLIENTES ====================
@@ -31,7 +38,7 @@ async function _fetchClientes(): Promise<Cliente[]> {
 }
 
 async function _createCliente(
-  data: Omit<Cliente, 'id' | 'balance' | 'createdAt' | 'lastTransaction'>
+  data: Omit<Cliente, 'id' | 'balance' | 'createdAt' | 'lastTransaction'>,
 ): Promise<Cliente> {
   const user = await requirePermission('customers.edit');
   validateSchema(createClienteSchema, data, 'createCliente');
@@ -99,10 +106,9 @@ async function _fetchFiadoTransactions(): Promise<FiadoTransaction[]> {
   if (rows.length === 0) return [];
 
   // Batch fetch all fiado items for 'fiado' type transactions
-  const fiadoIds = rows.filter(r => r.type === 'fiado').map(r => r.id);
-  const allFiadoItems = fiadoIds.length > 0
-    ? await db.select().from(fiadoItems).where(inArray(fiadoItems.fiadoId, fiadoIds))
-    : [];
+  const fiadoIds = rows.filter((r) => r.type === 'fiado').map((r) => r.id);
+  const allFiadoItems =
+    fiadoIds.length > 0 ? await db.select().from(fiadoItems).where(inArray(fiadoItems.fiadoId, fiadoIds)) : [];
 
   // Group items by fiadoId
   const itemsByFiadoId = new Map<string, SaleItem[]>();
@@ -119,7 +125,7 @@ async function _fetchFiadoTransactions(): Promise<FiadoTransaction[]> {
     itemsByFiadoId.set(item.fiadoId, list);
   }
 
-  return rows.map(r => ({
+  return rows.map((r) => ({
     id: r.id,
     clienteId: r.clienteId,
     clienteName: r.clienteName,
@@ -137,7 +143,7 @@ async function _createFiado(
   amount: number,
   description: string,
   saleFolio?: string,
-  items?: SaleItem[]
+  items?: SaleItem[],
 ): Promise<void> {
   await requirePermission('customers.edit');
   validateSchema(createFiadoSchema, { clienteId, amount, description, saleFolio, items }, 'createFiado');
@@ -185,11 +191,7 @@ async function _createFiado(
     .where(eq(clientes.id, clienteId));
 }
 
-async function _createAbono(
-  clienteId: string,
-  amount: number,
-  description: string
-): Promise<void> {
+async function _createAbono(clienteId: string, amount: number, description: string): Promise<void> {
   await requirePermission('customers.edit');
   validateSchema(createAbonoSchema, { clienteId, amount, description }, 'createAbono');
   const now = new Date();

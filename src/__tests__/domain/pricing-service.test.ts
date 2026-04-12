@@ -39,16 +39,12 @@ describe('PricingService', () => {
 
     it('throws on percentage > 100', () => {
       const subtotal = Money.fromPesos(100);
-      expect(() => 
-        PricingService.calculateDiscount(subtotal, 150, 'percent'),
-      ).toThrow('between 0 and 100');
+      expect(() => PricingService.calculateDiscount(subtotal, 150, 'percent')).toThrow('between 0 and 100');
     });
 
     it('throws on discount > subtotal', () => {
       const subtotal = Money.fromPesos(50);
-      expect(() => 
-        PricingService.calculateDiscount(subtotal, 100, 'amount'),
-      ).toThrow('cannot exceed subtotal');
+      expect(() => PricingService.calculateDiscount(subtotal, 100, 'amount')).toThrow('cannot exceed subtotal');
     });
   });
 

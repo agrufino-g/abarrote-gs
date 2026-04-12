@@ -1,103 +1,107 @@
 'use client';
 
-import {
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  DataTable,
-  Divider,
-} from '@shopify/polaris';
+import { useMemo } from 'react';
+import { Card, Text, BlockStack, InlineStack, DataTable, Divider, Badge, Box, InlineGrid } from '@shopify/polaris';
+import { BarChart } from '@shopify/polaris-viz';
 import { formatCurrency } from '@/lib/utils';
 import type { FlujoMensualItem } from '@/hooks/useFinancialReports';
 
 interface CashFlowCardProps {
   flujoMensual: FlujoMensualItem[];
-  maxFlujo: number;
 }
 
-export function CashFlowCard({ flujoMensual, maxFlujo }: CashFlowCardProps) {
+export function CashFlowCard({ flujoMensual }: CashFlowCardProps) {
+  const chartData = useMemo(
+    () => [
+      {
+        name: 'Ingresos',
+        data: flujoMensual.map((m) => ({ key: m.label, value: m.ingresos })),
+      },
+      {
+        name: 'Egresos',
+        data: flujoMensual.map((m) => ({ key: m.label, value: m.egresos })),
+      },
+    ],
+    [flujoMensual],
+  );
+
+  const totals = useMemo(() => {
+    const ingresos = flujoMensual.reduce((s, m) => s + m.ingresos, 0);
+    const egresos = flujoMensual.reduce((s, m) => s + m.egresos, 0);
+    return { ingresos, egresos, neto: ingresos - egresos };
+  }, [flujoMensual]);
+
   return (
     <Card>
-      <BlockStack gap="300">
-        <InlineStack align="space-between">
-          <Text variant="headingMd" as="h3">Flujo de Efectivo — Últimos 6 Meses</Text>
-          <InlineStack gap="300">
-            <InlineStack gap="100" blockAlign="center">
-              <div style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: '#008060' }} />
-              <Text variant="bodySm" tone="subdued" as="span">Ingresos</Text>
-            </InlineStack>
-            <InlineStack gap="100" blockAlign="center">
-              <div style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: '#d82c0d' }} />
-              <Text variant="bodySm" tone="subdued" as="span">Egresos</Text>
-            </InlineStack>
-            <InlineStack gap="100" blockAlign="center">
-              <div style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: '#005bd3' }} />
-              <Text variant="bodySm" tone="subdued" as="span">Utilidad</Text>
-            </InlineStack>
-          </InlineStack>
+      <BlockStack gap="400">
+        <InlineStack align="space-between" blockAlign="center">
+          <Text as="h3" variant="headingMd" fontWeight="bold">
+            Flujo de Efectivo — Últimos 6 Meses
+          </Text>
+          <Badge tone={totals.neto >= 0 ? 'success' : 'critical'}>
+            {`Neto: ${formatCurrency(totals.neto)}`}
+          </Badge>
         </InlineStack>
-        <Divider />
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', minHeight: 160, paddingBottom: 8 }}>
-          {flujoMensual.map((m) => (
-            <div key={m.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 120 }}>
-                {/* Ingresos */}
-                <div
-                  title={`Ingresos: ${formatCurrency(m.ingresos)}`}
-                  style={{
-                    width: 16,
-                    height: `${maxFlujo > 0 ? Math.max(2, (m.ingresos / maxFlujo) * 120) : 2}px`,
-                    backgroundColor: '#008060',
-                    borderRadius: '2px 2px 0 0',
-                    cursor: 'default',
-                  }}
-                />
-                {/* Egresos */}
-                <div
-                  title={`Egresos: ${formatCurrency(m.egresos)}`}
-                  style={{
-                    width: 16,
-                    height: `${maxFlujo > 0 ? Math.max(2, (m.egresos / maxFlujo) * 120) : 2}px`,
-                    backgroundColor: '#d82c0d',
-                    borderRadius: '2px 2px 0 0',
-                    cursor: 'default',
-                  }}
-                />
-                {/* Utilidad */}
-                <div
-                  title={`Utilidad: ${formatCurrency(m.utilidad)}`}
-                  style={{
-                    width: 16,
-                    height: `${maxFlujo > 0 ? Math.max(2, (Math.abs(m.utilidad) / maxFlujo) * 120) : 2}px`,
-                    backgroundColor: m.utilidad >= 0 ? '#005bd3' : '#f49342',
-                    borderRadius: '2px 2px 0 0',
-                    cursor: 'default',
-                  }}
-                />
-              </div>
-              <Text variant="bodySm" tone="subdued" as="span">{m.label}</Text>
-            </div>
-          ))}
+
+        {/* Summary tiles */}
+        <InlineGrid columns={3} gap="300">
+          <Box padding="300" background="bg-fill-success-secondary" borderRadius="200">
+            <BlockStack gap="050">
+              <Text as="p" variant="bodyXs" tone="subdued">
+                Ingresos Totales
+              </Text>
+              <Text as="p" variant="headingSm" fontWeight="bold" tone="success">
+                {formatCurrency(totals.ingresos)}
+              </Text>
+            </BlockStack>
+          </Box>
+          <Box padding="300" background="bg-fill-critical-secondary" borderRadius="200">
+            <BlockStack gap="050">
+              <Text as="p" variant="bodyXs" tone="subdued">
+                Egresos Totales
+              </Text>
+              <Text as="p" variant="headingSm" fontWeight="bold" tone="critical">
+                {formatCurrency(totals.egresos)}
+              </Text>
+            </BlockStack>
+          </Box>
+          <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+            <BlockStack gap="050">
+              <Text as="p" variant="bodyXs" tone="subdued">
+                Flujo Neto
+              </Text>
+              <Text as="p" variant="headingSm" fontWeight="bold" tone={totals.neto >= 0 ? 'success' : 'critical'}>
+                {formatCurrency(totals.neto)}
+              </Text>
+            </BlockStack>
+          </Box>
+        </InlineGrid>
+
+        {/* BarChart */}
+        <div style={{ height: 260 }}>
+          <BarChart
+            data={chartData}
+            theme="Light"
+            yAxisOptions={{
+              labelFormatter: (value) => `$${Math.round(Number(value ?? 0) / 1000)}k`,
+            }}
+          />
         </div>
-        {/* Tabla resumen del flujo */}
+
+        <Divider />
+
+        {/* DataTable detail */}
         <DataTable
           columnContentTypes={['text', 'numeric', 'numeric', 'numeric']}
           headings={['Mes', 'Ingresos', 'Egresos', 'Utilidad']}
-          rows={flujoMensual.map(m => [
+          rows={flujoMensual.map((m) => [
             m.label,
             formatCurrency(m.ingresos),
             formatCurrency(m.egresos),
-            <Text
-              key={m.label}
-              as="span"
-              variant="bodySm"
-              tone={m.utilidad >= 0 ? 'success' : 'critical'}
-            >
+            <Text key={m.label} as="span" variant="bodySm" tone={m.utilidad >= 0 ? 'success' : 'critical'}>
               {formatCurrency(m.utilidad)}
             </Text>,
           ])}
-          totalsName={{ singular: 'Total', plural: 'Total' }}
         />
       </BlockStack>
     </Card>

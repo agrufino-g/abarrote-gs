@@ -42,11 +42,27 @@ export function GeneralSection({
       >
         <Card>
           <FormLayout>
-            <TextField label="Nombre comercial del sistema" value={config.storeName} onChange={(v) => updateField('storeName', v)} autoComplete="off" helpText="Nombre que verán tus empleados en el Dashboard." />
-            <TextField label="Razón social (nombre legal)" value={config.legalName} onChange={(v) => updateField('legalName', v)} autoComplete="off" helpText="Nombre de tu negocio o persona física para los recibos." />
+            <TextField
+              label="Nombre comercial del sistema"
+              value={config.storeName}
+              onChange={(v) => updateField('storeName', v)}
+              autoComplete="off"
+              helpText="Nombre que verán tus empleados en el Dashboard."
+            />
+            <TextField
+              label="Razón social (nombre legal)"
+              value={config.legalName}
+              onChange={(v) => updateField('legalName', v)}
+              autoComplete="off"
+              helpText="Nombre de tu negocio o persona física para los recibos."
+            />
             <BlockStack gap="200">
-              <Text as="p" variant="bodyMd" fontWeight="medium">Logotipo (Ticket y Pantalla)</Text>
-              <Text as="p" variant="bodySm" tone="subdued">Imagen que aparecerá impresa en los tickets. Ideal en blanco y negro, máx. 5 MB.</Text>
+              <Text as="p" variant="bodyMd" fontWeight="medium">
+                Logotipo (Ticket y Pantalla)
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                Imagen que aparecerá impresa en los tickets. Ideal en blanco y negro, máx. 5 MB.
+              </Text>
               {config.logoUrl ? (
                 <InlineStack gap="300" align="start" blockAlign="center">
                   <OptimizedImage source={config.logoUrl} alt="Logo de la tienda" size="large" />
@@ -55,11 +71,16 @@ export function GeneralSection({
                       size="slim"
                       tone="critical"
                       variant="plain"
-                      onClick={() => { updateField('logoUrl', undefined); setLogoError(null); }}
+                      onClick={() => {
+                        updateField('logoUrl', undefined);
+                        setLogoError(null);
+                      }}
                     >
                       Quitar logo
                     </Button>
-                    <Text as="p" variant="bodySm" tone="subdued">Arrastra una nueva imagen para reemplazar</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Arrastra una nueva imagen para reemplazar
+                    </Text>
                   </BlockStack>
                 </InlineStack>
               ) : null}
@@ -75,14 +96,20 @@ export function GeneralSection({
                   <Box padding="400">
                     <InlineStack gap="300" align="center" blockAlign="center">
                       <Spinner size="small" />
-                      <Text as="p" variant="bodySm">Subiendo logo...</Text>
+                      <Text as="p" variant="bodySm">
+                        Subiendo logo...
+                      </Text>
                     </InlineStack>
                   </Box>
                 ) : (
                   <DropZone.FileUpload actionTitle="Subir logo" actionHint="o arrastra aquí JPG, PNG, WebP, SVG" />
                 )}
               </DropZone>
-              {logoError && <Text as="p" variant="bodySm" tone="critical">{logoError}</Text>}
+              {logoError && (
+                <Text as="p" variant="bodySm" tone="critical">
+                  {logoError}
+                </Text>
+              )}
             </BlockStack>
           </FormLayout>
         </Card>
@@ -94,14 +121,41 @@ export function GeneralSection({
       >
         <Card>
           <FormLayout>
-            <TextField label="Dirección física" value={config.address} onChange={(v) => updateField('address', v)} autoComplete="off" multiline={2} />
+            <TextField
+              label="Dirección física"
+              value={config.address}
+              onChange={(v) => updateField('address', v)}
+              autoComplete="off"
+              multiline={2}
+            />
             <FormLayout.Group>
-              <TextField label="Ciudad" value={config.city} onChange={(v) => updateField('city', v)} autoComplete="off" />
-              <TextField label="Código Postal" value={config.postalCode} onChange={(v) => updateField('postalCode', v)} autoComplete="off" />
+              <TextField
+                label="Ciudad"
+                value={config.city}
+                onChange={(v) => updateField('city', v)}
+                autoComplete="off"
+              />
+              <TextField
+                label="Código Postal"
+                value={config.postalCode}
+                onChange={(v) => updateField('postalCode', v)}
+                autoComplete="off"
+              />
             </FormLayout.Group>
             <FormLayout.Group>
-              <TextField label="Teléfono principal" value={config.phone} onChange={(v) => updateField('phone', v)} autoComplete="tel" />
-              <TextField label="Número identificador de sucursal" value={config.storeNumber} onChange={(v) => updateField('storeNumber', v)} autoComplete="off" helpText="Ej: 001, usado para multitiendas." />
+              <TextField
+                label="Teléfono principal"
+                value={config.phone}
+                onChange={(v) => updateField('phone', v)}
+                autoComplete="tel"
+              />
+              <TextField
+                label="Número identificador de sucursal"
+                value={config.storeNumber}
+                onChange={(v) => updateField('storeNumber', v)}
+                autoComplete="off"
+                helpText="Ej: 001, usado para multitiendas."
+              />
             </FormLayout.Group>
           </FormLayout>
         </Card>
@@ -113,7 +167,12 @@ export function GeneralSection({
       >
         <Card>
           <BlockStack gap="400">
-            <Checkbox label="Respaldos automatizados" helpText="Crea instantáneas de tu base de datos y ventas diariamente para tu tranquilidad." checked={config.autoBackup} onChange={(v) => updateField('autoBackup', v)} />
+            <Checkbox
+              label="Respaldos automatizados"
+              helpText="Crea instantáneas de tu base de datos y ventas diariamente para tu tranquilidad."
+              checked={config.autoBackup}
+              onChange={(v) => updateField('autoBackup', v)}
+            />
           </BlockStack>
         </Card>
       </Layout.AnnotatedSection>

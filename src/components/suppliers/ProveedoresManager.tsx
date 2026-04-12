@@ -45,9 +45,8 @@ export function ProveedoresManager() {
     plural: 'proveedores',
   };
 
-  const proveedorItems = proveedores.map(p => ({ ...p }));
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(proveedorItems);
+  const proveedorItems = proveedores.map((p) => ({ ...p }));
+  const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(proveedorItems);
 
   const resetForm = useCallback(() => {
     setNombre('');
@@ -75,16 +74,21 @@ export function ProveedoresManager() {
     setModalOpen(false);
   }, [nombre, contacto, telefono, email, direccion, categoria, notas, addProveedor, resetForm]);
 
-  const handleDeleteProveedor = useCallback(async (id: string) => {
-    setDeleting(true);
-    try {
-      const p = proveedores.find(pr => pr.id === id);
-      await deleteProveedor(id);
-      showSuccess(`Proveedor "${p?.nombre}" eliminado`);
-      setDeleteConfirmId(null);
-    } catch { showError('Error al eliminar proveedor'); }
-    setDeleting(false);
-  }, [proveedores, deleteProveedor, showSuccess, showError]);
+  const handleDeleteProveedor = useCallback(
+    async (id: string) => {
+      setDeleting(true);
+      try {
+        const p = proveedores.find((pr) => pr.id === id);
+        await deleteProveedor(id);
+        showSuccess(`Proveedor "${p?.nombre}" eliminado`);
+        setDeleteConfirmId(null);
+      } catch {
+        showError('Error al eliminar proveedor');
+      }
+      setDeleting(false);
+    },
+    [proveedores, deleteProveedor, showSuccess, showError],
+  );
 
   const categoryOptions = [
     { label: 'Abarrotes', value: 'abarrotes' },
@@ -113,23 +117,30 @@ export function ProveedoresManager() {
       <IndexTable.Cell>{proveedor.telefono}</IndexTable.Cell>
       <IndexTable.Cell>{proveedor.categorias.join(', ')}</IndexTable.Cell>
       <IndexTable.Cell>
-        <Badge tone={proveedor.activo ? 'success' : undefined}>
-          {proveedor.activo ? 'Activo' : 'Inactivo'}
-        </Badge>
+        <Badge tone={proveedor.activo ? 'success' : undefined}>{proveedor.activo ? 'Activo' : 'Inactivo'}</Badge>
       </IndexTable.Cell>
       <IndexTable.Cell>
-        {proveedor.ultimoPedido
-          ? new Date(proveedor.ultimoPedido).toLocaleDateString('es-MX')
-          : 'Sin pedidos'}
+        {proveedor.ultimoPedido ? new Date(proveedor.ultimoPedido).toLocaleDateString('es-MX') : 'Sin pedidos'}
       </IndexTable.Cell>
       <IndexTable.Cell>
         {deleteConfirmId === proveedor.id ? (
           <InlineStack gap="100">
-            <Button variant="plain" tone="critical" onClick={() => handleDeleteProveedor(proveedor.id)} loading={deleting}>Confirmar</Button>
-            <Button variant="plain" onClick={() => setDeleteConfirmId(null)}>No</Button>
+            <Button
+              variant="plain"
+              tone="critical"
+              onClick={() => handleDeleteProveedor(proveedor.id)}
+              loading={deleting}
+            >
+              Confirmar
+            </Button>
+            <Button variant="plain" onClick={() => setDeleteConfirmId(null)}>
+              No
+            </Button>
           </InlineStack>
         ) : (
-          <Button variant="plain" tone="critical" onClick={() => setDeleteConfirmId(proveedor.id)}>Eliminar</Button>
+          <Button variant="plain" tone="critical" onClick={() => setDeleteConfirmId(proveedor.id)}>
+            Eliminar
+          </Button>
         )}
       </IndexTable.Cell>
     </IndexTable.Row>
@@ -138,7 +149,9 @@ export function ProveedoresManager() {
   return (
     <BlockStack gap="400">
       <InlineStack align="end" gap="200">
-        <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>Exportar</Button>
+        <Button icon={ExportIcon} onClick={() => setIsExportOpen(true)}>
+          Exportar
+        </Button>
         <Button variant="primary" onClick={() => setModalOpen(true)}>
           Agregar proveedor
         </Button>
@@ -146,10 +159,7 @@ export function ProveedoresManager() {
 
       {proveedores.length === 0 ? (
         <Card>
-          <EmptyState
-            heading="Administra tus proveedores"
-            image=""
-          >
+          <EmptyState heading="Administra tus proveedores" image="">
             <p>Agrega proveedores para llevar un mejor control de tus pedidos y costos.</p>
           </EmptyState>
         </Card>
@@ -158,9 +168,7 @@ export function ProveedoresManager() {
           <IndexTable
             resourceName={resourceName}
             itemCount={proveedores.length}
-            selectedItemsCount={
-              allResourcesSelected ? 'All' : selectedResources.length
-            }
+            selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
             onSelectionChange={handleSelectionChange}
             headings={[
               { title: 'Nombre' },
@@ -179,7 +187,10 @@ export function ProveedoresManager() {
 
       <Modal
         open={modalOpen}
-        onClose={() => { setModalOpen(false); resetForm(); }}
+        onClose={() => {
+          setModalOpen(false);
+          resetForm();
+        }}
         title="Nuevo proveedor"
         primaryAction={{
           content: 'Guardar',
@@ -187,7 +198,13 @@ export function ProveedoresManager() {
           disabled: !nombre.trim(),
         }}
         secondaryActions={[
-          { content: 'Cancelar', onAction: () => { setModalOpen(false); resetForm(); } },
+          {
+            content: 'Cancelar',
+            onAction: () => {
+              setModalOpen(false);
+              resetForm();
+            },
+          },
         ]}
       >
         <Modal.Section>
@@ -200,46 +217,13 @@ export function ProveedoresManager() {
               requiredIndicator
             />
             <FormLayout.Group>
-              <TextField
-                label="Persona de contacto"
-                value={contacto}
-                onChange={setContacto}
-                autoComplete="off"
-              />
-              <TextField
-                label="Teléfono"
-                value={telefono}
-                onChange={setTelefono}
-                autoComplete="tel"
-              />
+              <TextField label="Persona de contacto" value={contacto} onChange={setContacto} autoComplete="off" />
+              <TextField label="Teléfono" value={telefono} onChange={setTelefono} autoComplete="tel" />
             </FormLayout.Group>
-            <TextField
-              label="Correo electrónico"
-              type="email"
-              value={email}
-              onChange={setEmail}
-              autoComplete="email"
-            />
-            <TextField
-              label="Dirección"
-              value={direccion}
-              onChange={setDireccion}
-              autoComplete="off"
-              multiline={2}
-            />
-            <Select
-              label="Categoría principal"
-              options={categoryOptions}
-              value={categoria}
-              onChange={setCategoria}
-            />
-            <TextField
-              label="Notas"
-              value={notas}
-              onChange={setNotas}
-              autoComplete="off"
-              multiline={3}
-            />
+            <TextField label="Correo electrónico" type="email" value={email} onChange={setEmail} autoComplete="email" />
+            <TextField label="Dirección" value={direccion} onChange={setDireccion} autoComplete="off" multiline={2} />
+            <Select label="Categoría principal" options={categoryOptions} value={categoria} onChange={setCategoria} />
+            <TextField label="Notas" value={notas} onChange={setNotas} autoComplete="off" multiline={3} />
           </FormLayout>
         </Modal.Section>
       </Modal>
@@ -250,14 +234,14 @@ export function ProveedoresManager() {
         title="Exportar proveedores"
         exportName="proveedores"
         onExport={(format) => {
-          const exportData = proveedores.map(p => ({
-            "Empresa / Nombre": p.nombre,
-            "Contacto": p.contacto || 'N/A',
-            "Teléfono": p.telefono || 'N/A',
-            "Email": p.email || 'N/A',
-            "Categoría Principal": p.categorias.join(', '),
-            "Último Pedido": p.ultimoPedido ? new Date(p.ultimoPedido).toLocaleDateString('es-MX') : 'N/A',
-            "Activo": p.activo ? 'Sí' : 'No'
+          const exportData = proveedores.map((p) => ({
+            'Empresa / Nombre': p.nombre,
+            Contacto: p.contacto || 'N/A',
+            Teléfono: p.telefono || 'N/A',
+            Email: p.email || 'N/A',
+            'Categoría Principal': p.categorias.join(', '),
+            'Último Pedido': p.ultimoPedido ? new Date(p.ultimoPedido).toLocaleDateString('es-MX') : 'N/A',
+            Activo: p.activo ? 'Sí' : 'No',
           }));
           const filename = `Proveedores_Kiosco_${new Date().toISOString().split('T')[0]}`;
           if (format === 'pdf') {
@@ -269,6 +253,6 @@ export function ProveedoresManager() {
           }
         }}
       />
-    </BlockStack >
+    </BlockStack>
   );
 }

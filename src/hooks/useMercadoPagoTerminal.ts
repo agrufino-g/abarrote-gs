@@ -38,11 +38,16 @@ export function useMercadoPagoTerminal({
   const [mpConfig, setMpConfig] = useState<MercadoPagoConfig>({ deviceId: '', enabled: false });
   const [mpProcessing, setMpProcessing] = useState(false);
   const [mpStatus, setMpStatus] = useState('');
-  const [mpPaymentIntent, setMpPaymentIntent] = useState<PaymentIntent | null>(null);
+  const [_mpPaymentIntent, setMpPaymentIntent] = useState<PaymentIntent | null>(null);
   const [mpError, setMpError] = useState('');
   const mpPollingRef = useRef<NodeJS.Timeout | null>(null);
+  const mpPollCountRef = useRef(0);
   const handleMPTerminalPaymentRef = useRef<(() => Promise<void>) | null>(null);
   const [mpWebSuccess, setMpWebSuccess] = useState(false);
+  const [mpPollProgress, setMpPollProgress] = useState(0);
+
+  const MP_MAX_POLL_ATTEMPTS = 60; // 60 × 3s = 3 min timeout
+  const MP_POLL_INTERVAL_MS = 3000;
 
   // Keep a stable ref to the callback so the polling closure always has the latest
   const onSaleCompleteRef = useRef(onSaleComplete);
@@ -51,11 +56,13 @@ export function useMercadoPagoTerminal({
   }, [onSaleComplete]);
 
   // Load MP config from storeConfig (DB-backed)
+  /* eslint-disable react-hooks/set-state-in-effect -- external store sync */
   useEffect(() => {
     const storeConfigData = useDashboardStore.getState().storeConfig;
     const config = getMPConfigFromStore(storeConfigData);
     setMpConfig(config);
   }, [open]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleMPTerminalPayment = useCallback(async () => {
     if (!mpConfig.enabled || !mpConfig.deviceId) {
@@ -77,8 +84,21 @@ export function useMercadoPagoTerminal({
 
       setMpPaymentIntent(intent);
       setMpStatus('Esperando pago en la terminal...');
+      mpPollCountRef.current = 0;
+      setMpPollProgress(0);
 
       mpPollingRef.current = setInterval(async () => {
+        mpPollCountRef.current += 1;
+        setMpPollProgress(Math.min(Math.round((mpPollCountRef.current / MP_MAX_POLL_ATTEMPTS) * 100), 100));
+
+        // Timeout — max polling reached
+        if (mpPollCountRef.current >= MP_MAX_POLL_ATTEMPTS) {
+          if (mpPollingRef.current) clearInterval(mpPollingRef.current);
+          setMpProcessing(false);
+          setMpError('Tiempo de espera agotado (3 min). Cancela e intenta de nuevo.');
+          return;
+        }
+
         try {
           const status = await getPaymentIntentStatus(mpConfig, intent.id);
           setMpStatus(getPaymentStatusLabel(status.status));
@@ -96,17 +116,22 @@ export function useMercadoPagoTerminal({
               paymentMethod: 'tarjeta',
               amountPaid: total,
               change: 0,
-              cajero: currentUserRole?.globalId || currentUserRole?.employeeNumber || currentUserRole?.displayName || 'Cajero',
+              cajero:
+                currentUserRole?.globalId ||
+                currentUserRole?.employeeNumber ||
+                currentUserRole?.displayName ||
+                'Cajero',
               pointsEarned: 0,
               pointsUsed: 0,
-            } as any);
+              discount: 0,
+              discountType: 'amount',
+              installments: 1,
+              mpPaymentId: intent.id,
+              status: 'completada',
+            });
             onSaleCompleteRef.current(sale);
             showSuccess(`Pago con tarjeta procesado. Venta ${sale.folio}: ${formatCurrency(sale.total)}`);
-          } else if (
-            status.status === 'canceled' ||
-            status.status === 'error' ||
-            status.status === 'expired'
-          ) {
+          } else if (status.status === 'canceled' || status.status === 'error' || status.status === 'expired') {
             if (mpPollingRef.current) clearInterval(mpPollingRef.current);
             setMpProcessing(false);
             setMpError(
@@ -114,9 +139,9 @@ export function useMercadoPagoTerminal({
             );
           }
         } catch {
-          // Network error during polling — keep trying
+          // Network error during polling — keep trying (count still increments)
         }
-      }, 3000);
+      }, MP_POLL_INTERVAL_MS);
     } catch (err) {
       setMpProcessing(false);
       setMpError(err instanceof Error ? err.message : 'Error al conectar con la terminal');
@@ -157,6 +182,8 @@ export function useMercadoPagoTerminal({
     setMpPaymentIntent(null);
     setMpError('');
     setMpWebSuccess(false);
+    setMpPollProgress(0);
+    mpPollCountRef.current = 0;
     if (mpPollingRef.current) {
       clearInterval(mpPollingRef.current);
       mpPollingRef.current = null;
@@ -169,6 +196,7 @@ export function useMercadoPagoTerminal({
     mpStatus,
     mpError,
     mpWebSuccess,
+    mpPollProgress,
     setMpWebSuccess,
     handleMPTerminalPaymentRef,
     handleCancelMPPayment,

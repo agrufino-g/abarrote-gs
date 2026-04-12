@@ -130,85 +130,87 @@ export async function createClipCheckoutCharge(params: {
   errorUrl?: string;
 }): Promise<ClipCheckoutResult> {
   return clipBreaker.execute(async () => {
-  const { amount, description, saleReference } = params;
-  const authToken = await getClipAuthToken();
+    const { amount, description, saleReference } = params;
+    const authToken = await getClipAuthToken();
 
-  const appBaseUrl = getAppUrl();
+    const appBaseUrl = getAppUrl();
 
-  const successUrl = params.successUrl ?? `${appBaseUrl}/dashboard?clip_payment=success&ref=${encodeURIComponent(saleReference)}`;
-  const errorUrl = params.errorUrl ?? `${appBaseUrl}/dashboard?clip_payment=error&ref=${encodeURIComponent(saleReference)}`;
+    const successUrl =
+      params.successUrl ?? `${appBaseUrl}/dashboard?clip_payment=success&ref=${encodeURIComponent(saleReference)}`;
+    const errorUrl =
+      params.errorUrl ?? `${appBaseUrl}/dashboard?clip_payment=error&ref=${encodeURIComponent(saleReference)}`;
 
-  const body = {
-    amount,
-    currency: 'MXN',
-    purchase_description: (description || 'Venta POS').substring(0, 250),
-    redirection_url: {
-      success: successUrl,
-      error: errorUrl,
-      default: `${appBaseUrl}/dashboard`,
-    },
-    metadata: {
-      external_reference: saleReference,
-      customer_info: { source: 'abarrote-gs-pos' },
-    },
-    webhook_url: `${appBaseUrl}/api/webhooks/clip`,
-  };
+    const body = {
+      amount,
+      currency: 'MXN',
+      purchase_description: (description || 'Venta POS').substring(0, 250),
+      redirection_url: {
+        success: successUrl,
+        error: errorUrl,
+        default: `${appBaseUrl}/dashboard`,
+      },
+      metadata: {
+        external_reference: saleReference,
+        customer_info: { source: 'abarrote-gs-pos' },
+      },
+      webhook_url: `${appBaseUrl}/api/webhooks/clip`,
+    };
 
-  const response = await fetch(CLIP_CHECKOUT_BASE, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': authToken,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error');
-    logger.error('Clip checkout creation failed', {
-      action: 'clip_checkout_error',
-      statusCode: response.status,
-      error: errorText.substring(0, 500),
+    const response = await fetch(CLIP_CHECKOUT_BASE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: authToken,
+      },
+      body: JSON.stringify(body),
     });
-    throw new Error(`Error al crear link de pago Clip (HTTP ${response.status})`);
-  }
 
-  const data = await response.json() as ClipCheckoutResponse;
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      logger.error('Clip checkout creation failed', {
+        action: 'clip_checkout_error',
+        statusCode: response.status,
+        error: errorText.substring(0, 500),
+      });
+      throw new Error(`Error al crear link de pago Clip (HTTP ${response.status})`);
+    }
 
-  const referenceNumber = `CL-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const data = (await response.json()) as ClipCheckoutResponse;
 
-  await db.insert(paymentCharges).values({
-    id: crypto.randomUUID(),
-    provider: 'clip',
-    providerChargeId: data.payment_request_id,
-    saleId: null,
-    storeId: 'main',
-    amount: amount.toFixed(2),
-    currency: 'MXN',
-    paymentMethod: 'tarjeta_clip',
-    status: 'pending',
-    referenceNumber,
-    expiresAt: new Date(Date.now() + 3 * 24 * 3600 * 1000), // default 3 days
-    providerMetadata: {
+    const referenceNumber = `CL-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+
+    await db.insert(paymentCharges).values({
+      id: crypto.randomUUID(),
+      provider: 'clip',
+      providerChargeId: data.payment_request_id,
+      saleId: null,
+      storeId: 'main',
+      amount: amount.toFixed(2),
+      currency: 'MXN',
+      paymentMethod: 'tarjeta_clip',
+      status: 'pending',
+      referenceNumber,
+      expiresAt: new Date(Date.now() + 3 * 24 * 3600 * 1000), // default 3 days
+      providerMetadata: {
+        paymentRequestId: data.payment_request_id,
+        paymentUrl: data.payment_url,
+      },
+    });
+
+    logger.info('Clip checkout charge created', {
+      action: 'clip_checkout_charge',
+      paymentRequestId: data.payment_request_id,
+      amount,
+    });
+
+    return {
       paymentRequestId: data.payment_request_id,
       paymentUrl: data.payment_url,
-    },
-  });
-
-  logger.info('Clip checkout charge created', {
-    action: 'clip_checkout_charge',
-    paymentRequestId: data.payment_request_id,
-    amount,
-  });
-
-  return {
-    paymentRequestId: data.payment_request_id,
-    paymentUrl: data.payment_url,
-    amount,
-    status: data.status,
-    referenceNumber,
-  };
+      amount,
+      status: data.status,
+      referenceNumber,
+    };
   }); // clipBreaker.execute end
 }
 
@@ -221,93 +223,92 @@ export async function createClipTerminalCharge(params: {
   webhookUrl?: string;
 }): Promise<ClipTerminalResult> {
   return clipBreaker.execute(async () => {
-  const { amount, saleReference } = params;
-  const authToken = await getClipAuthToken();
+    const { amount, saleReference } = params;
+    const authToken = await getClipAuthToken();
 
-  const serialNumber = params.serialNumber ?? await getClipSerialNumber();
-  if (!serialNumber) {
-    throw new Error(
-      'No se configuró el número de serie del lector Clip. ' +
-      'Configúralo en Configuración → Pagos → Clip.',
-    );
-  }
+    const serialNumber = params.serialNumber ?? (await getClipSerialNumber());
+    if (!serialNumber) {
+      throw new Error(
+        'No se configuró el número de serie del lector Clip. ' + 'Configúralo en Configuración → Pagos → Clip.',
+      );
+    }
 
-  const appBaseUrl = getAppUrl();
+    const appBaseUrl = getAppUrl();
 
-  const body = {
-    amount: Number(amount.toFixed(2)),
-    reference: saleReference,
-    serial_number_pos: serialNumber,
-    webhook_url: params.webhookUrl ?? `${appBaseUrl}/api/webhooks/clip`,
-    preferences: {
-      is_auto_return_enabled: true,
-      is_tip_enabled: false,
-      is_msi_enabled: false,
-      is_mci_enabled: false,
-      is_dcc_enabled: false,
-      is_retry_enabled: true,
-      is_share_enabled: false,
-      is_auto_print_receipt_enabled: false,
-      is_split_payment_enabled: false,
-    },
-  };
-
-  const response = await fetch(`${CLIP_PINPAD_BASE}/payment`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': authToken,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error');
-    logger.error('Clip PinPad payment failed', {
-      action: 'clip_pinpad_error',
-      statusCode: response.status,
-      error: errorText.substring(0, 500),
-    });
-    throw new Error(`Error al crear pago en terminal Clip (HTTP ${response.status})`);
-  }
-
-  const data = await response.json() as ClipPinpadResponse;
-
-  const referenceNumber = `CT-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-
-  await db.insert(paymentCharges).values({
-    id: crypto.randomUUID(),
-    provider: 'clip',
-    providerChargeId: data.pinpad_request_id,
-    saleId: null,
-    storeId: 'main',
-    amount: amount.toFixed(2),
-    currency: 'MXN',
-    paymentMethod: 'clip_terminal',
-    status: 'pending',
-    referenceNumber,
-    providerMetadata: {
-      pinpadRequestId: data.pinpad_request_id,
-      serialNumber,
+    const body = {
+      amount: Number(amount.toFixed(2)),
       reference: saleReference,
-    },
-  });
+      serial_number_pos: serialNumber,
+      webhook_url: params.webhookUrl ?? `${appBaseUrl}/api/webhooks/clip`,
+      preferences: {
+        is_auto_return_enabled: true,
+        is_tip_enabled: false,
+        is_msi_enabled: false,
+        is_mci_enabled: false,
+        is_dcc_enabled: false,
+        is_retry_enabled: true,
+        is_share_enabled: false,
+        is_auto_print_receipt_enabled: false,
+        is_split_payment_enabled: false,
+      },
+    };
 
-  logger.info('Clip terminal charge created', {
-    action: 'clip_terminal_charge',
-    pinpadRequestId: data.pinpad_request_id,
-    amount,
-    serialNumber: serialNumber.substring(0, 4) + '***',
-  });
+    const response = await fetch(`${CLIP_PINPAD_BASE}/payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: authToken,
+      },
+      body: JSON.stringify(body),
+    });
 
-  return {
-    pinpadRequestId: data.pinpad_request_id,
-    amount,
-    serialNumber,
-    status: data.status ?? 'PENDING',
-    referenceNumber,
-  };
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      logger.error('Clip PinPad payment failed', {
+        action: 'clip_pinpad_error',
+        statusCode: response.status,
+        error: errorText.substring(0, 500),
+      });
+      throw new Error(`Error al crear pago en terminal Clip (HTTP ${response.status})`);
+    }
+
+    const data = (await response.json()) as ClipPinpadResponse;
+
+    const referenceNumber = `CT-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+
+    await db.insert(paymentCharges).values({
+      id: crypto.randomUUID(),
+      provider: 'clip',
+      providerChargeId: data.pinpad_request_id,
+      saleId: null,
+      storeId: 'main',
+      amount: amount.toFixed(2),
+      currency: 'MXN',
+      paymentMethod: 'clip_terminal',
+      status: 'pending',
+      referenceNumber,
+      providerMetadata: {
+        pinpadRequestId: data.pinpad_request_id,
+        serialNumber,
+        reference: saleReference,
+      },
+    });
+
+    logger.info('Clip terminal charge created', {
+      action: 'clip_terminal_charge',
+      pinpadRequestId: data.pinpad_request_id,
+      amount,
+      serialNumber: serialNumber.substring(0, 4) + '***',
+    });
+
+    return {
+      pinpadRequestId: data.pinpad_request_id,
+      amount,
+      serialNumber,
+      status: data.status ?? 'PENDING',
+      referenceNumber,
+    };
   }); // clipBreaker.execute end
 }
 
@@ -315,61 +316,58 @@ export async function createClipTerminalCharge(params: {
 
 export async function getClipCheckoutStatus(paymentRequestId: string): Promise<ClipChargeStatus> {
   return clipBreaker.execute(async () => {
-  const authToken = await getClipAuthToken();
+    const authToken = await getClipAuthToken();
 
-  const response = await fetch(`${CLIP_CHECKOUT_BASE}/${encodeURIComponent(paymentRequestId)}`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-      'Authorization': authToken,
-    },
-  });
+    const response = await fetch(`${CLIP_CHECKOUT_BASE}/${encodeURIComponent(paymentRequestId)}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: authToken,
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Error al consultar estado de pago Clip (HTTP ${response.status})`);
-  }
+    if (!response.ok) {
+      throw new Error(`Error al consultar estado de pago Clip (HTTP ${response.status})`);
+    }
 
-  const data = await response.json() as ClipCheckoutStatusResponse;
+    const data = (await response.json()) as ClipCheckoutStatusResponse;
 
-  const status = mapClipStatus(data.status);
+    const status = mapClipStatus(data.status);
 
-  return {
-    id: data.payment_request_id,
-    status,
-    paidAt: status === 'paid' && data.approved_at ? new Date(data.approved_at) : null,
-  };
+    return {
+      id: data.payment_request_id,
+      status,
+      paidAt: status === 'paid' && data.approved_at ? new Date(data.approved_at) : null,
+    };
   }); // clipBreaker.execute end
 }
 
 export async function getClipTerminalStatus(pinpadRequestId: string): Promise<ClipChargeStatus> {
   return clipBreaker.execute(async () => {
-  const authToken = await getClipAuthToken();
+    const authToken = await getClipAuthToken();
 
-  const response = await fetch(
-    `${CLIP_PINPAD_BASE}/payment?pinpadRequestId=${encodeURIComponent(pinpadRequestId)}`,
-    {
+    const response = await fetch(`${CLIP_PINPAD_BASE}/payment?pinpadRequestId=${encodeURIComponent(pinpadRequestId)}`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
-        'Authorization': authToken,
+        Accept: 'application/json',
+        Authorization: authToken,
         'Pinpad-Include-Detail': 'true',
       },
-    },
-  );
+    });
 
-  if (!response.ok) {
-    throw new Error(`Error al consultar estado de pago PinPad Clip (HTTP ${response.status})`);
-  }
+    if (!response.ok) {
+      throw new Error(`Error al consultar estado de pago PinPad Clip (HTTP ${response.status})`);
+    }
 
-  const data = await response.json() as ClipPinpadStatusResponse;
+    const data = (await response.json()) as ClipPinpadStatusResponse;
 
-  const status = mapClipPinpadStatus(data.status);
+    const status = mapClipPinpadStatus(data.status);
 
-  return {
-    id: data.pinpad_request_id,
-    status,
-    paidAt: status === 'paid' ? new Date(data.create_date) : null,
-  };
+    return {
+      id: data.pinpad_request_id,
+      status,
+      paidAt: status === 'paid' ? new Date(data.create_date) : null,
+    };
   }); // clipBreaker.execute end
 }
 
@@ -389,8 +387,8 @@ export async function connectClip(params: {
     const response = await fetch(`${CLIP_PINPAD_BASE}/devices/status`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
-        'Authorization': `Basic ${token}`,
+        Accept: 'application/json',
+        Authorization: `Basic ${token}`,
       },
     });
     // 401 = bad credentials. Other codes may be valid (e.g. 404 if no devices)
@@ -407,12 +405,7 @@ export async function connectClip(params: {
   const existing = await db
     .select()
     .from(paymentProviderConnections)
-    .where(
-      and(
-        eq(paymentProviderConnections.provider, 'clip'),
-        eq(paymentProviderConnections.storeId, 'main'),
-      ),
-    )
+    .where(and(eq(paymentProviderConnections.provider, 'clip'), eq(paymentProviderConnections.storeId, 'main')))
     .limit(1);
 
   const connectionData = {
@@ -455,12 +448,7 @@ export async function disconnectClip(): Promise<void> {
       disconnectedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(
-      and(
-        eq(paymentProviderConnections.provider, 'clip'),
-        eq(paymentProviderConnections.storeId, 'main'),
-      ),
-    );
+    .where(and(eq(paymentProviderConnections.provider, 'clip'), eq(paymentProviderConnections.storeId, 'main')));
 
   logger.info('Clip disconnected', { action: 'clip_disconnect' });
 }
@@ -474,12 +462,7 @@ export async function getClipConnectionStatus(): Promise<{
   const [connection] = await db
     .select()
     .from(paymentProviderConnections)
-    .where(
-      and(
-        eq(paymentProviderConnections.provider, 'clip'),
-        eq(paymentProviderConnections.storeId, 'main'),
-      ),
-    )
+    .where(and(eq(paymentProviderConnections.provider, 'clip'), eq(paymentProviderConnections.storeId, 'main')))
     .limit(1);
 
   if (!connection || connection.status !== 'connected') {

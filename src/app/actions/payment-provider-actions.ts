@@ -3,7 +3,7 @@
 import { requireOwner } from '@/lib/auth/guard';
 import { withLogging } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import { withRateLimit, STRICT } from '@/infrastructure/redis';
+import { withRateLimit } from '@/infrastructure/redis';
 import {
   connectConekta,
   disconnectConekta,
@@ -32,7 +32,7 @@ import {
 import { db } from '@/db';
 import { paymentCharges } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { validateSchema, connectConektaSchema, connectStripeSchema, connectClipSchema, createChargeSchema, createClipTerminalSchema, idSchema } from '@/lib/validation/schemas';
+import { validateSchema, connectConektaSchema, connectStripeSchema, connectClipSchema } from '@/lib/validation/schemas';
 
 // ══════════════════════════════════════════════════
 // ── Conekta Actions ──
@@ -261,22 +261,69 @@ async function _createClipTerminalAction(params: {
 }
 
 // ══════════════════════════════════════════════════
+// ── Cobrar.io (QR) Actions ──
+// ══════════════════════════════════════════════════
+
+async function _createCobrarCharge(params: { amount: number; reference: string }): Promise<{
+  success: boolean;
+  chargeId?: string;
+  error?: string;
+}> {
+  try {
+    const chargeId = `cobrar_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await db.insert(paymentCharges).values({
+      id: chargeId,
+      provider: 'cobrar',
+      providerChargeId: chargeId, // self-referencing, webhook uses this
+      amount: String(params.amount),
+      currency: 'MXN',
+      paymentMethod: 'qr_cobro',
+      status: 'pending',
+      referenceNumber: params.reference,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 min
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    return { success: true, chargeId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error al crear cargo Cobrar.io';
+    logger.error('Cobrar charge creation failed', { action: 'cobrar_charge_error', error: message });
+    return { success: false, error: message };
+  }
+}
+
+// ══════════════════════════════════════════════════
 // ── Charge Polling (shared) ──
 // ══════════════════════════════════════════════════
 
-async function _checkChargeStatus(chargeId: string, provider: 'conekta' | 'stripe' | 'clip'): Promise<{
+async function _checkChargeStatus(
+  chargeId: string,
+  provider: 'conekta' | 'stripe' | 'clip' | 'cobrar',
+): Promise<{
   status: 'pending' | 'paid' | 'expired' | 'failed';
   paidAt: string | null;
 }> {
   // First get providerChargeId from our DB
-  const [charge] = await db
-    .select()
-    .from(paymentCharges)
-    .where(eq(paymentCharges.id, chargeId))
-    .limit(1);
+  const [charge] = await db.select().from(paymentCharges).where(eq(paymentCharges.id, chargeId)).limit(1);
 
   if (!charge) {
     return { status: 'failed', paidAt: null };
+  }
+
+  // Cobrar.io: status is updated by webhook, just read from DB
+  if (provider === 'cobrar') {
+    // Check if expired based on expiresAt
+    if (charge.status === 'pending' && charge.expiresAt && new Date() > charge.expiresAt) {
+      await db
+        .update(paymentCharges)
+        .set({ status: 'expired', updatedAt: new Date() })
+        .where(eq(paymentCharges.id, chargeId));
+      return { status: 'expired', paidAt: null };
+    }
+    return {
+      status: charge.status as 'pending' | 'paid' | 'expired' | 'failed',
+      paidAt: charge.paidAt?.toISOString() ?? null,
+    };
   }
 
   let result: { status: 'pending' | 'paid' | 'expired' | 'failed'; paidAt: Date | null };
@@ -313,18 +360,20 @@ async function _checkChargeStatus(chargeId: string, provider: 'conekta' | 'strip
   };
 }
 
-async function _getPendingCharges(provider?: 'conekta' | 'stripe' | 'clip'): Promise<Array<{
-  id: string;
-  provider: string;
-  amount: string;
-  paymentMethod: string;
-  status: string;
-  referenceNumber: string | null;
-  clabeReference: string | null;
-  oxxoReference: string | null;
-  expiresAt: string | null;
-  createdAt: string;
-}>> {
+async function _getPendingCharges(provider?: 'conekta' | 'stripe' | 'clip'): Promise<
+  Array<{
+    id: string;
+    provider: string;
+    amount: string;
+    paymentMethod: string;
+    status: string;
+    referenceNumber: string | null;
+    clabeReference: string | null;
+    oxxoReference: string | null;
+    expiresAt: string | null;
+    createdAt: string;
+  }>
+> {
   const conditions = [eq(paymentCharges.status, 'pending')];
   if (provider) {
     conditions.push(eq(paymentCharges.provider, provider));
@@ -355,20 +404,60 @@ async function _getPendingCharges(provider?: 'conekta' | 'stripe' | 'clip'): Pro
 // ── Exports with Logging ──
 // ══════════════════════════════════════════════════
 
-export const connectConektaAction = withRateLimit('paymentProvider.connectConekta', withLogging('paymentProvider.connectConektaAction', _connectConektaAction));
-export const disconnectConektaAction = withRateLimit('paymentProvider.disconnectConekta', withLogging('paymentProvider.disconnectConektaAction', _disconnectConektaAction));
+export const connectConektaAction = withRateLimit(
+  'paymentProvider.connectConekta',
+  withLogging('paymentProvider.connectConektaAction', _connectConektaAction),
+);
+export const disconnectConektaAction = withRateLimit(
+  'paymentProvider.disconnectConekta',
+  withLogging('paymentProvider.disconnectConektaAction', _disconnectConektaAction),
+);
 export const getConektaStatusAction = withLogging('paymentProvider.getConektaStatusAction', _getConektaStatusAction);
-export const createSPEIConektaAction = withRateLimit('paymentProvider.createSPEIConekta', withLogging('paymentProvider.createSPEIConektaAction', _createSPEIConektaAction));
-export const createOXXOConektaAction = withRateLimit('paymentProvider.createOXXOConekta', withLogging('paymentProvider.createOXXOConektaAction', _createOXXOConektaAction));
-export const connectStripeAction = withRateLimit('paymentProvider.connectStripe', withLogging('paymentProvider.connectStripeAction', _connectStripeAction));
-export const disconnectStripeAction = withRateLimit('paymentProvider.disconnectStripe', withLogging('paymentProvider.disconnectStripeAction', _disconnectStripeAction));
+export const createSPEIConektaAction = withRateLimit(
+  'paymentProvider.createSPEIConekta',
+  withLogging('paymentProvider.createSPEIConektaAction', _createSPEIConektaAction),
+);
+export const createOXXOConektaAction = withRateLimit(
+  'paymentProvider.createOXXOConekta',
+  withLogging('paymentProvider.createOXXOConektaAction', _createOXXOConektaAction),
+);
+export const connectStripeAction = withRateLimit(
+  'paymentProvider.connectStripe',
+  withLogging('paymentProvider.connectStripeAction', _connectStripeAction),
+);
+export const disconnectStripeAction = withRateLimit(
+  'paymentProvider.disconnectStripe',
+  withLogging('paymentProvider.disconnectStripeAction', _disconnectStripeAction),
+);
 export const getStripeStatusAction = withLogging('paymentProvider.getStripeStatusAction', _getStripeStatusAction);
-export const createSPEIStripeAction = withRateLimit('paymentProvider.createSPEIStripe', withLogging('paymentProvider.createSPEIStripeAction', _createSPEIStripeAction));
-export const createOXXOStripeAction = withRateLimit('paymentProvider.createOXXOStripe', withLogging('paymentProvider.createOXXOStripeAction', _createOXXOStripeAction));
-export const connectClipAction = withRateLimit('paymentProvider.connectClip', withLogging('paymentProvider.connectClipAction', _connectClipAction));
-export const disconnectClipAction = withRateLimit('paymentProvider.disconnectClip', withLogging('paymentProvider.disconnectClipAction', _disconnectClipAction));
+export const createSPEIStripeAction = withRateLimit(
+  'paymentProvider.createSPEIStripe',
+  withLogging('paymentProvider.createSPEIStripeAction', _createSPEIStripeAction),
+);
+export const createOXXOStripeAction = withRateLimit(
+  'paymentProvider.createOXXOStripe',
+  withLogging('paymentProvider.createOXXOStripeAction', _createOXXOStripeAction),
+);
+export const connectClipAction = withRateLimit(
+  'paymentProvider.connectClip',
+  withLogging('paymentProvider.connectClipAction', _connectClipAction),
+);
+export const disconnectClipAction = withRateLimit(
+  'paymentProvider.disconnectClip',
+  withLogging('paymentProvider.disconnectClipAction', _disconnectClipAction),
+);
 export const getClipStatusAction = withLogging('paymentProvider.getClipStatusAction', _getClipStatusAction);
-export const createClipCheckoutAction = withRateLimit('paymentProvider.createClipCheckout', withLogging('paymentProvider.createClipCheckoutAction', _createClipCheckoutAction));
-export const createClipTerminalAction = withRateLimit('paymentProvider.createClipTerminal', withLogging('paymentProvider.createClipTerminalAction', _createClipTerminalAction));
+export const createClipCheckoutAction = withRateLimit(
+  'paymentProvider.createClipCheckout',
+  withLogging('paymentProvider.createClipCheckoutAction', _createClipCheckoutAction),
+);
+export const createClipTerminalAction = withRateLimit(
+  'paymentProvider.createClipTerminal',
+  withLogging('paymentProvider.createClipTerminalAction', _createClipTerminalAction),
+);
+export const createCobrarCharge = withRateLimit(
+  'paymentProvider.createCobrarCharge',
+  withLogging('paymentProvider.createCobrarCharge', _createCobrarCharge),
+);
 export const checkChargeStatus = withLogging('paymentProvider.checkChargeStatus', _checkChargeStatus);
 export const getPendingCharges = withLogging('paymentProvider.getPendingCharges', _getPendingCharges);

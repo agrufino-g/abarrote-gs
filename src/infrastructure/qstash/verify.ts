@@ -40,10 +40,7 @@ function getReceiver(): Receiver | null {
  * @param body — Raw request body as string
  * @returns `true` if signature is valid, `false` otherwise
  */
-export async function verifyQStashSignature(
-  signature: string,
-  body: string,
-): Promise<boolean> {
+export async function verifyQStashSignature(signature: string, body: string): Promise<boolean> {
   const receiver = getReceiver();
 
   if (!receiver) {

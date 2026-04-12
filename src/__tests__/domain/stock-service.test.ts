@@ -1,17 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { StockService } from '@/domain/services/StockService';
 import { Product, SaleItem } from '@/domain/entities';
-import { Money, Quantity, StockLevel } from '@/domain/value-objects';
+import { Money, StockLevel } from '@/domain/value-objects';
 
-function createTestProduct(overrides: Partial<{
-  id: string;
-  currentStock: number;
-  minStock: number;
-  costPrice: number;
-  unitPrice: number;
-  isPerishable: boolean;
-  expirationDate: string | null;
-}> = {}): Product {
+function createTestProduct(
+  overrides: Partial<{
+    id: string;
+    currentStock: number;
+    minStock: number;
+    costPrice: number;
+    unitPrice: number;
+    isPerishable: boolean;
+    expirationDate: string | null;
+  }> = {},
+): Product {
   return Product.fromPersistence({
     id: overrides.id ?? 'p-test',
     name: 'Test Product',
@@ -22,36 +24,33 @@ function createTestProduct(overrides: Partial<{
     unitPrice: Money.fromPesos(overrides.unitPrice ?? 20),
     unit: 'pieza',
     unitMultiple: 1,
-    stockLevel: StockLevel.of(
-      overrides.currentStock ?? 100,
-      overrides.minStock ?? 20
-    ),
+    stockLevel: StockLevel.of(overrides.currentStock ?? 100, overrides.minStock ?? 20),
     isPerishable: overrides.isPerishable ?? false,
     expirationDate: overrides.expirationDate ?? null,
   });
 }
 
-function createTestSaleItem(overrides: Partial<{
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-}> = {}): SaleItem {
+function createTestSaleItem(
+  overrides: Partial<{
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+  }> = {},
+): SaleItem {
   return SaleItem.fromPersistence(
     overrides.productId ?? 'p-test',
     'Test Product',
     overrides.quantity ?? 5,
     overrides.unitPrice ?? 20,
     10,
-    0
+    0,
   );
 }
 
 describe('StockService', () => {
   describe('checkAvailability', () => {
     it('returns canFulfill true when stock is sufficient', () => {
-      const products = new Map([
-        ['p-1', createTestProduct({ id: 'p-1', currentStock: 100 })],
-      ]);
+      const products = new Map([['p-1', createTestProduct({ id: 'p-1', currentStock: 100 })]]);
       const items = [createTestSaleItem({ productId: 'p-1', quantity: 10 })];
 
       const result = StockService.checkAvailability(items, products);
@@ -61,9 +60,7 @@ describe('StockService', () => {
     });
 
     it('returns canFulfill false when stock is insufficient', () => {
-      const products = new Map([
-        ['p-1', createTestProduct({ id: 'p-1', currentStock: 5 })],
-      ]);
+      const products = new Map([['p-1', createTestProduct({ id: 'p-1', currentStock: 5 })]]);
       const items = [createTestSaleItem({ productId: 'p-1', quantity: 10 })];
 
       const result = StockService.checkAvailability(items, products);
@@ -127,9 +124,7 @@ describe('StockService', () => {
 
   describe('calculateReturnAdjustments', () => {
     it('returns positive adjustments for returns', () => {
-      const items = [
-        createTestSaleItem({ productId: 'p-1', quantity: 5 }),
-      ];
+      const items = [createTestSaleItem({ productId: 'p-1', quantity: 5 })];
 
       const adjustments = StockService.calculateReturnAdjustments(items);
 
@@ -141,9 +136,9 @@ describe('StockService', () => {
     it('generates alerts for low stock products', () => {
       const products = [
         createTestProduct({ id: 'p-1', currentStock: 100, minStock: 20 }), // OK
-        createTestProduct({ id: 'p-2', currentStock: 15, minStock: 20 }),  // Low
-        createTestProduct({ id: 'p-3', currentStock: 5, minStock: 20 }),   // Critical
-        createTestProduct({ id: 'p-4', currentStock: 0, minStock: 20 }),   // Out of stock
+        createTestProduct({ id: 'p-2', currentStock: 15, minStock: 20 }), // Low
+        createTestProduct({ id: 'p-3', currentStock: 5, minStock: 20 }), // Critical
+        createTestProduct({ id: 'p-4', currentStock: 0, minStock: 20 }), // Out of stock
       ];
 
       const alerts = StockService.generateAlerts(products);
@@ -155,9 +150,7 @@ describe('StockService', () => {
     });
 
     it('calculates units to reorder', () => {
-      const products = [
-        createTestProduct({ id: 'p-1', currentStock: 10, minStock: 50 }),
-      ];
+      const products = [createTestProduct({ id: 'p-1', currentStock: 10, minStock: 50 })];
 
       const alerts = StockService.generateAlerts(products);
 
@@ -188,20 +181,20 @@ describe('StockService', () => {
     it('finds products expiring within days', () => {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      
+
       const nextWeek = new Date();
       nextWeek.setDate(nextWeek.getDate() + 7);
 
       const products = [
-        createTestProduct({ 
-          id: 'p-1', 
-          isPerishable: true, 
-          expirationDate: tomorrow.toISOString().split('T')[0] 
+        createTestProduct({
+          id: 'p-1',
+          isPerishable: true,
+          expirationDate: tomorrow.toISOString().split('T')[0],
         }),
-        createTestProduct({ 
-          id: 'p-2', 
-          isPerishable: true, 
-          expirationDate: nextWeek.toISOString().split('T')[0] 
+        createTestProduct({
+          id: 'p-2',
+          isPerishable: true,
+          expirationDate: nextWeek.toISOString().split('T')[0],
         }),
         createTestProduct({ id: 'p-3', isPerishable: false }),
       ];

@@ -152,20 +152,23 @@ export function checkRateLimit(
   if (limiter) {
     // Fire-and-forget: sync memory result for the caller now,
     // but reconcile with Redis asynchronously
-    limiter.limit(identifier).then((redis) => {
-      if (redis.remaining <= 0 && memResult.allowed) {
-        memoryBuckets.set(identifier, {
-          count: normalized.limit + 1,
-          expiresAt: redis.reset,
+    limiter
+      .limit(identifier)
+      .then((redis) => {
+        if (redis.remaining <= 0 && memResult.allowed) {
+          memoryBuckets.set(identifier, {
+            count: normalized.limit + 1,
+            expiresAt: redis.reset,
+          });
+        }
+      })
+      .catch((err) => {
+        logger.warn('Upstash rate limit probe failed — memory still authoritative', {
+          action: 'ratelimit_redis_probe_error',
+          identifier,
+          error: err instanceof Error ? err.message : String(err),
         });
-      }
-    }).catch((err) => {
-      logger.warn('Upstash rate limit probe failed — memory still authoritative', {
-        action: 'ratelimit_redis_probe_error',
-        identifier,
-        error: err instanceof Error ? err.message : String(err),
       });
-    });
   }
 
   return memResult;

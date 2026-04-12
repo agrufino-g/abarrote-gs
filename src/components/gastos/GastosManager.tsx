@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { useForm, useField } from '@shopify/react-form';
+import { useForm, useField, type SubmitResult } from '@shopify/react-form';
 import { useI18n } from '@shopify/react-i18n';
 import {
   Card,
@@ -16,11 +16,9 @@ import {
   Modal,
   FormLayout,
   Box,
-  Divider,
   Checkbox,
   Banner,
   DropZone,
-  Spinner,
 } from '@shopify/polaris';
 import { PlusIcon, ExportIcon } from '@shopify/polaris-icons';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -48,7 +46,10 @@ const categoriaOptions: { label: string; value: GastoCategoria | '' }[] = [
 
 const categoriaFormOptions = categoriaOptions.filter((o) => o.value !== '');
 
-const categoriaBadge: Record<GastoCategoria, { tone: 'info' | 'success' | 'warning' | 'critical' | 'attention' | 'new'; label: string }> = {
+const categoriaBadge: Record<
+  GastoCategoria,
+  { tone: 'info' | 'success' | 'warning' | 'critical' | 'attention' | 'new'; label: string }
+> = {
   renta: { tone: 'info', label: '🏠 Renta' },
   servicios: { tone: 'attention', label: 'Servicios' },
   proveedores: { tone: 'success', label: 'Proveedores' },
@@ -72,7 +73,7 @@ export function GastosManager() {
   const [uploadedComprobanteUrl, setUploadedComprobanteUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
+
   const uploadComprobante = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -96,20 +97,26 @@ export function GastosManager() {
   } = useForm({
     fields: {
       concepto: useField({ value: '', validates: [(v) => (v.trim() ? undefined : 'Ingresa el concepto')] }),
-      categoria: useField<GastoCategoria | ''>({ value: '', validates: [(v) => (v ? undefined : 'Selecciona una categoría')] }),
-      monto: useField({ value: '', validates: [(v) => (v && parseFloat(v) > 0 ? undefined : 'Ingresa un monto válido')] }),
+      categoria: useField<GastoCategoria | ''>({
+        value: '',
+        validates: [(v) => (v ? undefined : 'Selecciona una categoría')],
+      }),
+      monto: useField({
+        value: '',
+        validates: [(v) => (v && parseFloat(v) > 0 ? undefined : 'Ingresa un monto válido')],
+      }),
       fecha: useField(new Date().toISOString().split('T')[0]),
       notas: useField(''),
       comprobante: useField(false),
     },
-    onSubmit: async (f) => {
+    onSubmit: async (f): Promise<SubmitResult> => {
       setIsUploading(true);
       try {
         let url = uploadedComprobanteUrl;
         if (f.comprobante && comprobanteFile && !url) {
           url = await uploadComprobante(comprobanteFile);
         }
-        
+
         await registerGasto({
           concepto: f.concepto.trim(),
           categoria: f.categoria as GastoCategoria,
@@ -125,7 +132,7 @@ export function GastosManager() {
         setComprobanteFile(null);
         setUploadedComprobanteUrl(null);
         return { status: 'success' };
-      } catch (err) {
+      } catch (_err) {
         showError('Error al guardar gasto o subir comprobante');
         return { status: 'fail', errors: [{ message: 'Error al subir', field: ['comprobante'] }] };
       } finally {
@@ -140,7 +147,7 @@ export function GastosManager() {
   const [editOriginalUrl, setEditOriginalUrl] = useState<string | null>(null);
   const {
     fields: editFields,
-    reset: resetEditForm,
+    reset: _resetEditForm,
     validate: validateEdit,
     submitting: editSubmitting,
     makeClean: makeEditClean,
@@ -148,13 +155,19 @@ export function GastosManager() {
   } = useForm({
     fields: {
       concepto: useField({ value: '', validates: [(v) => (v.trim() ? undefined : 'Ingresa el concepto')] }),
-      categoria: useField<GastoCategoria | ''>({ value: '', validates: [(v) => (v ? undefined : 'Selecciona una categoría')] }),
-      monto: useField({ value: '', validates: [(v) => (v && parseFloat(v) > 0 ? undefined : 'Ingresa un monto válido')] }),
+      categoria: useField<GastoCategoria | ''>({
+        value: '',
+        validates: [(v) => (v ? undefined : 'Selecciona una categoría')],
+      }),
+      monto: useField({
+        value: '',
+        validates: [(v) => (v && parseFloat(v) > 0 ? undefined : 'Ingresa un monto válido')],
+      }),
       fecha: useField(''),
       notas: useField(''),
       comprobante: useField(false),
     },
-    onSubmit: async (f) => {
+    onSubmit: async (f): Promise<SubmitResult> => {
       setIsUploading(true);
       try {
         let url = uploadedComprobanteUrl || editOriginalUrl;
@@ -163,7 +176,7 @@ export function GastosManager() {
         } else if (!f.comprobante) {
           url = null;
         }
-        
+
         await updateGasto(editId, {
           concepto: f.concepto.trim(),
           categoria: f.categoria as GastoCategoria,
@@ -178,7 +191,7 @@ export function GastosManager() {
         setComprobanteFile(null);
         setUploadedComprobanteUrl(null);
         return { status: 'success' };
-      } catch (err) {
+      } catch (_err) {
         showError('Error al guardar gasto o subir comprobante');
         return { status: 'fail', errors: [{ message: 'Error al subir', field: ['comprobante'] }] };
       } finally {
@@ -216,29 +229,31 @@ export function GastosManager() {
     filteredGastos.forEach((g) => {
       map[g.categoria] = (map[g.categoria] || 0) + g.monto;
     });
-    return Object.entries(map)
-      .sort(([, a], [, b]) => (b as number) - (a as number)) as [GastoCategoria, number][];
+    return Object.entries(map).sort(([, a], [, b]) => (b as number) - (a as number)) as [GastoCategoria, number][];
   }, [filteredGastos]);
 
-  const handleStartEdit = useCallback((g: (typeof gastos)[0]) => {
-    setEditId(g.id);
-    editFields.concepto.onChange(g.concepto);
-    editFields.categoria.onChange(g.categoria);
-    editFields.monto.onChange(String(g.monto));
-    editFields.fecha.onChange(g.fecha);
-    editFields.notas.onChange(g.notas || '');
-    editFields.comprobante.onChange(g.comprobante);
-    setEditOriginalUrl(g.comprobanteUrl || null);
-    setComprobanteFile(null);
-    setUploadedComprobanteUrl(null);
-    makeEditClean();
-    setEditOpen(true);
-  }, [editFields, makeEditClean]);
+  const handleStartEdit = useCallback(
+    (g: (typeof gastos)[0]) => {
+      setEditId(g.id);
+      editFields.concepto.onChange(g.concepto);
+      editFields.categoria.onChange(g.categoria);
+      editFields.monto.onChange(String(g.monto));
+      editFields.fecha.onChange(g.fecha);
+      editFields.notas.onChange(g.notas || '');
+      editFields.comprobante.onChange(g.comprobante);
+      setEditOriginalUrl(g.comprobanteUrl || null);
+      setComprobanteFile(null);
+      setUploadedComprobanteUrl(null);
+      makeEditClean();
+      setEditOpen(true);
+    },
+    [editFields, makeEditClean],
+  );
 
   // ── AI Extraction ──
-  const analyzeReceipt = async (file: File, fields: any) => {
+  const analyzeReceipt = async (file: File, fields: typeof addFields) => {
     setIsAnalyzing(true);
-    showSuccess('Evaluando con IA...');
+    showSuccess('Evaluando con IA (Beta)...');
     try {
       const url = await uploadComprobante(file);
       setUploadedComprobanteUrl(url);
@@ -259,40 +274,51 @@ export function GastosManager() {
         if (data.categoria) fields.categoria.onChange(data.categoria);
         showSuccess('¡Datos extraídos con éxito!');
       }
-    } catch (err) {
+    } catch (_err) {
       showError('Ocurrió un error al analizar con la IA. Por favor, rellena los campos manual.');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const handleAddDropZoneDrop = useCallback((_dropFiles: File[], acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      setComprobanteFile(acceptedFiles[0]);
-      setUploadedComprobanteUrl(null);
-      analyzeReceipt(acceptedFiles[0], addFields);
-    }
-  }, [addFields]);
+  const handleAddDropZoneDrop = useCallback(
+    (_dropFiles: File[], acceptedFiles: File[]) => {
+      if (acceptedFiles.length > 0) {
+        setComprobanteFile(acceptedFiles[0]);
+        setUploadedComprobanteUrl(null);
+        analyzeReceipt(acceptedFiles[0], addFields);
+      }
+    },
+    [addFields],
+  );
 
-  const handleEditDropZoneDrop = useCallback((_dropFiles: File[], acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      setComprobanteFile(acceptedFiles[0]);
-      setUploadedComprobanteUrl(null);
-      analyzeReceipt(acceptedFiles[0], editFields);
-    }
-  }, [editFields]);
+  const handleEditDropZoneDrop = useCallback(
+    (_dropFiles: File[], acceptedFiles: File[]) => {
+      if (acceptedFiles.length > 0) {
+        setComprobanteFile(acceptedFiles[0]);
+        setUploadedComprobanteUrl(null);
+        analyzeReceipt(acceptedFiles[0], editFields);
+      }
+    },
+    [editFields],
+  );
 
   // edit logic moved to useForm onSubmit
 
-  const handleDeleteGasto = useCallback(async (id: string) => {
-    setDeleting(true);
-    try {
-      await deleteGasto(id);
-      showSuccess('Gasto eliminado');
-      setDeleteConfirmId(null);
-    } catch { showError('Error al eliminar'); }
-    setDeleting(false);
-  }, [deleteGasto, showSuccess, showError]);
+  const handleDeleteGasto = useCallback(
+    async (id: string) => {
+      setDeleting(true);
+      try {
+        await deleteGasto(id);
+        showSuccess('Gasto eliminado');
+        setDeleteConfirmId(null);
+      } catch {
+        showError('Error al eliminar');
+      }
+      setDeleting(false);
+    },
+    [deleteGasto, showSuccess, showError],
+  );
 
   // Month options for filter
   const monthOptions = useMemo(() => {
@@ -323,7 +349,12 @@ export function GastosManager() {
             <StatCard label="Total Ventas" value={totalVentas} format="currency" />
           </Box>
           <Box minWidth="200px">
-            <StatCard label="Ganancia Estimada" value={gananciaEstimada} format="currency" tone={gananciaEstimada >= 0 ? 'success' : 'critical'} />
+            <StatCard
+              label="Ganancia Estimada"
+              value={gananciaEstimada}
+              format="currency"
+              tone={gananciaEstimada >= 0 ? 'success' : 'critical'}
+            />
           </Box>
         </InlineStack>
 
@@ -331,11 +362,15 @@ export function GastosManager() {
         {gastosByCategory.length > 0 && (
           <Card>
             <BlockStack gap="200">
-              <Text as="h3" variant="headingSm">Gastos por Categoría</Text>
+              <Text as="h3" variant="headingSm">
+                Gastos por Categoría
+              </Text>
               {gastosByCategory.map(([cat, amount]) => (
                 <InlineStack key={cat} align="space-between">
                   <Badge tone={categoriaBadge[cat].tone}>{categoriaBadge[cat].label}</Badge>
-                  <Text as="span" fontWeight="semibold">{formatCurrency(amount)}</Text>
+                  <Text as="span" fontWeight="semibold">
+                    {formatCurrency(amount)}
+                  </Text>
                 </InlineStack>
               ))}
             </BlockStack>
@@ -347,7 +382,16 @@ export function GastosManager() {
           <BlockStack gap="300">
             <SectionHeader
               title="Registro de Gastos"
-              primaryAction={{ content: 'Nuevo Gasto', icon: PlusIcon, onAction: () => { setAddOpen(true); setComprobanteFile(null); setUploadedComprobanteUrl(null); resetAddForm(); } }}
+              primaryAction={{
+                content: 'Nuevo Gasto',
+                icon: PlusIcon,
+                onAction: () => {
+                  setAddOpen(true);
+                  setComprobanteFile(null);
+                  setUploadedComprobanteUrl(null);
+                  resetAddForm();
+                },
+              }}
               secondaryActions={[{ content: 'Exportar', icon: ExportIcon, onAction: () => setIsExportOpen(true) }]}
             />
 
@@ -361,12 +405,7 @@ export function GastosManager() {
                 />
               </Box>
               <Box minWidth="200px">
-                <Select
-                  label="Mes"
-                  options={monthOptions}
-                  value={filterMonth}
-                  onChange={setFilterMonth}
-                />
+                <Select label="Mes" options={monthOptions} value={filterMonth} onChange={setFilterMonth} />
               </Box>
             </InlineStack>
           </BlockStack>
@@ -374,7 +413,10 @@ export function GastosManager() {
 
         {/* Gastos list */}
         {filteredGastos.length === 0 ? (
-          <EmptyStateCard heading="Sin gastos registrados" description="Agrega tus gastos para llevar control de tus finanzas." />
+          <EmptyStateCard
+            heading="Sin gastos registrados"
+            description="Agrega tus gastos para llevar control de tus finanzas."
+          />
         ) : (
           <Card>
             <IndexTable
@@ -393,19 +435,29 @@ export function GastosManager() {
               {filteredGastos.map((gasto, idx) => (
                 <IndexTable.Row id={gasto.id} key={gasto.id} position={idx}>
                   <IndexTable.Cell>
-                    <Text as="span" variant="bodySm">{new Date(gasto.fecha).toLocaleDateString('es-MX')}</Text>
+                    <Text as="span" variant="bodySm">
+                      {new Date(gasto.fecha).toLocaleDateString('es-MX')}
+                    </Text>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <BlockStack gap="050">
-                      <Text as="span" fontWeight="semibold">{gasto.concepto}</Text>
-                      {gasto.notas && <Text as="span" variant="bodySm" tone="subdued">{gasto.notas}</Text>}
+                      <Text as="span" fontWeight="semibold">
+                        {gasto.concepto}
+                      </Text>
+                      {gasto.notas && (
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          {gasto.notas}
+                        </Text>
+                      )}
                     </BlockStack>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <Badge tone={categoriaBadge[gasto.categoria].tone}>{categoriaBadge[gasto.categoria].label}</Badge>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
-                    <Text as="span" fontWeight="bold" tone="critical">{formatCurrency(gasto.monto)}</Text>
+                    <Text as="span" fontWeight="bold" tone="critical">
+                      {formatCurrency(gasto.monto)}
+                    </Text>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <BlockStack gap="100">
@@ -413,7 +465,11 @@ export function GastosManager() {
                         {gasto.comprobante ? 'Sí' : 'No'}
                       </Badge>
                       {gasto.comprobanteUrl && (
-                        <Button variant="plain" size="micro" onClick={() => window.open(gasto.comprobanteUrl!, '_blank')}>
+                        <Button
+                          variant="plain"
+                          size="micro"
+                          onClick={() => window.open(gasto.comprobanteUrl!, '_blank')}
+                        >
                           Ver Ticket
                         </Button>
                       )}
@@ -421,7 +477,9 @@ export function GastosManager() {
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <InlineStack gap="100">
-                      <Button variant="plain" onClick={() => handleStartEdit(gasto)}>Editar</Button>
+                      <Button variant="plain" onClick={() => handleStartEdit(gasto)}>
+                        Editar
+                      </Button>
                       <DeleteConfirmation
                         isConfirming={deleteConfirmId === gasto.id}
                         isDeleting={deleting}
@@ -442,10 +500,16 @@ export function GastosManager() {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         title="Registrar Gasto"
-        primaryAction={{ content: 'Guardar Gasto', onAction: () => {
-          if (validateAdd().length === 0) submitAdd();
-        }, loading: addSubmitting || isUploading || isAnalyzing }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => setAddOpen(false), disabled: isUploading || isAnalyzing }]}
+        primaryAction={{
+          content: 'Guardar Gasto',
+          onAction: () => {
+            if (validateAdd().length === 0) submitAdd();
+          },
+          loading: addSubmitting || isUploading || isAnalyzing,
+        }}
+        secondaryActions={[
+          { content: 'Cancelar', onAction: () => setAddOpen(false), disabled: isUploading || isAnalyzing },
+        ]}
       >
         <Modal.Section>
           <FormLayout>
@@ -458,7 +522,9 @@ export function GastosManager() {
             />
             <Select
               label="Categoría"
-              options={[{ label: 'Seleccionar...', value: '' }, ...categoriaFormOptions] as { label: string; value: string }[]}
+              options={
+                [{ label: 'Seleccionar...', value: '' }, ...categoriaFormOptions] as { label: string; value: string }[]
+              }
               value={addFields.categoria.value}
               onChange={(v) => addFields.categoria.onChange(v as GastoCategoria)}
               error={addFields.categoria.error}
@@ -493,10 +559,25 @@ export function GastosManager() {
             />
             {addFields.comprobante.value && (
               <Box paddingBlockStart="200">
-                <Text as="p" variant="bodyMd" fontWeight="semibold">Subir archivo (Ticket/Factura)</Text>
+                <Text as="p" variant="bodyMd" fontWeight="semibold">
+                  Subir archivo (Ticket/Factura)
+                </Text>
                 <Box paddingBlockStart="100">
-                  <DropZone accept="image/*,application/pdf" type="file" allowMultiple={false} onDrop={handleAddDropZoneDrop}>
-                    <DropZone.FileUpload actionHint={isAnalyzing ? "Analizando con IA..." : (comprobanteFile ? comprobanteFile.name : "Archivos permitidos: JPG, PNG, PDF")} />
+                  <DropZone
+                    accept="image/*,application/pdf"
+                    type="file"
+                    allowMultiple={false}
+                    onDrop={handleAddDropZoneDrop}
+                  >
+                    <DropZone.FileUpload
+                      actionHint={
+                        isAnalyzing
+                          ? 'Analizando con IA...'
+                          : comprobanteFile
+                            ? comprobanteFile.name
+                            : 'Archivos permitidos: JPG, PNG, PDF'
+                      }
+                    />
                   </DropZone>
                   {isAnalyzing && (
                     <Box paddingBlockStart="200">
@@ -515,31 +596,86 @@ export function GastosManager() {
         open={editOpen}
         onClose={() => setEditOpen(false)}
         title="Editar Gasto"
-        primaryAction={{ content: 'Guardar Cambios', onAction: () => {
-          if (validateEdit().length === 0) submitEdit();
-        }, loading: editSubmitting || isUploading || isAnalyzing }}
-        secondaryActions={[{ content: 'Cancelar', onAction: () => setEditOpen(false), disabled: isUploading || isAnalyzing }]}
+        primaryAction={{
+          content: 'Guardar Cambios',
+          onAction: () => {
+            if (validateEdit().length === 0) submitEdit();
+          },
+          loading: editSubmitting || isUploading || isAnalyzing,
+        }}
+        secondaryActions={[
+          { content: 'Cancelar', onAction: () => setEditOpen(false), disabled: isUploading || isAnalyzing },
+        ]}
       >
         <Modal.Section>
           <FormLayout>
-            <TextField label="Concepto" value={editFields.concepto.value} onChange={editFields.concepto.onChange} error={editFields.concepto.error} autoComplete="off" />
+            <TextField
+              label="Concepto"
+              value={editFields.concepto.value}
+              onChange={editFields.concepto.onChange}
+              error={editFields.concepto.error}
+              autoComplete="off"
+            />
             <Select
               label="Categoría"
-              options={[{ label: 'Seleccionar...', value: '' }, ...categoriaFormOptions] as { label: string; value: string }[]}
+              options={
+                [{ label: 'Seleccionar...', value: '' }, ...categoriaFormOptions] as { label: string; value: string }[]
+              }
               value={editFields.categoria.value}
               onChange={(v) => editFields.categoria.onChange(v as GastoCategoria)}
               error={editFields.categoria.error}
             />
-            <TextField label="Monto (MXN)" type="number" value={editFields.monto.value} onChange={editFields.monto.onChange} error={editFields.monto.error} autoComplete="off" prefix="$" />
-            <TextField label="Fecha" type="date" value={editFields.fecha.value} onChange={editFields.fecha.onChange} autoComplete="off" />
-            <TextField label="Notas (opcional)" value={editFields.notas.value} onChange={editFields.notas.onChange} autoComplete="off" multiline={2} />
-            <Checkbox label="¿Tiene comprobante/factura?" checked={editFields.comprobante.value} onChange={editFields.comprobante.onChange} />
+            <TextField
+              label="Monto (MXN)"
+              type="number"
+              value={editFields.monto.value}
+              onChange={editFields.monto.onChange}
+              error={editFields.monto.error}
+              autoComplete="off"
+              prefix="$"
+            />
+            <TextField
+              label="Fecha"
+              type="date"
+              value={editFields.fecha.value}
+              onChange={editFields.fecha.onChange}
+              autoComplete="off"
+            />
+            <TextField
+              label="Notas (opcional)"
+              value={editFields.notas.value}
+              onChange={editFields.notas.onChange}
+              autoComplete="off"
+              multiline={2}
+            />
+            <Checkbox
+              label="¿Tiene comprobante/factura?"
+              checked={editFields.comprobante.value}
+              onChange={editFields.comprobante.onChange}
+            />
             {editFields.comprobante.value && (
               <Box paddingBlockStart="200">
-                <Text as="p" variant="bodyMd" fontWeight="semibold">Subir archivo nuevo (Opcional)</Text>
+                <Text as="p" variant="bodyMd" fontWeight="semibold">
+                  Subir archivo nuevo (Opcional)
+                </Text>
                 <Box paddingBlockStart="100">
-                  <DropZone accept="image/*,application/pdf" type="file" allowMultiple={false} onDrop={handleEditDropZoneDrop}>
-                    <DropZone.FileUpload actionHint={isAnalyzing ? "Analizando con IA..." : (comprobanteFile ? comprobanteFile.name : (editOriginalUrl ? "Ya tiene archivo. Sube otro para reemplazar y re-escanear." : "Archivos permitidos: JPG, PNG, PDF"))} />
+                  <DropZone
+                    accept="image/*,application/pdf"
+                    type="file"
+                    allowMultiple={false}
+                    onDrop={handleEditDropZoneDrop}
+                  >
+                    <DropZone.FileUpload
+                      actionHint={
+                        isAnalyzing
+                          ? 'Analizando con IA...'
+                          : comprobanteFile
+                            ? comprobanteFile.name
+                            : editOriginalUrl
+                              ? 'Ya tiene archivo. Sube otro para reemplazar y re-escanear.'
+                              : 'Archivos permitidos: JPG, PNG, PDF'
+                      }
+                    />
                   </DropZone>
                   {isAnalyzing && (
                     <Box paddingBlockStart="200">
@@ -559,13 +695,13 @@ export function GastosManager() {
         title="Exportar gastos"
         exportName="gastos"
         onExport={(format) => {
-          const exportData = filteredGastos.map(g => ({
-            "Fecha": i18n.formatDate(new Date(g.fecha)),
-            "Concepto": g.concepto,
-            "Categoría": categoriaBadge[g.categoria]?.label || g.categoria,
-            "Monto": i18n.formatCurrency(g.monto, { currency: 'MXN' }),
-            "Notas": g.notas || 'N/A',
-            "Comprobante": g.comprobante ? 'Sí' : 'No'
+          const exportData = filteredGastos.map((g) => ({
+            Fecha: i18n.formatDate(new Date(g.fecha)),
+            Concepto: g.concepto,
+            Categoría: categoriaBadge[g.categoria]?.label || g.categoria,
+            Monto: i18n.formatCurrency(g.monto, { currency: 'MXN' }),
+            Notas: g.notas || 'N/A',
+            Comprobante: g.comprobante ? 'Sí' : 'No',
           }));
           const filename = `Gastos_Kiosco_${new Date().toISOString().split('T')[0]}`;
           if (format === 'pdf') {

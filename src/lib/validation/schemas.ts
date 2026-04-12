@@ -1,10 +1,6 @@
 import { z } from 'zod';
-import {
-  PAYMENT_METHODS,
-  GASTO_CATEGORIAS,
-  PEDIDO_ESTADOS,
-  MERMA_REASONS,
-} from '@/types';
+import { PAYMENT_METHODS, GASTO_CATEGORIAS, PEDIDO_ESTADOS, MERMA_REASONS } from '@/types';
+import { isValidRFC } from './rfc';
 
 // ══════════════════════════════════════════════════════
 // Reusable primitives
@@ -12,7 +8,7 @@ import {
 
 export const idSchema = z.string().min(1, 'ID requerido').max(200);
 const safeString = (label: string, max = 500) => z.string().min(1, `${label} es requerido`).max(max);
-const optionalSafeString = (max = 500) => z.string().max(max).optional();
+const _optionalSafeString = (max = 500) => z.string().max(max).optional();
 const money = z.number().nonnegative().max(99_999_999.99);
 const positiveMoney = z.number().positive('Debe ser mayor a 0').max(99_999_999.99);
 const positiveInt = z.number().int().positive().max(9_999_999);
@@ -66,7 +62,7 @@ export const createProductSchema = z.object({
   barcode: safeString('Código de barras', 100),
   currentStock: nonNegativeInt,
   minStock: nonNegativeInt,
-  expirationDate: z.string().max(20).optional(),
+  expirationDate: z.string().max(20).nullable().optional(),
   category: safeString('Categoría', 200),
   costPrice: money,
   unitPrice: money,
@@ -99,13 +95,18 @@ export const createFiadoSchema = z.object({
   amount: positiveMoney,
   description: safeString('Descripción', 500),
   saleFolio: z.string().max(100).optional(),
-  items: z.array(z.object({
-    productId: idSchema,
-    productName: z.string().max(500),
-    quantity: positiveInt,
-    unitPrice: money,
-    subtotal: money,
-  })).max(500).optional(),
+  items: z
+    .array(
+      z.object({
+        productId: idSchema,
+        productName: z.string().max(500),
+        quantity: positiveInt,
+        unitPrice: money,
+        subtotal: money,
+      }),
+    )
+    .max(500)
+    .optional(),
 });
 
 export const createAbonoSchema = z.object({
@@ -221,7 +222,10 @@ export const createUserWithRoleSchema = z.object({
   password: z.string().min(8, 'Mínimo 8 caracteres').max(128).optional(),
   displayName: safeString('Nombre', 200),
   roleId: idSchema,
-  pinCode: z.string().regex(/^\d{4,6}$/, 'PIN debe ser 4-6 dígitos').optional(),
+  pinCode: z
+    .string()
+    .regex(/^\d{4,6}$/, 'PIN debe ser 4-6 dígitos')
+    .optional(),
 });
 
 export const updateUserPinSchema = z.object({
@@ -331,75 +335,83 @@ export const createClipTerminalSchema = z.object({
 // STORE CONFIG
 // ══════════════════════════════════════════════════════
 
-export const saveStoreConfigSchema = z.object({
-  storeName: z.string().max(300).optional(),
-  legalName: z.string().max(300).optional(),
-  address: z.string().max(500).optional(),
-  city: z.string().max(200).optional(),
-  postalCode: z.string().max(10).optional(),
-  phone: z.string().max(30).optional(),
-  rfc: z.string().max(20).optional(),
-  regimenFiscal: z.string().max(10).optional(),
-  regimenDescription: z.string().max(300).optional(),
-  ivaRate: z.string().max(10).optional(),
-  pricesIncludeIva: z.boolean().optional(),
-  currency: z.string().max(10).optional(),
-  lowStockThreshold: z.string().max(10).optional(),
-  expirationWarningDays: z.string().max(10).optional(),
-  printReceipts: z.boolean().optional(),
-  autoBackup: z.boolean().optional(),
-  ticketFooter: z.string().max(2000).optional(),
-  ticketServicePhone: z.string().max(30).optional(),
-  ticketVigencia: z.string().max(20).optional(),
-  storeNumber: z.string().max(20).optional(),
-  enableNotifications: z.boolean().optional(),
-  telegramToken: z.string().max(500).optional(),
-  telegramChatId: z.string().max(100).optional(),
-  printerIp: z.string().max(100).optional(),
-  loyaltyEnabled: z.boolean().optional(),
-  pointsPerPeso: z.number().int().min(0).max(10000).optional(),
-  pointsValue: z.number().int().min(0).max(10000).optional(),
-  logoUrl: z.string().max(2000).optional(),
-  slogan: z.string().max(300).optional(),
-  mpEnabled: z.boolean().optional(),
-  mpPublicKey: z.string().max(500).optional(),
-  mpDeviceId: z.string().max(200).optional(),
-  conektaEnabled: z.boolean().optional(),
-  conektaPublicKey: z.string().max(500).optional(),
-  stripeEnabled: z.boolean().optional(),
-  stripePublicKey: z.string().max(500).optional(),
-  clipEnabled: z.boolean().optional(),
-  clipApiKey: z.string().max(500).optional(),
-  clipSerialNumber: z.string().max(100).optional(),
-  defaultMargin: z.string().max(10).optional(),
-  autoCorteEnabled: z.boolean().optional(),
-  autoCorteTime: z.string().max(10).optional(),
-  // Customer Display
-  customerDisplayEnabled: z.boolean().optional(),
-  customerDisplayWelcome: z.string().max(120).optional(),
-  customerDisplayFarewell: z.string().max(120).optional(),
-  customerDisplayPromoText: z.string().max(200).optional(),
-  customerDisplayPromoImage: z.string().max(5000).optional(),
-  customerDisplayIdleAnimation: z.string().max(20).optional(),
-  customerDisplayTransitionSpeed: z.string().max(10).optional(),
-  customerDisplayPromoAnimation: z.string().max(20).optional(),
-  customerDisplayShowClock: z.boolean().optional(),
-  customerDisplayTheme: z.string().max(10).optional(),
-  customerDisplayIdleCarousel: z.boolean().optional(),
-  customerDisplayCarouselInterval: z.string().max(5).optional(),
-  customerDisplayLogo: z.string().max(2000).optional(),
-  customerDisplayFontScale: z.string().max(5).optional(),
-  customerDisplayAutoReturnSec: z.string().max(5).optional(),
-  customerDisplayAccentColor: z.string().max(20).optional(),
-  customerDisplaySoundEnabled: z.boolean().optional(),
-  customerDisplayOrientation: z.string().max(15).optional(),
-  // Customer Display - Message Styling (JSON)
-  customerDisplayMessageStyle: z.string().max(5000).optional(),
-  // Ticket designer JSON
-  ticketDesignVenta: z.string().max(5000).optional(),
-  ticketDesignCorte: z.string().max(5000).optional(),
-  ticketDesignProveedor: z.string().max(5000).optional(),
-}).passthrough(); // Allow unknown fields to not break on new config additions
+export const saveStoreConfigSchema = z
+  .object({
+    storeName: z.string().max(300).optional(),
+    legalName: z.string().max(300).optional(),
+    address: z.string().max(500).optional(),
+    city: z.string().max(200).optional(),
+    postalCode: z.string().max(10).optional(),
+    phone: z.string().max(30).optional(),
+    rfc: z
+      .string()
+      .max(20)
+      .optional()
+      .refine((v) => !v || isValidRFC(v), {
+        message: 'RFC inválido. Formato: 3-4 letras + 6 dígitos (fecha) + 3 caracteres homoclave',
+      }),
+    regimenFiscal: z.string().max(10).optional(),
+    regimenDescription: z.string().max(300).optional(),
+    ivaRate: z.string().max(10).optional(),
+    pricesIncludeIva: z.boolean().optional(),
+    currency: z.string().max(10).optional(),
+    lowStockThreshold: z.string().max(10).optional(),
+    expirationWarningDays: z.string().max(10).optional(),
+    printReceipts: z.boolean().optional(),
+    autoBackup: z.boolean().optional(),
+    ticketFooter: z.string().max(2000).optional(),
+    ticketServicePhone: z.string().max(30).optional(),
+    ticketVigencia: z.string().max(20).optional(),
+    storeNumber: z.string().max(20).optional(),
+    enableNotifications: z.boolean().optional(),
+    telegramToken: z.string().max(500).optional(),
+    telegramChatId: z.string().max(100).optional(),
+    printerIp: z.string().max(100).optional(),
+    loyaltyEnabled: z.boolean().optional(),
+    pointsPerPeso: z.number().int().min(0).max(10000).optional(),
+    pointsValue: z.number().int().min(0).max(10000).optional(),
+    logoUrl: z.string().max(2000).optional(),
+    slogan: z.string().max(300).optional(),
+    mpEnabled: z.boolean().optional(),
+    mpPublicKey: z.string().max(500).optional(),
+    mpDeviceId: z.string().max(200).optional(),
+    conektaEnabled: z.boolean().optional(),
+    conektaPublicKey: z.string().max(500).optional(),
+    stripeEnabled: z.boolean().optional(),
+    stripePublicKey: z.string().max(500).optional(),
+    clipEnabled: z.boolean().optional(),
+    clipApiKey: z.string().max(500).optional(),
+    clipSerialNumber: z.string().max(100).optional(),
+    defaultMargin: z.string().max(10).optional(),
+    autoCorteEnabled: z.boolean().optional(),
+    autoCorteTime: z.string().max(10).optional(),
+    // Customer Display
+    customerDisplayEnabled: z.boolean().optional(),
+    customerDisplayWelcome: z.string().max(120).optional(),
+    customerDisplayFarewell: z.string().max(120).optional(),
+    customerDisplayPromoText: z.string().max(200).optional(),
+    customerDisplayPromoImage: z.string().max(5000).optional(),
+    customerDisplayIdleAnimation: z.string().max(20).optional(),
+    customerDisplayTransitionSpeed: z.string().max(10).optional(),
+    customerDisplayPromoAnimation: z.string().max(20).optional(),
+    customerDisplayShowClock: z.boolean().optional(),
+    customerDisplayTheme: z.string().max(10).optional(),
+    customerDisplayIdleCarousel: z.boolean().optional(),
+    customerDisplayCarouselInterval: z.string().max(5).optional(),
+    customerDisplayLogo: z.string().max(2000).optional(),
+    customerDisplayFontScale: z.string().max(5).optional(),
+    customerDisplayAutoReturnSec: z.string().max(5).optional(),
+    customerDisplayAccentColor: z.string().max(20).optional(),
+    customerDisplaySoundEnabled: z.boolean().optional(),
+    customerDisplayOrientation: z.string().max(15).optional(),
+    // Customer Display - Message Styling (JSON)
+    customerDisplayMessageStyle: z.string().max(5000).optional(),
+    // Ticket designer JSON
+    ticketDesignVenta: z.string().max(5000).optional(),
+    ticketDesignCorte: z.string().max(5000).optional(),
+    ticketDesignProveedor: z.string().max(5000).optional(),
+  })
+  .passthrough(); // Allow unknown fields to not break on new config additions
 
 // ══════════════════════════════════════════════════════
 // LOYALTY
@@ -475,7 +487,7 @@ export const createMPRefundSchema = z.object({
 export function validateSchema<T>(schema: z.ZodSchema<T>, data: unknown, context: string): T {
   const result = schema.safeParse(data);
   if (!result.success) {
-    const issues = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');
+    const issues = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Datos inválidos en ${context}: ${issues}`);
   }
   return result.data;

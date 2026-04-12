@@ -13,14 +13,7 @@ import {
   Box,
   Icon,
 } from '@shopify/polaris';
-import {
-  ProfileIcon,
-  SettingsIcon,
-  ExitIcon,
-  SunIcon,
-  MoonIcon,
-  ChevronDownIcon,
-} from '@shopify/polaris-icons';
+import { ProfileIcon, SettingsIcon, ExitIcon, SunIcon, MoonIcon, ChevronDownIcon } from '@shopify/polaris-icons';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { ProfileModal } from '@/components/modals/ProfileModal';
@@ -49,7 +42,8 @@ export function UserMenu() {
   if (!user) return null;
 
   const rawDisplayName = currentUserRole?.displayName || user.displayName || user.email?.split('@')[0] || 'Usuario';
-  const displayName = rawDisplayName === 'ERROR' ? (currentUserRole?.roleId === 'owner' ? 'Admin' : 'Usuario') : rawDisplayName;
+  const displayName =
+    rawDisplayName === 'ERROR' ? (currentUserRole?.roleId === 'owner' ? 'Admin' : 'Usuario') : rawDisplayName;
 
   const initials = displayName
     .split(' ')
@@ -67,8 +61,8 @@ export function UserMenu() {
     return 'attention';
   };
 
-  const roleLabel = currentUserRole?.roleId === 'owner' ? 'Admin' :
-    currentUserRole?.roleId === 'cashier' ? 'Cajero' : 'Usuario';
+  const roleLabel =
+    currentUserRole?.roleId === 'owner' ? 'Admin' : currentUserRole?.roleId === 'cashier' ? 'Cajero' : 'Usuario';
 
   const activator = (
     <button
@@ -94,22 +88,19 @@ export function UserMenu() {
         e.currentTarget.style.borderColor = 'transparent';
       }}
     >
-      <Avatar
-        initials={initials}
-        size="sm"
-        name={displayName}
-        source={avatarSource}
-      />
+      <Avatar initials={initials} size="sm" name={displayName} source={avatarSource} />
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <span style={{
-          color: '#e3e5e7',
-          fontSize: '13px',
-          fontWeight: 500,
-          maxWidth: '120px',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}>
+        <span
+          style={{
+            color: '#e3e5e7',
+            fontSize: '13px',
+            fontWeight: 500,
+            maxWidth: '120px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
           {displayName}
         </span>
         <Icon source={ChevronDownIcon} tone="inherit" />
@@ -131,12 +122,7 @@ export function UserMenu() {
           {/* ── User Info Header ── */}
           <Box padding="400">
             <InlineStack gap="300" blockAlign="center">
-              <Avatar
-                initials={initials}
-                size="lg"
-                name={displayName}
-                source={avatarSource}
-              />
+              <Avatar initials={initials} size="lg" name={displayName} source={avatarSource} />
               <BlockStack gap="050">
                 <Text as="h2" variant="headingSm" fontWeight="semibold">
                   {displayName}
@@ -146,7 +132,9 @@ export function UserMenu() {
                 </Text>
                 <Box paddingBlockStart="100">
                   <InlineStack gap="100">
-                    <Badge tone={getRoleBadgeTone()} size="small">{roleLabel}</Badge>
+                    <Badge tone={getRoleBadgeTone()} size="small">
+                      {roleLabel}
+                    </Badge>
                     {currentUserRole?.employeeNumber && (
                       <Badge tone="info" size="small">{`#${currentUserRole.employeeNumber}`}</Badge>
                     )}
@@ -215,10 +203,7 @@ export function UserMenu() {
         </div>
       </Popover>
 
-      <ProfileModal
-        open={profileModalOpen}
-        onClose={() => setProfileModalOpen(false)}
-      />
+      <ProfileModal open={profileModalOpen} onClose={() => setProfileModalOpen(false)} />
     </>
   );
 }

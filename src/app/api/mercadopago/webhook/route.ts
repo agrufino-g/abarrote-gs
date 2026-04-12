@@ -14,7 +14,7 @@ import { getMPAccessToken } from '@/lib/oauth-providers';
 const RATE_LIMIT = { maxRequests: 30, windowMs: 60_000 } as const;
 
 // =========================================================================
-// RUTA DE WEBHOOKS PARA MERCADO PAGO 
+// RUTA DE WEBHOOKS PARA MERCADO PAGO
 // URL que debes pegar en Mercado Pago: https://tu-dominio.com/api/mercadopago/webhook
 // =========================================================================
 
@@ -22,7 +22,7 @@ const RATE_LIMIT = { maxRequests: 30, windowMs: 60_000 } as const;
  * Verifica la firma HMAC-SHA256 del webhook de MercadoPago.
  * Docs: https://www.mercadopago.com.mx/developers/es/docs/your-integrations/notifications/webhooks
  */
-function verifyWebhookSignature(req: Request, body: string): boolean {
+function verifyWebhookSignature(req: Request, _body: string): boolean {
   const secret = env.MP_WEBHOOK_SECRET;
   if (!secret) {
     logger.error('MP_WEBHOOK_SECRET not configured — rejecting all webhooks');
@@ -69,151 +69,153 @@ function verifyWebhookSignature(req: Request, body: string): boolean {
 }
 
 export async function POST(req: Request) {
+  try {
+    // Rate limiting
+    const ip = getClientIp(req);
+    const rl = checkRateLimit(`mp:webhook:${ip}`, RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
+    // Clonar el body para verificación de firma
+    const rawBody = await req.text();
+
+    // Verificar firma HMAC
+    if (!verifyWebhookSignature(req, rawBody)) {
+      logger.warn('Webhook signature verification failed', { ip });
+      return NextResponse.json({ error: 'Firma inválida' }, { status: 403 });
+    }
+
+    const url = new URL(req.url);
+
+    const queryId = url.searchParams.get('data.id') || url.searchParams.get('id');
+    const queryType = url.searchParams.get('type') || url.searchParams.get('topic');
+
+    let body: Record<string, unknown> = {};
     try {
-        // Rate limiting
-        const ip = getClientIp(req);
-        const rl = checkRateLimit(`mp:webhook:${ip}`, RATE_LIMIT);
-        if (!rl.allowed) {
-            return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-        }
+      body = JSON.parse(rawBody) as Record<string, unknown>;
+    } catch {
+      // body vacío es válido en algunos webhooks
+    }
 
-        // Clonar el body para verificación de firma
-        const rawBody = await req.text();
-        
-        // Verificar firma HMAC
-        if (!verifyWebhookSignature(req, rawBody)) {
-            logger.warn('Webhook signature verification failed', { ip });
-            return NextResponse.json({ error: 'Firma inválida' }, { status: 403 });
-        }
+    const dataObj = typeof body?.data === 'object' && body.data !== null ? (body.data as Record<string, unknown>) : {};
+    const paymentId =
+      queryId || (typeof dataObj.id === 'string' || typeof dataObj.id === 'number' ? String(dataObj.id) : null);
+    const eventType =
+      queryType ||
+      (typeof body?.type === 'string' ? body.type : null) ||
+      (typeof body?.action === 'string' ? body.action : null);
 
-        const url = new URL(req.url);
+    // Solo nos interesan los eventos de pagos ('payment')
+    if (eventType === 'payment' && paymentId) {
+      logger.info('Payment webhook received', { paymentId });
 
-        const queryId = url.searchParams.get('data.id') || url.searchParams.get('id');
-        const queryType = url.searchParams.get('type') || url.searchParams.get('topic');
+      // Token priority: OAuth DB (encrypted) → env fallback
+      const accessToken = await getMPAccessToken();
 
-        let body: Record<string, unknown> = {};
-        try {
-            body = JSON.parse(rawBody) as Record<string, unknown>;
-        } catch {
-            // body vacío es válido en algunos webhooks
-        }
+      if (!accessToken) {
+        logger.error('No MP access token available (OAuth nor env)');
+        return NextResponse.json({ received: true }, { status: 200 });
+      }
 
-        const dataObj = typeof body?.data === 'object' && body.data !== null ? body.data as Record<string, unknown> : {};
-        const paymentId = queryId || (typeof dataObj.id === 'string' || typeof dataObj.id === 'number' ? String(dataObj.id) : null);
-        const eventType = queryType || (typeof body?.type === 'string' ? body.type : null) || (typeof body?.action === 'string' ? body.action : null);
+      const client = new MercadoPagoConfig({ accessToken, options: { timeout: 5000 } });
+      const paymentClient = new Payment(client);
 
-        // Solo nos interesan los eventos de pagos ('payment')
-        if (eventType === 'payment' && paymentId) {
-            logger.info('Payment webhook received', { paymentId });
+      const paymentData = await paymentClient.get({ id: paymentId }).catch((err: unknown) => {
+        logger.error('Failed to fetch payment', { paymentId, error: err instanceof Error ? err.message : 'Unknown' });
+        return null;
+      });
 
-            // Token priority: OAuth DB (encrypted) → env fallback
-            const accessToken = await getMPAccessToken();
+      if (paymentData) {
+        logger.info('Payment status', { paymentId, status: paymentData.status, ref: paymentData.external_reference });
 
-            if (!accessToken) {
-                logger.error('No MP access token available (OAuth nor env)');
-                return NextResponse.json({ received: true }, { status: 200 });
+        if (paymentData.status === 'approved') {
+          logger.info('Payment approved — updating DB', { paymentId });
+
+          // Reconcile: find the sale linked by external_reference (folio)
+          let linkedSaleId: string | null = null;
+          const extRef = paymentData.external_reference;
+          if (extRef) {
+            const [sale] = await db
+              .select({ id: saleRecords.id })
+              .from(saleRecords)
+              .where(eq(saleRecords.folio, extRef))
+              .limit(1);
+            if (sale) {
+              linkedSaleId = sale.id;
+              // Update sale with MP payment reference
+              await db.update(saleRecords).set({ mpPaymentId: paymentId }).where(eq(saleRecords.id, sale.id));
             }
+          }
 
-            const client = new MercadoPagoConfig({ accessToken, options: { timeout: 5000 } });
-            const paymentClient = new Payment(client);
-
-            const paymentData = await paymentClient.get({ id: paymentId }).catch((err: unknown) => {
-                logger.error('Failed to fetch payment', { paymentId, error: err instanceof Error ? err.message : 'Unknown' });
-                return null;
+          await db
+            .insert(mercadopagoPayments)
+            .values({
+              id: `mp-${crypto.randomUUID()}`,
+              paymentId: paymentId || 'unknown',
+              status: paymentData.status || 'unknown',
+              externalReference: extRef || null,
+              saleId: linkedSaleId,
+              amount: String(paymentData.transaction_amount || 0),
+              paymentMethodId: paymentData.payment_method_id || null,
+              paymentType: paymentData.payment_type_id || null,
+              installments: paymentData.installments || 1,
+              feeAmount: paymentData.fee_details?.length
+                ? String(paymentData.fee_details.reduce((s, f) => s + (f.amount ?? 0), 0))
+                : null,
+              netAmount: paymentData.transaction_details?.net_received_amount
+                ? String(paymentData.transaction_details.net_received_amount)
+                : null,
+              payerEmail: paymentData.payer?.email || null,
+            })
+            .onConflictDoUpdate({
+              target: mercadopagoPayments.paymentId,
+              set: {
+                status: paymentData.status || 'unknown',
+                amount: String(paymentData.transaction_amount || 0),
+                saleId: linkedSaleId,
+                paymentMethodId: paymentData.payment_method_id || null,
+                paymentType: paymentData.payment_type_id || null,
+                installments: paymentData.installments || 1,
+                feeAmount: paymentData.fee_details?.length
+                  ? String(paymentData.fee_details.reduce((s, f) => s + (f.amount ?? 0), 0))
+                  : null,
+                netAmount: paymentData.transaction_details?.net_received_amount
+                  ? String(paymentData.transaction_details.net_received_amount)
+                  : null,
+                payerEmail: paymentData.payer?.email || null,
+                updatedAt: new Date(),
+              },
             });
 
-            if (paymentData) {
-                logger.info('Payment status', { paymentId, status: paymentData.status, ref: paymentData.external_reference });
-
-                if (paymentData.status === 'approved') {
-                    logger.info('Payment approved — updating DB', { paymentId });
-
-                    // Reconcile: find the sale linked by external_reference (folio)
-                    let linkedSaleId: string | null = null;
-                    const extRef = paymentData.external_reference;
-                    if (extRef) {
-                        const [sale] = await db
-                            .select({ id: saleRecords.id })
-                            .from(saleRecords)
-                            .where(eq(saleRecords.folio, extRef))
-                            .limit(1);
-                        if (sale) {
-                            linkedSaleId = sale.id;
-                            // Update sale with MP payment reference
-                            await db
-                                .update(saleRecords)
-                                .set({ mpPaymentId: paymentId })
-                                .where(eq(saleRecords.id, sale.id));
-                        }
-                    }
-
-                    await db.insert(mercadopagoPayments).values({
-                        id: `mp-${crypto.randomUUID()}`,
-                        paymentId: paymentId || 'unknown',
-                        status: paymentData.status || 'unknown',
-                        externalReference: extRef || null,
-                        saleId: linkedSaleId,
-                        amount: String(paymentData.transaction_amount || 0),
-                        paymentMethodId: paymentData.payment_method_id || null,
-                        paymentType: paymentData.payment_type_id || null,
-                        installments: paymentData.installments || 1,
-                        feeAmount: paymentData.fee_details?.length
-                            ? String(paymentData.fee_details.reduce((s, f) => s + (f.amount ?? 0), 0))
-                            : null,
-                        netAmount: paymentData.transaction_details?.net_received_amount
-                            ? String(paymentData.transaction_details.net_received_amount)
-                            : null,
-                        payerEmail: paymentData.payer?.email || null,
-                    }).onConflictDoUpdate({
-                        target: mercadopagoPayments.paymentId,
-                        set: {
-                            status: paymentData.status || 'unknown',
-                            amount: String(paymentData.transaction_amount || 0),
-                            saleId: linkedSaleId,
-                            paymentMethodId: paymentData.payment_method_id || null,
-                            paymentType: paymentData.payment_type_id || null,
-                            installments: paymentData.installments || 1,
-                            feeAmount: paymentData.fee_details?.length
-                                ? String(paymentData.fee_details.reduce((s, f) => s + (f.amount ?? 0), 0))
-                                : null,
-                            netAmount: paymentData.transaction_details?.net_received_amount
-                                ? String(paymentData.transaction_details.net_received_amount)
-                                : null,
-                            payerEmail: paymentData.payer?.email || null,
-                            updatedAt: new Date(),
-                        },
-                    });
-
-                    // Aseguramos trazabilidad en la base de datos de auditoría
-                    await logAudit({
-                        userId: 'system',
-                        userEmail: 'system@webhook',
-                        action: 'update',
-                        entity: 'mercadopago_payment',
-                        entityId: paymentId || 'unknown',
-                        changes: {
-                            after: {
-                                status: paymentData.status,
-                                ref: paymentData.external_reference
-                            }
-                        },
-                        ipAddress: ip
-                    });
-
-                } else if (paymentData.status === 'rejected') {
-                    logger.info('Payment rejected', { paymentId });
-                } else if (paymentData.status === 'in_process') {
-                    logger.info('Payment pending', { paymentId });
-                }
-            }
-        } else {
-            logger.info('Webhook event ignored', { eventType: eventType ?? 'unknown' });
+          // Aseguramos trazabilidad en la base de datos de auditoría
+          await logAudit({
+            userId: 'system',
+            userEmail: 'system@webhook',
+            action: 'update',
+            entity: 'mercadopago_payment',
+            entityId: paymentId || 'unknown',
+            changes: {
+              after: {
+                status: paymentData.status,
+                ref: paymentData.external_reference,
+              },
+            },
+            ipAddress: ip,
+          });
+        } else if (paymentData.status === 'rejected') {
+          logger.info('Payment rejected', { paymentId });
+        } else if (paymentData.status === 'in_process') {
+          logger.info('Payment pending', { paymentId });
         }
-
-        return NextResponse.json({ success: true }, { status: 200 });
-
-    } catch (error) {
-        logger.error('Critical webhook processing error', { error: error instanceof Error ? error.message : 'Unknown' });
-        return NextResponse.json({ success: false }, { status: 200 });
+      }
+    } else {
+      logger.info('Webhook event ignored', { eventType: eventType ?? 'unknown' });
     }
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    logger.error('Critical webhook processing error', { error: error instanceof Error ? error.message : 'Unknown' });
+    return NextResponse.json({ success: false }, { status: 200 });
+  }
 }

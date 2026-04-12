@@ -1,16 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  Card,
-  Button,
-  BlockStack,
-  Box,
-  Text,
-  Banner,
-  List,
-  Icon,
-} from '@shopify/polaris';
+import { Card, Button, BlockStack, Box, Text, Banner, List } from '@shopify/polaris';
 import { PersonAddIcon, LockIcon } from '@shopify/polaris-icons';
 
 export function RegisterForm() {
@@ -19,28 +10,27 @@ export function RegisterForm() {
       <Card>
         <BlockStack gap="600">
           {/* Logo Section */}
-          <div style={{
-            padding: '24px 0 12px 0',
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
+          <div
+            style={{
+              padding: '24px 0 12px 0',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             <img
               src="/login-brand.svg"
               alt="Logo"
-              style={{ 
-                width: '200px', 
-                height: 'auto'
+              style={{
+                width: '200px',
+                height: 'auto',
               }}
             />
           </div>
 
           {/* Eye-catching Banner */}
-          <Banner
-            title="Bienvenido a la Plataforma"
-            tone="info"
-          >
+          <Banner title="Bienvenido a la Plataforma" tone="info">
             <Text as="p" variant="bodyMd">
               Estás a un paso de acceder a la consola de gestión líder en la industria.
             </Text>
@@ -52,22 +42,23 @@ export function RegisterForm() {
                 Solicitud de Acceso
               </Text>
               <Text as="p" variant="bodyMd" tone="subdued">
-                Para mantener la seguridad proactiva de <span style={{ color: '#005bd3', fontWeight: 'bold' }}>Opendex Web Services</span>, la creación de perfiles es gestionada por el Departamento de TI.
+                Para mantener la seguridad proactiva de{' '}
+                <span style={{ color: '#005bd3', fontWeight: 'bold' }}>Opendex Web Services</span>, la creación de
+                perfiles es gestionada por el Departamento de TI.
               </Text>
             </BlockStack>
 
-            <Box
-              padding="400"
-              background="bg-surface-secondary"
-              borderRadius="300"
-            >
+            <Box padding="400" background="bg-surface-secondary" borderRadius="300">
               <BlockStack gap="300">
                 <Text as="p" variant="bodyMd" fontWeight="semibold">
                   Sigue estos pasos para comenzar:
                 </Text>
                 <List type="bullet">
                   <List.Item>Contacta a tu administrador de sistemas local.</List.Item>
-                  <List.Item>Presenta tu  <span style={{ color: '#005bd3', fontWeight: 'bold' }}>GlobalID</span> corporativo válido.</List.Item>
+                  <List.Item>
+                    Presenta tu <span style={{ color: '#005bd3', fontWeight: 'bold' }}>GlobalID</span> corporativo
+                    válido.
+                  </List.Item>
                   <List.Item>Confirma tus niveles de acceso requeridos.</List.Item>
                 </List>
               </BlockStack>

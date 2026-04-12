@@ -39,13 +39,13 @@ describe('Action Factory', () => {
         await expect(action()).rejects.toThrow();
         expect(logger.error).toHaveBeenCalledWith(
           expect.stringContaining('Action Failed'),
-          expect.objectContaining({ action: 'test.logError' })
+          expect.objectContaining({ action: 'test.logError' }),
         );
       });
 
       it('preserves async function behavior', async () => {
         const action = createAction('test.async', async (ms: number) => {
-          await new Promise(r => setTimeout(r, ms));
+          await new Promise((r) => setTimeout(r, ms));
           return 'done';
         });
         const result = await action(10);
@@ -53,10 +53,7 @@ describe('Action Factory', () => {
       });
 
       it('handles multiple arguments', async () => {
-        const action = createAction(
-          'test.multiArgs',
-          async (a: number, b: string, c: boolean) => ({ a, b, c })
-        );
+        const action = createAction('test.multiArgs', async (a: number, b: string, c: boolean) => ({ a, b, c }));
         const result = await action(1, 'hi', true);
         expect(result).toEqual({ a: 1, b: 'hi', c: true });
       });
@@ -64,11 +61,7 @@ describe('Action Factory', () => {
 
     describe('safe mode', () => {
       it('returns ActionResult on success', async () => {
-        const action = createAction(
-          'test.safe',
-          async (x: number) => x * 2,
-          { safe: true }
-        );
+        const action = createAction('test.safe', async (x: number) => x * 2, { safe: true });
         const result = await action(5);
 
         expect(result.success).toBe(true);
@@ -80,10 +73,12 @@ describe('Action Factory', () => {
       it('returns ActionResult with error on failure (no throw)', async () => {
         const action = createAction(
           'test.safeFail',
-          async () => { throw new Error('Safe error'); },
-          { safe: true }
+          async () => {
+            throw new Error('Safe error');
+          },
+          { safe: true },
         );
-        
+
         // Should NOT throw
         const result = await action();
 
@@ -96,16 +91,12 @@ describe('Action Factory', () => {
     describe('options', () => {
       it('logs success when logSuccess=true', async () => {
         const { logger } = await import('@/lib/logger');
-        const action = createAction(
-          'test.logSuccess',
-          async () => 'ok',
-          { logSuccess: true }
-        );
+        const action = createAction('test.logSuccess', async () => 'ok', { logSuccess: true });
 
         await action();
         expect(logger.info).toHaveBeenCalledWith(
           expect.stringContaining('Action Success'),
-          expect.objectContaining({ action: 'test.logSuccess' })
+          expect.objectContaining({ action: 'test.logSuccess' }),
         );
       });
 
@@ -113,14 +104,16 @@ describe('Action Factory', () => {
         const { logger } = await import('@/lib/logger');
         const action = createAction(
           'test.tags',
-          async () => { throw new Error('Tagged error'); },
-          { tags: ['critical', 'payment'] }
+          async () => {
+            throw new Error('Tagged error');
+          },
+          { tags: ['critical', 'payment'] },
         );
 
         await expect(action()).rejects.toThrow();
         expect(logger.error).toHaveBeenCalledWith(
           expect.any(String),
-          expect.objectContaining({ tags: ['critical', 'payment'] })
+          expect.objectContaining({ tags: ['critical', 'payment'] }),
         );
       });
     });
@@ -130,14 +123,16 @@ describe('Action Factory', () => {
     it('wraps function with logging', async () => {
       const fn = async (x: number) => x + 1;
       const wrapped = withLogging('test.withLogging', fn);
-      
+
       const result = await wrapped(5);
       expect(result).toBe(6);
     });
 
     it('logs errors and re-throws', async () => {
       const { logger } = await import('@/lib/logger');
-      const fn = async () => { throw new Error('WithLogging error'); };
+      const fn = async () => {
+        throw new Error('WithLogging error');
+      };
       const wrapped = withLogging('test.withLoggingFail', fn);
 
       await expect(wrapped()).rejects.toThrow('WithLogging error');

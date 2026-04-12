@@ -3,7 +3,17 @@
 import { withLogging } from '@/lib/errors';
 import { requirePermission } from '@/lib/auth/guard';
 import { db } from '@/db';
-import { products, saleRecords, saleItems, clientes, proveedores, pedidos, pedidoItems } from '@/db/schema';
+import {
+  products,
+  saleRecords,
+  saleItems,
+  clientes,
+  proveedores,
+  pedidos,
+  pedidoItems,
+  cfdiRecords,
+  auditLogs,
+} from '@/db/schema';
 import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { numVal } from './_helpers';
 import { sendNotification, escapeHTML } from './_notifications';
@@ -19,6 +29,11 @@ import type {
   ForecastProduct,
   CFDIRequest,
   CFDIRecord,
+  InventoryAgingAnalysis,
+  AgingProduct,
+  AgingBucket,
+  ProductMarginReport,
+  ProductMarginRow,
 } from '@/types';
 import { logger } from '@/lib/logger';
 import { isNotDeleted } from '@/infrastructure/soft-delete';
@@ -173,17 +188,11 @@ async function _fetchReorderSuggestions(): Promise<ReorderSuggestion[]> {
 
     // Suggest enough for 14 days of sales + buffer to reach minStock
     const targetDays = 14;
-    const needed = Math.max(
-      Math.ceil(avgDaily * targetDays) - stock,
-      minStock - stock,
-      1
-    );
+    const needed = Math.max(Math.ceil(avgDaily * targetDays) - stock, minStock - stock, 1);
 
     const costPrice = numVal(prod.costPrice);
     const urgency: ReorderSuggestion['urgency'] =
-      stock === 0 ? 'critical' :
-      daysUntilStockout <= 3 ? 'critical' :
-      daysUntilStockout <= 7 ? 'warning' : 'normal';
+      stock === 0 ? 'critical' : daysUntilStockout <= 3 ? 'critical' : daysUntilStockout <= 7 ? 'warning' : 'normal';
 
     suggestions.push({
       productId: prod.id,
@@ -260,25 +269,35 @@ async function _sendDailyTelegramReport(): Promise<{ sent: boolean; message: str
 
   // Parallel queries
   const [todaySales, yesterdaySales, lowStock, topProducts] = await Promise.all([
-    db.select({
-      total: sql<string>`coalesce(sum(total::numeric), 0)`,
-      count: sql<string>`count(*)`,
-      efectivo: sql<string>`coalesce(sum(case when ${saleRecords.paymentMethod} = 'efectivo' then total::numeric else 0 end), 0)`,
-      tarjeta: sql<string>`coalesce(sum(case when ${saleRecords.paymentMethod} = 'tarjeta' then total::numeric else 0 end), 0)`,
-      transferencia: sql<string>`coalesce(sum(case when ${saleRecords.paymentMethod} = 'transferencia' then total::numeric else 0 end), 0)`,
-    }).from(saleRecords).where(sql`date::date = ${todayStr}`),
+    db
+      .select({
+        total: sql<string>`coalesce(sum(total::numeric), 0)`,
+        count: sql<string>`count(*)`,
+        efectivo: sql<string>`coalesce(sum(case when ${saleRecords.paymentMethod} = 'efectivo' then total::numeric else 0 end), 0)`,
+        tarjeta: sql<string>`coalesce(sum(case when ${saleRecords.paymentMethod} = 'tarjeta' then total::numeric else 0 end), 0)`,
+        transferencia: sql<string>`coalesce(sum(case when ${saleRecords.paymentMethod} = 'transferencia' then total::numeric else 0 end), 0)`,
+      })
+      .from(saleRecords)
+      .where(sql`date::date = ${todayStr}`),
 
-    db.select({
-      total: sql<string>`coalesce(sum(total::numeric), 0)`,
-    }).from(saleRecords).where(sql`date::date = ${yesterdayStr}`),
+    db
+      .select({
+        total: sql<string>`coalesce(sum(total::numeric), 0)`,
+      })
+      .from(saleRecords)
+      .where(sql`date::date = ${yesterdayStr}`),
 
-    db.select().from(products).where(and(isNotDeleted(products), sql`${products.currentStock}::numeric <= ${products.minStock}::numeric`)),
+    db
+      .select()
+      .from(products)
+      .where(and(isNotDeleted(products), sql`${products.currentStock}::numeric <= ${products.minStock}::numeric`)),
 
-    db.select({
-      productName: saleItems.productName,
-      qty: sql<string>`sum(${saleItems.quantity})`,
-      revenue: sql<string>`sum(${saleItems.subtotal}::numeric)`,
-    })
+    db
+      .select({
+        productName: saleItems.productName,
+        qty: sql<string>`sum(${saleItems.quantity})`,
+        revenue: sql<string>`sum(${saleItems.subtotal}::numeric)`,
+      })
       .from(saleItems)
       .innerJoin(saleRecords, eq(saleRecords.id, saleItems.saleId))
       .where(sql`${saleRecords.date}::date = ${todayStr}`)
@@ -290,14 +309,15 @@ async function _sendDailyTelegramReport(): Promise<{ sent: boolean; message: str
   const today = todaySales[0];
   const totalHoy = numVal(today.total);
   const totalAyer = numVal(yesterdaySales[0].total);
-  const diff = totalAyer > 0 ? ((totalHoy - totalAyer) / totalAyer * 100).toFixed(1) : '0';
+  const diff = totalAyer > 0 ? (((totalHoy - totalAyer) / totalAyer) * 100).toFixed(1) : '0';
   const arrow = numVal(diff) > 0 ? '📈' : numVal(diff) < 0 ? '📉' : '➡️';
 
   const topProductsList = topProducts
     .map((p, i) => `  ${i + 1}. ${escapeHTML(p.productName)} — ${numVal(p.qty)} uds ($${numVal(p.revenue).toFixed(0)})`)
     .join('\n');
 
-  const lowStockList = lowStock.slice(0, 5)
+  const lowStockList = lowStock
+    .slice(0, 5)
     .map((p) => `  ⚠️ ${escapeHTML(p.name)} — ${p.currentStock} uds`)
     .join('\n');
 
@@ -327,7 +347,7 @@ ${lowStockList || '  ✅ Todo en orden'}`;
 
 /**
  * Generates a CFDI invoice by calling an external PAC API.
- * 
+ *
  * This is a stub that implements the standard flow.
  * To connect to a real PAC (Facturama, SW Sapien, etc.),
  * set environment variables: CFDI_PAC_URL, CFDI_PAC_USER, CFDI_PAC_PASSWORD
@@ -342,11 +362,7 @@ async function _generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
   }
 
   // Fetch sale data
-  const saleRows = await db
-    .select()
-    .from(saleRecords)
-    .where(eq(saleRecords.id, request.saleId))
-    .limit(1);
+  const saleRows = await db.select().from(saleRecords).where(eq(saleRecords.id, request.saleId)).limit(1);
 
   if (saleRows.length === 0) {
     throw new Error('Venta no encontrada');
@@ -356,10 +372,7 @@ async function _generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
   const config = await fetchStoreConfig();
 
   // Fetch sale items
-  const items = await db
-    .select()
-    .from(saleItems)
-    .where(eq(saleItems.saleId, request.saleId));
+  const items = await db.select().from(saleItems).where(eq(saleItems.saleId, request.saleId));
 
   // -- PAC Integration point --
   const pacUrl = env.CFDI_PAC_URL;
@@ -369,12 +382,12 @@ async function _generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
   if (!pacUrl || !pacUser || !pacPassword) {
     logger.warn('CFDI PAC not configured, generating local record only');
 
-    // Create a local record without timbrado
+    // Create a local record without timbrado — persist to DB
     const record: CFDIRecord = {
       id: `cfdi-${crypto.randomUUID()}`,
       saleId: request.saleId,
       folio: sale.folio,
-      uuid: '',
+      uuid: 'PAC_NOT_CONFIGURED',
       receptorRfc: request.receptorRfc.toUpperCase(),
       receptorNombre: request.receptorNombre,
       total: numVal(sale.total),
@@ -385,11 +398,21 @@ async function _generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
       createdAt: new Date().toISOString(),
     };
 
-    return {
-      ...record,
-      status: 'error',
-      uuid: 'PAC_NOT_CONFIGURED',
-    };
+    await db.insert(cfdiRecords).values({
+      id: record.id,
+      saleId: record.saleId,
+      folio: record.folio,
+      uuid: record.uuid,
+      receptorRfc: record.receptorRfc,
+      receptorNombre: record.receptorNombre,
+      total: String(record.total),
+      status: record.status,
+      xmlUrl: '',
+      pdfUrl: '',
+      fechaTimbrado: '',
+    });
+
+    return record;
   }
 
   // Build CFDI payload following SAT 4.0 schema
@@ -409,15 +432,15 @@ async function _generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
     Conceptos: items.map((item) => ({
       ClaveProdServ: '01010101', // Generic product key
       Cantidad: item.quantity,
-      ClaveUnidad: 'H87',       // Pieza
+      ClaveUnidad: 'H87', // Pieza
       Descripcion: item.productName,
       ValorUnitario: numVal(item.unitPrice),
       Importe: numVal(item.subtotal),
-      ObjetoImp: '02',          // Sí objeto de impuesto
+      ObjetoImp: '02', // Sí objeto de impuesto
       Traslados: [
         {
           Base: numVal(item.subtotal),
-          Impuesto: '002',       // IVA
+          Impuesto: '002', // IVA
           TipoFactor: 'Tasa',
           TasaOCuota: 0.16,
           Importe: numVal(item.subtotal) * 0.16,
@@ -427,9 +450,14 @@ async function _generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
     Total: numVal(sale.total),
     SubTotal: numVal(sale.subtotal),
     Moneda: 'MXN',
-    FormaPago: sale.paymentMethod === 'efectivo' ? '01' :
-               sale.paymentMethod === 'tarjeta' ? '04' :
-               sale.paymentMethod === 'transferencia' ? '03' : '99',
+    FormaPago:
+      sale.paymentMethod === 'efectivo'
+        ? '01'
+        : sale.paymentMethod === 'tarjeta'
+          ? '04'
+          : sale.paymentMethod === 'transferencia'
+            ? '03'
+            : '99',
     MetodoPago: 'PUE', // Pago en Una sola Exhibición
     TipoDeComprobante: 'I', // Ingreso
   };
@@ -439,7 +467,7 @@ async function _generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${Buffer.from(`${pacUser}:${pacPassword}`).toString('base64')}`,
+        Authorization: `Basic ${Buffer.from(`${pacUser}:${pacPassword}`).toString('base64')}`,
       },
       body: JSON.stringify(cfdiPayload),
     });
@@ -467,6 +495,21 @@ async function _generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
       createdAt: new Date().toISOString(),
     };
 
+    // Persist the timbrada CFDI to DB
+    await db.insert(cfdiRecords).values({
+      id: record.id,
+      saleId: record.saleId,
+      folio: record.folio,
+      uuid: record.uuid,
+      receptorRfc: record.receptorRfc,
+      receptorNombre: record.receptorNombre,
+      total: String(record.total),
+      status: record.status,
+      xmlUrl: record.xmlUrl,
+      pdfUrl: record.pdfUrl,
+      fechaTimbrado: record.fechaTimbrado,
+    });
+
     return record;
   } catch (error) {
     logger.error('CFDI generation failed', { error: error instanceof Error ? error.message : error });
@@ -474,7 +517,145 @@ async function _generateCFDI(request: CFDIRequest): Promise<CFDIRecord> {
   }
 }
 
-// ==================== 5. RFM CUSTOMER ANALYSIS ====================
+// ==================== 4b. CFDI CANCEL + LIST ====================
+
+/**
+ * List CFDI records for a sale or all recent.
+ */
+async function _fetchCFDIRecords(saleId?: string): Promise<CFDIRecord[]> {
+  await requirePermission('reports.view');
+
+  const query = saleId
+    ? db.select().from(cfdiRecords).where(eq(cfdiRecords.saleId, saleId)).orderBy(desc(cfdiRecords.createdAt))
+    : db.select().from(cfdiRecords).orderBy(desc(cfdiRecords.createdAt)).limit(100);
+
+  const rows = await query;
+  return rows.map((r) => ({
+    id: r.id,
+    saleId: r.saleId,
+    folio: r.folio,
+    uuid: r.uuid,
+    receptorRfc: r.receptorRfc,
+    receptorNombre: r.receptorNombre,
+    total: Number(r.total),
+    status: r.status as CFDIRecord['status'],
+    xmlUrl: r.xmlUrl,
+    pdfUrl: r.pdfUrl,
+    fechaTimbrado: r.fechaTimbrado ?? '',
+    createdAt: r.createdAt.toISOString(),
+  }));
+}
+
+/**
+ * Cancel a timbrada CFDI following SAT cancellation flow.
+ * Motivos de cancelación SAT:
+ * - '01': Comprobante emitido con errores con relación
+ * - '02': Comprobante emitido con errores sin relación
+ * - '03': No se llevó a cabo la operación
+ * - '04': Operación nominativa relacionada en una factura global
+ */
+async function _cancelCFDI(
+  cfdiId: string,
+  reason: '01' | '02' | '03' | '04',
+  relatedUuid?: string,
+): Promise<{ success: boolean; message: string }> {
+  const currentUser = await requirePermission('reports.export');
+
+  const [record] = await db.select().from(cfdiRecords).where(eq(cfdiRecords.id, cfdiId)).limit(1);
+  if (!record) throw new Error('CFDI no encontrado');
+  if (record.status === 'cancelada') throw new Error('Este CFDI ya fue cancelado');
+  if (record.status !== 'timbrada') throw new Error('Solo se pueden cancelar CFDIs timbrados');
+
+  // Motivo 01 requires a related UUID
+  if (reason === '01' && !relatedUuid) {
+    throw new Error('Motivo 01 requiere el UUID del CFDI sustituto');
+  }
+
+  const pacUrl = env.CFDI_PAC_URL;
+  const pacUser = env.CFDI_PAC_USER;
+  const pacPassword = env.CFDI_PAC_PASSWORD;
+  const now = new Date();
+
+  if (!pacUrl || !pacUser || !pacPassword) {
+    // No PAC configured — mark as cancelled locally
+    await db
+      .update(cfdiRecords)
+      .set({
+        status: 'cancelada',
+        cancelReason: reason,
+        cancelRelatedUuid: relatedUuid ?? null,
+        cancelledAt: now,
+      })
+      .where(eq(cfdiRecords.id, cfdiId));
+
+    await db.insert(auditLogs).values({
+      id: crypto.randomUUID(),
+      userId: currentUser.uid,
+      userEmail: currentUser.email ?? 'system',
+      action: 'update',
+      entity: 'cfdi',
+      entityId: cfdiId,
+      changes: { before: { status: 'timbrada' }, after: { status: 'cancelada', reason } },
+      timestamp: now,
+    });
+
+    return { success: true, message: 'CFDI marcado como cancelado localmente (PAC no configurado)' };
+  }
+
+  try {
+    const cancelPayload = {
+      uuid: record.uuid,
+      motivo: reason,
+      folioSustitucion: relatedUuid ?? undefined,
+    };
+
+    const response = await fetch(`${pacUrl}/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${Buffer.from(`${pacUser}:${pacPassword}`).toString('base64')}`,
+      },
+      body: JSON.stringify(cancelPayload),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      logger.error('CFDI cancel PAC error', { status: response.status, body: errorBody });
+      throw new Error(`Error del PAC al cancelar: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    await db
+      .update(cfdiRecords)
+      .set({
+        status: 'cancelada',
+        cancelReason: reason,
+        cancelRelatedUuid: relatedUuid ?? null,
+        cancelAckUrl: result.acuseUrl ?? result.ackUrl ?? '',
+        cancelledAt: now,
+      })
+      .where(eq(cfdiRecords.id, cfdiId));
+
+    await db.insert(auditLogs).values({
+      id: crypto.randomUUID(),
+      userId: currentUser.uid,
+      userEmail: currentUser.email ?? 'system',
+      action: 'update',
+      entity: 'cfdi',
+      entityId: cfdiId,
+      changes: { before: { status: 'timbrada' }, after: { status: 'cancelada', reason, uuid: record.uuid } },
+      timestamp: now,
+    });
+
+    return { success: true, message: 'CFDI cancelado exitosamente ante el SAT' };
+  } catch (error) {
+    logger.error('CFDI cancel failed', { error: error instanceof Error ? error.message : error });
+    throw new Error('Error al cancelar el CFDI. Consulta los logs del servidor.');
+  }
+}
+
+// ==================== 5. RFM CUSTOMER ANALYSIS ======================================
 
 async function _fetchRFMAnalysis(periodDays = 90): Promise<RFMAnalysis> {
   await requirePermission('analytics.view');
@@ -487,7 +668,7 @@ async function _fetchRFMAnalysis(periodDays = 90): Promise<RFMAnalysis> {
   const allClients = await db.select().from(clientes);
 
   // Per-client purchase data
-  const purchaseData = await db
+  const _purchaseData = await db
     .select({
       clienteId: sql<string>`${saleRecords.cajero}`, // We need a client link; fallback to scanning fiadoTransactions if needed
       lastPurchase: sql<string>`max(${saleRecords.date})`,
@@ -535,7 +716,9 @@ async function _fetchRFMAnalysis(periodDays = 90): Promise<RFMAnalysis> {
       recency,
       frequency,
       monetary,
-      rScore: 0, fScore: 0, mScore: 0,
+      rScore: 0,
+      fScore: 0,
+      mScore: 0,
       segment: 'lost',
       balance: numVal(String(client.balance)),
       points: numVal(String(client.points ?? 0)),
@@ -546,8 +729,17 @@ async function _fetchRFMAnalysis(periodDays = 90): Promise<RFMAnalysis> {
     return {
       customers: [],
       segments: Object.fromEntries(
-        ['champions','loyal','potential_loyal','recent','promising','needs_attention','about_to_sleep','at_risk','lost']
-          .map((s) => [s, 0])
+        [
+          'champions',
+          'loyal',
+          'potential_loyal',
+          'recent',
+          'promising',
+          'needs_attention',
+          'about_to_sleep',
+          'at_risk',
+          'lost',
+        ].map((s) => [s, 0]),
       ) as Record<RFMSegment, number>,
       averageRecency: 0,
       averageFrequency: 0,
@@ -575,14 +767,24 @@ async function _fetchRFMAnalysis(periodDays = 90): Promise<RFMAnalysis> {
   }
 
   const segments = {} as Record<RFMSegment, number>;
-  const allSegments: RFMSegment[] = ['champions','loyal','potential_loyal','recent','promising','needs_attention','about_to_sleep','at_risk','lost'];
+  const allSegments: RFMSegment[] = [
+    'champions',
+    'loyal',
+    'potential_loyal',
+    'recent',
+    'promising',
+    'needs_attention',
+    'about_to_sleep',
+    'at_risk',
+    'lost',
+  ];
   for (const s of allSegments) segments[s] = 0;
   for (const c of rfmCustomers) segments[c.segment]++;
 
   const avg = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / (arr.length || 1);
 
   return {
-    customers: rfmCustomers.sort((a, b) => (b.fScore + b.mScore + b.rScore) - (a.fScore + a.mScore + a.rScore)),
+    customers: rfmCustomers.sort((a, b) => b.fScore + b.mScore + b.rScore - (a.fScore + a.mScore + a.rScore)),
     segments,
     averageRecency: Math.round(avg(recencies)),
     averageFrequency: Math.round(avg(frequencies) * 10) / 10,
@@ -591,7 +793,7 @@ async function _fetchRFMAnalysis(periodDays = 90): Promise<RFMAnalysis> {
 }
 
 function classifyRFMSegment(r: number, f: number, m: number): RFMSegment {
-  const rfm = r * 100 + f * 10 + m;
+  const _rfm = r * 100 + f * 10 + m;
   if (r >= 4 && f >= 4 && m >= 4) return 'champions';
   if (r >= 3 && f >= 3 && m >= 3) return 'loyal';
   if (r >= 3 && f >= 2 && m >= 3) return 'potential_loyal';
@@ -632,7 +834,11 @@ async function _fetchDemandForecast(): Promise<ForecastProduct[]> {
       sql`extract(week from ${saleRecords.date}::timestamp)`,
       sql`extract(year from ${saleRecords.date}::timestamp)`,
     )
-    .orderBy(saleItems.productId, sql`extract(year from ${saleRecords.date}::timestamp)`, sql`extract(week from ${saleRecords.date}::timestamp)`);
+    .orderBy(
+      saleItems.productId,
+      sql`extract(year from ${saleRecords.date}::timestamp)`,
+      sql`extract(week from ${saleRecords.date}::timestamp)`,
+    );
 
   // Get all products for stock info
   const allProducts = await db.select().from(products).where(isNotDeleted(products));
@@ -671,12 +877,9 @@ async function _fetchDemandForecast(): Promise<ForecastProduct[]> {
     // Trend: compare last 4 weeks vs previous 4 weeks
     const firstHalf = last8.slice(0, 4).reduce((s, v) => s + v, 0) / 4;
     const secondHalf = last8.slice(4).reduce((s, v) => s + v, 0) / 4;
-    const trendPct = firstHalf > 0
-      ? ((secondHalf - firstHalf) / firstHalf) * 100
-      : secondHalf > 0 ? 100 : 0;
+    const trendPct = firstHalf > 0 ? ((secondHalf - firstHalf) / firstHalf) * 100 : secondHalf > 0 ? 100 : 0;
 
-    const trend: 'up' | 'down' | 'stable' =
-      trendPct > 10 ? 'up' : trendPct < -10 ? 'down' : 'stable';
+    const trend: 'up' | 'down' | 'stable' = trendPct > 10 ? 'up' : trendPct < -10 ? 'down' : 'stable';
 
     // Apply trend to forecast
     const trendMultiplier = 1 + (trendPct / 100) * 0.5; // dampen the trend
@@ -688,8 +891,7 @@ async function _fetchDemandForecast(): Promise<ForecastProduct[]> {
     // Confidence based on data consistency
     const stdDev = Math.sqrt(last8.reduce((s, v) => s + (v - weeklyAvg) ** 2, 0) / last8.length);
     const cv = weeklyAvg > 0 ? stdDev / weeklyAvg : 1;
-    const confidence: 'high' | 'medium' | 'low' =
-      cv < 0.3 ? 'high' : cv < 0.6 ? 'medium' : 'low';
+    const confidence: 'high' | 'medium' | 'low' = cv < 0.3 ? 'high' : cv < 0.6 ? 'medium' : 'low';
 
     forecasts.push({
       productId,
@@ -711,11 +913,180 @@ async function _fetchDemandForecast(): Promise<ForecastProduct[]> {
   return forecasts.sort((a, b) => a.daysOfStock - b.daysOfStock);
 }
 
+// ==================== 8. INVENTORY AGING ANALYSIS ====================
+
+async function _fetchInventoryAging(): Promise<InventoryAgingAnalysis> {
+  await requirePermission('analytics.view');
+
+  // All active products
+  const allProducts = await db.select().from(products).where(isNotDeleted(products));
+
+  // Last sale date per product
+  const lastSaleRows = await db
+    .select({
+      productId: saleItems.productId,
+      lastSaleDate: sql<string>`max(${saleRecords.date})`,
+    })
+    .from(saleItems)
+    .innerJoin(saleRecords, eq(saleRecords.id, saleItems.saleId))
+    .groupBy(saleItems.productId);
+
+  const lastSaleMap = new Map(lastSaleRows.map((r) => [r.productId, r.lastSaleDate]));
+  const now = Date.now();
+
+  const agingProducts: AgingProduct[] = allProducts
+    .filter((p) => p.currentStock > 0)
+    .map((p) => {
+      const stock = p.currentStock;
+      const cost = numVal(p.costPrice as string);
+      const lastSale = lastSaleMap.get(p.id);
+      const daysSinceLastSale = lastSale ? Math.floor((now - new Date(lastSale).getTime()) / 86_400_000) : null;
+
+      let bucket: AgingBucket = '0-30';
+      const days = daysSinceLastSale ?? 999;
+      if (days > 90) bucket = '90+';
+      else if (days > 60) bucket = '60-90';
+      else if (days > 30) bucket = '30-60';
+
+      return {
+        productId: p.id,
+        productName: p.name,
+        sku: p.sku ?? '',
+        category: p.category ?? 'Sin categoría',
+        currentStock: stock,
+        costPrice: cost,
+        stockValue: stock * cost,
+        daysSinceLastSale,
+        bucket,
+        expirationDate: p.expirationDate ? String(p.expirationDate) : null,
+        isPerishable: p.isPerishable ?? false,
+      };
+    })
+    .sort((a, b) => (b.daysSinceLastSale ?? 999) - (a.daysSinceLastSale ?? 999));
+
+  const buckets: InventoryAgingAnalysis['buckets'] = {
+    '0-30': { count: 0, value: 0, skuCount: 0 },
+    '30-60': { count: 0, value: 0, skuCount: 0 },
+    '60-90': { count: 0, value: 0, skuCount: 0 },
+    '90+': { count: 0, value: 0, skuCount: 0 },
+  };
+
+  let totalStockValue = 0;
+  let deadStockCount = 0;
+
+  for (const p of agingProducts) {
+    buckets[p.bucket].count += p.currentStock;
+    buckets[p.bucket].value += p.stockValue;
+    buckets[p.bucket].skuCount += 1;
+    totalStockValue += p.stockValue;
+    if ((p.daysSinceLastSale ?? 999) > 90) deadStockCount++;
+  }
+
+  return { products: agingProducts, buckets, totalStockValue, deadStockCount };
+}
+
+// ==================== 9. PRODUCT MARGIN REPORT ====================
+
+async function _fetchProductMargins(periodDays = 30): Promise<ProductMarginReport> {
+  await requirePermission('analytics.view');
+
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - periodDays);
+  const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
+  // Revenue + quantity per product in period
+  const salesRows = await db
+    .select({
+      productId: saleItems.productId,
+      productName: saleItems.productName,
+      sku: saleItems.sku,
+      totalRevenue: sql<string>`coalesce(sum(${saleItems.subtotal}::numeric), 0)`,
+      totalQuantity: sql<string>`coalesce(sum(${saleItems.quantity}), 0)`,
+    })
+    .from(saleItems)
+    .innerJoin(saleRecords, eq(saleRecords.id, saleItems.saleId))
+    .where(gte(saleRecords.date, sql`${cutoffStr}::timestamp`))
+    .groupBy(saleItems.productId, saleItems.productName, saleItems.sku)
+    .orderBy(desc(sql`sum(${saleItems.subtotal}::numeric)`));
+
+  // Current product data (cost, category)
+  const allProducts = await db.select().from(products).where(isNotDeleted(products));
+  const productMap = new Map(allProducts.map((p) => [p.id, p]));
+
+  const marginProducts: ProductMarginRow[] = [];
+  let totalRevenue = 0;
+  let totalCost = 0;
+  let totalProfit = 0;
+
+  const catMap = new Map<string, { revenue: number; cost: number; profit: number }>();
+
+  for (const row of salesRows) {
+    const productData = productMap.get(row.productId);
+    const costPrice = productData ? numVal(productData.costPrice) : 0;
+    const unitPrice = productData ? numVal(productData.unitPrice) : 0;
+    const revenue = numVal(row.totalRevenue);
+    const qty = numVal(row.totalQuantity);
+    const cost = costPrice * qty;
+    const profit = revenue - cost;
+    const marginPercent = revenue > 0 ? (profit / revenue) * 100 : 0;
+    const category = productData?.category || 'Sin categoría';
+
+    marginProducts.push({
+      productId: row.productId,
+      productName: row.productName ?? '',
+      sku: row.sku ?? '',
+      category,
+      costPrice,
+      unitPrice,
+      marginPercent: Math.round(marginPercent * 10) / 10,
+      unitsSold: qty,
+      totalRevenue: revenue,
+      totalCost: cost,
+      totalProfit: profit,
+    });
+
+    totalRevenue += revenue;
+    totalCost += cost;
+    totalProfit += profit;
+
+    const cat = catMap.get(category) ?? { revenue: 0, cost: 0, profit: 0 };
+    cat.revenue += revenue;
+    cat.cost += cost;
+    cat.profit += profit;
+    catMap.set(category, cat);
+  }
+
+  const byCategory = Array.from(catMap.entries())
+    .map(([category, data]) => ({
+      category,
+      revenue: data.revenue,
+      cost: data.cost,
+      profit: data.profit,
+      margin: data.revenue > 0 ? Math.round((data.profit / data.revenue) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.profit - a.profit);
+
+  return {
+    products: marginProducts,
+    summary: {
+      totalRevenue,
+      totalCost,
+      totalProfit,
+      avgMargin: totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 1000) / 10 : 0,
+    },
+    byCategory,
+  };
+}
+
 // ==================== EXPORTS WITH LOGGING ====================
 export const fetchABCAnalysis = withLogging('analytics.fetchABCAnalysis', _fetchABCAnalysis);
 export const fetchReorderSuggestions = withLogging('analytics.fetchReorderSuggestions', _fetchReorderSuggestions);
 export const createAutoReorderPedido = withLogging('analytics.createAutoReorderPedido', _createAutoReorderPedido);
 export const sendDailyTelegramReport = withLogging('analytics.sendDailyTelegramReport', _sendDailyTelegramReport);
 export const generateCFDI = withLogging('analytics.generateCFDI', _generateCFDI);
+export const fetchCFDIRecords = withLogging('analytics.fetchCFDIRecords', _fetchCFDIRecords);
+export const cancelCFDI = withLogging('analytics.cancelCFDI', _cancelCFDI);
 export const fetchRFMAnalysis = withLogging('analytics.fetchRFMAnalysis', _fetchRFMAnalysis);
 export const fetchDemandForecast = withLogging('analytics.fetchDemandForecast', _fetchDemandForecast);
+export const fetchInventoryAging = withLogging('analytics.fetchInventoryAging', _fetchInventoryAging);
+export const fetchProductMargins = withLogging('analytics.fetchProductMargins', _fetchProductMargins);

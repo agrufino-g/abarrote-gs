@@ -5,23 +5,15 @@ import {
   BlockStack,
   Button,
   Card,
-  Divider,
   IndexTable,
   InlineStack,
-  Scrollable,
   Tabs,
   Text,
   TextField,
   useIndexResourceState,
 } from '@shopify/polaris';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import {
-  FilterIcon,
-  LayoutColumns3Icon,
-  PlusIcon,
-  SearchIcon,
-  SortIcon,
-} from '@shopify/polaris-icons';
+import { LayoutColumns3Icon, SearchIcon, SortIcon } from '@shopify/polaris-icons';
 import { Product } from '@/types';
 import { useToast } from '@/components/notifications/ToastProvider';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -40,7 +32,7 @@ import {
 import { InventoryBulkEdit } from './InventoryBulkEdit';
 
 // --- Columnas fijas del screenshot de Shopify ---
-const INVENTORY_HEADINGS: { title: string }[] = [
+const _INVENTORY_HEADINGS: { title: string }[] = [
   { title: 'Producto' },
   { title: 'SKU' },
   { title: 'No disponible' },
@@ -80,6 +72,7 @@ export function InventoryGeneralView({
 }: InventoryGeneralViewProps) {
   const [selectedTab, setSelectedTab] = useState(0);
   const [queryValue, setQueryValue] = useState('');
+  const [sortAscending, setSortAscending] = useState(true);
   const [isColumnsPopoverOpen, setIsColumnsPopoverOpen] = useState(false);
   const [columnQuery, setColumnQuery] = useState('');
 
@@ -91,26 +84,29 @@ export function InventoryGeneralView({
   const storeConfig = useDashboardStore((state) => state.storeConfig);
   const saveStoreConfig = useDashboardStore((state) => state.saveStoreConfig);
   const [appliedVisibleColumns, setAppliedVisibleColumns] = useState(
-    parseInventoryGeneralColumns(INVENTORY_GENERAL_COLUMNS_FALLBACK)
+    parseInventoryGeneralColumns(INVENTORY_GENERAL_COLUMNS_FALLBACK),
   );
   const [draftVisibleColumns, setDraftVisibleColumns] = useState(
-    parseInventoryGeneralColumns(INVENTORY_GENERAL_COLUMNS_FALLBACK)
+    parseInventoryGeneralColumns(INVENTORY_GENERAL_COLUMNS_FALLBACK),
   );
   const toast = useToast();
 
   // --- Inline editable state for Disponible / En existencia ---
   const [editedValues, setEditedValues] = useState<Record<string, { available?: string; onHand?: string }>>({});
 
-  const handlePersistColumns = useCallback(async (nextColumns: Record<BulkColumnKey, boolean>) => {
-    setAppliedVisibleColumns(nextColumns);
-    try {
-      await saveStoreConfig({
-        inventoryGeneralColumns: serializeInventoryGeneralColumns(nextColumns),
-      });
-    } catch {
-      toast.showError('No se pudieron guardar las columnas de inventario');
-    }
-  }, [saveStoreConfig, toast]);
+  const handlePersistColumns = useCallback(
+    async (nextColumns: Record<BulkColumnKey, boolean>) => {
+      setAppliedVisibleColumns(nextColumns);
+      try {
+        await saveStoreConfig({
+          inventoryGeneralColumns: serializeInventoryGeneralColumns(nextColumns),
+        });
+      } catch {
+        toast.showError('No se pudieron guardar las columnas de inventario');
+      }
+    },
+    [saveStoreConfig, toast],
+  );
 
   useEffect(() => {
     const persistedColumns = parseInventoryGeneralColumns(storeConfig.inventoryGeneralColumns);
@@ -123,21 +119,26 @@ export function InventoryGeneralView({
   // --- Filtro ---
   const filteredProducts = useMemo(() => {
     const query = queryValue.trim().toLowerCase();
-    if (!query) return products;
-    return products.filter((p) =>
-      p.name.toLowerCase().includes(query) ||
-      p.sku.toLowerCase().includes(query) ||
-      p.barcode.toLowerCase().includes(query)
-    );
-  }, [products, queryValue]);
+    const filtered = query
+      ? products.filter(
+          (p) =>
+            p.name.toLowerCase().includes(query) ||
+            p.sku.toLowerCase().includes(query) ||
+            p.barcode.toLowerCase().includes(query),
+        )
+      : [...products];
+    filtered.sort((a, b) => (sortAscending ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)));
+    return filtered;
+  }, [products, queryValue, sortAscending]);
 
   // --- Resource selection ---
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(filteredProducts as any);
+  const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(
+    filteredProducts as { id: string }[],
+  );
 
   const selectedProducts = useMemo(
     () => filteredProducts.filter((p) => selectedResources.includes(p.id)),
-    [filteredProducts, selectedResources]
+    [filteredProducts, selectedResources],
   );
 
   // --- Inline edit handlers ---
@@ -150,40 +151,44 @@ export function InventoryGeneralView({
 
   const updateProductStore = useDashboardStore((s) => s.updateProduct);
 
-  const handleInlineSave = useCallback(async (product: Product) => {
-    const edited = editedValues[product.id];
-    if (!edited) return;
+  const handleInlineSave = useCallback(
+    async (product: Product) => {
+      const edited = editedValues[product.id];
+      if (!edited) return;
 
-    const parsedAvailable = edited.available !== undefined ? parseInt(edited.available, 10) : undefined;
-    const parsedOnHand = edited.onHand !== undefined ? parseInt(edited.onHand, 10) : undefined;
+      const parsedAvailable = edited.available !== undefined ? parseInt(edited.available, 10) : undefined;
+      const parsedOnHand = edited.onHand !== undefined ? parseInt(edited.onHand, 10) : undefined;
 
-    const newStock = parsedOnHand !== undefined && !isNaN(parsedOnHand)
-      ? parsedOnHand
-      : parsedAvailable !== undefined && !isNaN(parsedAvailable)
-        ? parsedAvailable
-        : undefined;
+      const newStock =
+        parsedOnHand !== undefined && !isNaN(parsedOnHand)
+          ? parsedOnHand
+          : parsedAvailable !== undefined && !isNaN(parsedAvailable)
+            ? parsedAvailable
+            : undefined;
 
-    if (newStock === undefined || newStock === product.currentStock) return;
+      if (newStock === undefined || newStock === product.currentStock) return;
 
-    try {
-      // Usamos el store para actualización optimista instantánea
-      await updateProductStore(product.id, { currentStock: newStock });
-      toast.showSuccess(`Stock de "${product.name}" actualizado a ${newStock}`);
-      setEditedValues((prev) => {
-        const next = { ...prev };
-        delete next[product.id];
-        return next;
-      });
-      // Ya no llamamos a onImportSuccess() para evitar el refetch masivo
-    } catch {
-      toast.showError('Error al actualizar stock');
-    }
-  }, [editedValues, toast, updateProductStore]);
+      try {
+        // Usamos el store para actualización optimista instantánea
+        await updateProductStore(product.id, { currentStock: newStock });
+        toast.showSuccess(`Stock de "${product.name}" actualizado a ${newStock}`);
+        setEditedValues((prev) => {
+          const next = { ...prev };
+          delete next[product.id];
+          return next;
+        });
+        // Ya no llamamos a onImportSuccess() para evitar el refetch masivo
+      } catch {
+        toast.showError('Error al actualizar stock');
+      }
+    },
+    [editedValues, toast, updateProductStore],
+  );
 
   // --- Bulk edit ---
   const visibleColumnDefinitions = useMemo(
     () => BULK_COLUMN_DEFINITIONS.filter((c) => draftVisibleColumns[c.key]),
-    [draftVisibleColumns]
+    [draftVisibleColumns],
   );
 
   const handleOpenBulkEdit = useCallback(() => {
@@ -205,7 +210,7 @@ export function InventoryGeneralView({
         onHand: String(p.currentStock),
         minStock: String(p.minStock),
         expirationDate: p.expirationDate || '',
-      }))
+      })),
     );
     setIsBulkEditing(true);
   }, [appliedVisibleColumns, selectedProducts, toast]);
@@ -225,12 +230,18 @@ export function InventoryGeneralView({
     setDraftVisibleColumns((c) => ({ ...c, [key]: checked }));
   }, []);
 
-  const handleAppliedColumnChange = useCallback((key: BulkColumnKey, checked: boolean) => {
-    void handlePersistColumns({ ...appliedVisibleColumns, [key]: checked });
-  }, [appliedVisibleColumns, handlePersistColumns]);
+  const handleAppliedColumnChange = useCallback(
+    (key: BulkColumnKey, checked: boolean) => {
+      void handlePersistColumns({ ...appliedVisibleColumns, [key]: checked });
+    },
+    [appliedVisibleColumns, handlePersistColumns],
+  );
 
   const handleSaveBulkEdit = useCallback(async () => {
-    if (bulkRows.length === 0) { setIsBulkEditing(false); return; }
+    if (bulkRows.length === 0) {
+      setIsBulkEditing(false);
+      return;
+    }
     setIsSavingBulkEdit(true);
     try {
       await Promise.all(
@@ -249,7 +260,7 @@ export function InventoryGeneralView({
             costPrice: parseFloat(row.costPrice) || product.costPrice,
             expirationDate: row.expirationDate.trim() || null,
           });
-        })
+        }),
       );
       await saveStoreConfig({ inventoryGeneralColumns: serializeInventoryGeneralColumns(draftVisibleColumns) });
       toast.showSuccess(`Se actualizaron ${bulkRows.length} producto(s)`);
@@ -264,9 +275,7 @@ export function InventoryGeneralView({
   }, [bulkRows, draftVisibleColumns, products, saveStoreConfig, toast, updateProductStore]);
 
   // --- Promoted bulk actions ---
-  const promotedBulkActions = [
-    { content: 'Edicion masiva', onAction: handleOpenBulkEdit },
-  ];
+  const promotedBulkActions = [{ content: 'Edicion masiva', onAction: handleOpenBulkEdit }];
 
   // --- Export handler ---
   const handleExport = useCallback(
@@ -299,23 +308,23 @@ export function InventoryGeneralView({
         downloadFile(csvContent, `${filename}.csv`, mime);
       }
     },
-    [products]
+    [products],
   );
 
   // --- Columnas Dinámicas para la vista ---
   const activeColumns = useMemo(
     () => BULK_COLUMN_DEFINITIONS.filter((c) => appliedVisibleColumns[c.key]),
-    [appliedVisibleColumns]
+    [appliedVisibleColumns],
   );
 
   const dynamicHeadings = useMemo(
     () => activeColumns.map((col) => ({ title: col.mainTableTitle || col.label })),
-    [activeColumns]
+    [activeColumns],
   );
 
   const rowMarkup = filteredProducts.map((product, index) => {
-    const unavailable = product.expirationDate && new Date(product.expirationDate) < new Date()
-      ? product.currentStock : 0;
+    const unavailable =
+      product.expirationDate && new Date(product.expirationDate) < new Date() ? product.currentStock : 0;
     const committed = 0;
     const available = Math.max(product.currentStock - unavailable - committed, 0);
     const onHand = product.currentStock;
@@ -361,31 +370,41 @@ export function InventoryGeneralView({
             case 'category':
               return (
                 <IndexTable.Cell key={col.key}>
-                  <Text as="span" variant="bodyMd">{product.category || 'N/A'}</Text>
+                  <Text as="span" variant="bodyMd">
+                    {product.category || 'N/A'}
+                  </Text>
                 </IndexTable.Cell>
               );
             case 'unitPrice':
               return (
                 <IndexTable.Cell key={col.key}>
-                  <Text as="span" variant="bodyMd">${product.unitPrice.toFixed(2)}</Text>
+                  <Text as="span" variant="bodyMd">
+                    ${product.unitPrice.toFixed(2)}
+                  </Text>
                 </IndexTable.Cell>
               );
             case 'costPrice':
               return (
                 <IndexTable.Cell key={col.key}>
-                  <Text as="span" variant="bodyMd">${product.costPrice.toFixed(2)}</Text>
+                  <Text as="span" variant="bodyMd">
+                    ${product.costPrice.toFixed(2)}
+                  </Text>
                 </IndexTable.Cell>
               );
             case 'minStock':
               return (
                 <IndexTable.Cell key={col.key}>
-                  <Text as="span" variant="bodyMd">{product.minStock}</Text>
+                  <Text as="span" variant="bodyMd">
+                    {product.minStock}
+                  </Text>
                 </IndexTable.Cell>
               );
             case 'expirationDate':
               return (
                 <IndexTable.Cell key={col.key}>
-                  <Text as="span" variant="bodyMd">{product.expirationDate || 'N/A'}</Text>
+                  <Text as="span" variant="bodyMd">
+                    {product.expirationDate || 'N/A'}
+                  </Text>
                 </IndexTable.Cell>
               );
             case 'available':
@@ -404,11 +423,7 @@ export function InventoryGeneralView({
                         />
                       </div>
                       {edited?.available !== undefined && (
-                        <Button
-                          size="micro"
-                          variant="primary"
-                          onClick={() => handleInlineSave(product)}
-                        >
+                        <Button size="micro" variant="primary" onClick={() => handleInlineSave(product)}>
                           Guardar
                         </Button>
                       )}
@@ -432,11 +447,7 @@ export function InventoryGeneralView({
                         />
                       </div>
                       {edited?.onHand !== undefined && (
-                        <Button
-                          size="micro"
-                          variant="primary"
-                          onClick={() => handleInlineSave(product)}
-                        >
+                        <Button size="micro" variant="primary" onClick={() => handleInlineSave(product)}>
                           Guardar
                         </Button>
                       )}
@@ -478,19 +489,30 @@ export function InventoryGeneralView({
     <BlockStack gap="400">
       <Card padding="0">
         {/* Toolbar: Tabs a la izquierda, iconos a la derecha */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid var(--p-color-border-subdued, #e1e3e5)',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid var(--p-color-border-subdued, #e1e3e5)',
+          }}
+        >
           {/* Izquierda: Tabs */}
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <Tabs tabs={INVENTORY_TABS} selected={selectedTab} onSelect={setSelectedTab} fitted={false} />
           </div>
 
           {/* Derecha: Buscador fijo y botones */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '16px', paddingBottom: '6px', paddingTop: '6px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              paddingRight: '16px',
+              paddingBottom: '6px',
+              paddingTop: '6px',
+            }}
+          >
             <div style={{ width: '280px' }}>
               <TextField
                 label="Buscar"
@@ -508,8 +530,8 @@ export function InventoryGeneralView({
             <InventoryColumnsPopover
               active={isColumnsPopoverOpen}
               activator={
-                <Button 
-                  icon={LayoutColumns3Icon} 
+                <Button
+                  icon={LayoutColumns3Icon}
                   onClick={() => setIsColumnsPopoverOpen((c) => !c)}
                   accessibilityLabel="Administrar columnas"
                 />
@@ -521,24 +543,26 @@ export function InventoryGeneralView({
               onColumnChange={handleAppliedColumnChange}
             />
 
-            <Button icon={SortIcon} onClick={() => {}} accessibilityLabel="Ordenar" />
+            <Button
+              icon={SortIcon}
+              onClick={() => setSortAscending((prev) => !prev)}
+              accessibilityLabel={sortAscending ? 'Ordenar Z-A' : 'Ordenar A-Z'}
+            />
           </div>
         </div>
 
         {/* Tabla con encabezados dinámicos */}
-        <Scrollable style={{ height: 'calc(100vh - 200px)' }}>
-          <IndexTable
-            resourceName={{ singular: 'producto', plural: 'productos' }}
-            itemCount={filteredProducts.length}
-            selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
-            onSelectionChange={handleSelectionChange}
-            headings={dynamicHeadings as any}
-            promotedBulkActions={promotedBulkActions}
-            sortable={[true, false, false, false, false, false, false]}
-          >
-            {rowMarkup}
-          </IndexTable>
-        </Scrollable>
+        <IndexTable
+          resourceName={{ singular: 'producto', plural: 'productos' }}
+          itemCount={filteredProducts.length}
+          selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
+          onSelectionChange={handleSelectionChange}
+          headings={dynamicHeadings as [{ title: string }, ...{ title: string }[]]}
+          promotedBulkActions={promotedBulkActions}
+          sortable={[true, false, false, false, false, false, false]}
+        >
+          {rowMarkup}
+        </IndexTable>
       </Card>
 
       {/* Modales controlados desde padre */}

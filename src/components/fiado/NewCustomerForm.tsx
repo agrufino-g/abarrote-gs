@@ -16,12 +16,7 @@ import {
   ContextualSaveBar,
   Frame,
 } from '@shopify/polaris';
-import {
-  PersonIcon,
-  EditIcon,
-  ChevronRightIcon,
-  PlusIcon,
-} from '@shopify/polaris-icons';
+import { PersonIcon, ChevronRightIcon, PlusIcon } from '@shopify/polaris-icons';
 import { useState, useCallback, useEffect } from 'react';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useToast } from '@/components/notifications/ToastProvider';
@@ -33,7 +28,7 @@ interface NewCustomerFormProps {
 
 export function NewCustomerForm({ onBack, onSuccess }: NewCustomerFormProps) {
   const addCliente = useDashboardStore((s) => s.addCliente);
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -48,7 +43,9 @@ export function NewCustomerForm({ onBack, onSuccess }: NewCustomerFormProps) {
       '.custom-scroll::-webkit-scrollbar { display: none; }',
     ].join('\n');
     document.head.appendChild(style);
-    return () => { style.remove(); };
+    return () => {
+      style.remove();
+    };
   }, []);
 
   // Form State
@@ -91,13 +88,13 @@ export function NewCustomerForm({ onBack, onSuccess }: NewCustomerFormProps) {
       await addCliente({
         name: fullName,
         phone: phone.trim(),
-        address: '', 
+        address: '',
         creditLimit: 500,
         points: 0,
       });
       showSuccess(`Cliente ${fullName} creado exitosamente`);
       onSuccess();
-    } catch (err) {
+    } catch (_err) {
       showError('Error al crear el cliente');
     } finally {
       setIsSubmitting(false);
@@ -127,36 +124,67 @@ export function NewCustomerForm({ onBack, onSuccess }: NewCustomerFormProps) {
           <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 20px' }}>
             <Box paddingBlockEnd="400">
               <InlineStack gap="100" blockAlign="center">
-                <div onClick={onBack} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: 0.6 }}>
+                <div
+                  onClick={onBack}
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: 0.6 }}
+                >
                   <Icon source={PersonIcon} tone="base" />
                 </div>
                 <Text as="span" tone="subdued">
-                   <span style={{ fontSize: '14px', margin: '0 4px' }}>›</span>
+                  <span style={{ fontSize: '14px', margin: '0 4px' }}>›</span>
                 </Text>
                 <Text as="h1" variant="headingLg">
                   Nuevo cliente
                 </Text>
               </InlineStack>
             </Box>
-            
+
             <Layout>
               <Layout.Section>
                 <BlockStack gap="400">
                   <Card>
                     <BlockStack gap="400">
-                      <Text as="h2" variant="headingMd">Descripción general del cliente</Text>
+                      <Text as="h2" variant="headingMd">
+                        Descripción general del cliente
+                      </Text>
                       <InlineStack gap="400">
-                        <div style={{ flex: 1 }}><TextField label="Nombre" value={firstName} onChange={setFirstName} autoComplete="given-name" placeholder="ELoy" /></div>
-                        <div style={{ flex: 1 }}><TextField label="Apellido" value={lastName} onChange={setLastName} autoComplete="family-name" placeholder="Hertz" /></div>
+                        <div style={{ flex: 1 }}>
+                          <TextField
+                            label="Nombre"
+                            value={firstName}
+                            onChange={setFirstName}
+                            autoComplete="given-name"
+                            placeholder="ELoy"
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <TextField
+                            label="Apellido"
+                            value={lastName}
+                            onChange={setLastName}
+                            autoComplete="family-name"
+                            placeholder="Hertz"
+                          />
+                        </div>
                       </InlineStack>
                       <Select
                         label="Idioma"
-                        options={[{ label: 'Español [Predeterminado]', value: 'es' }, { label: 'Inglés', value: 'en' }]}
+                        options={[
+                          { label: 'Español [Predeterminado]', value: 'es' },
+                          { label: 'Inglés', value: 'en' },
+                        ]}
                         value={language}
                         onChange={setLanguage}
                         helpText="Este cliente recibirá las notificaciones en este idioma."
                       />
-                      <TextField label="Correo electrónico" type="email" value={email} onChange={setEmail} autoComplete="email" placeholder="example@ccompany.com" />
+                      <TextField
+                        label="Correo electrónico"
+                        type="email"
+                        value={email}
+                        onChange={setEmail}
+                        autoComplete="email"
+                        placeholder="example@ccompany.com"
+                      />
                       <TextField
                         label="Número de teléfono"
                         type="tel"
@@ -164,14 +192,38 @@ export function NewCustomerForm({ onBack, onSuccess }: NewCustomerFormProps) {
                         onChange={setPhone}
                         autoComplete="tel"
                         placeholder="56 5035 7389"
-                        prefix={<div style={{ display: 'flex', alignItems: 'center', gap: '4px', paddingRight: '8px', borderRight: '1px solid #dcdfe3' }}><span style={{ fontSize: '18px' }}>🇲🇽</span><Icon source={ChevronRightIcon} tone="subdued" /></div>}
+                        prefix={
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              paddingRight: '8px',
+                              borderRight: '1px solid #dcdfe3',
+                            }}
+                          >
+                            <span style={{ fontSize: '18px' }}>🇲🇽</span>
+                            <Icon source={ChevronRightIcon} tone="subdued" />
+                          </div>
+                        }
                       />
                       <BlockStack gap="200">
-                        <Checkbox label="El cliente aceptó recibir correos electrónicos de marketing." checked={emailMarketing} onChange={setEmailMarketing} />
-                        <Checkbox label="El cliente aceptó recibir mensajes de texto de marketing por SMS." checked={smsMarketing} onChange={setSmsMarketing} />
+                        <Checkbox
+                          label="El cliente aceptó recibir correos electrónicos de marketing."
+                          checked={emailMarketing}
+                          onChange={setEmailMarketing}
+                        />
+                        <Checkbox
+                          label="El cliente aceptó recibir mensajes de texto de marketing por SMS."
+                          checked={smsMarketing}
+                          onChange={setSmsMarketing}
+                        />
                       </BlockStack>
                       <Box padding="400" background="bg-surface-secondary" borderRadius="200">
-                        <Text as="p" variant="bodySm" tone="subdued">Debes pedir permiso a los clientes antes de suscribirlos a los correos electrónicos o SMS de marketing.</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          Debes pedir permiso a los clientes antes de suscribirlos a los correos electrónicos o SMS de
+                          marketing.
+                        </Text>
                       </Box>
                     </BlockStack>
                   </Card>
@@ -179,14 +231,29 @@ export function NewCustomerForm({ onBack, onSuccess }: NewCustomerFormProps) {
                   <Card>
                     <BlockStack gap="400">
                       <BlockStack gap="100">
-                        <Text as="h2" variant="headingMd">Dirección predeterminada</Text>
-                        <Text as="p" tone="subdued">La dirección principal de este cliente</Text>
+                        <Text as="h2" variant="headingMd">
+                          Dirección predeterminada
+                        </Text>
+                        <Text as="p" tone="subdued">
+                          La dirección principal de este cliente
+                        </Text>
                       </BlockStack>
-                      <Box padding="400" background="bg-surface" borderRadius="200" borderWidth="025" borderStyle="solid" borderColor="border">
-                        <div onClick={() => {}} style={{ cursor: 'pointer' }}>
+                      <Box
+                        padding="400"
+                        background="bg-surface"
+                        borderRadius="200"
+                        borderWidth="025"
+                        borderStyle="solid"
+                        borderColor="border"
+                      >
+                        <div
+                          onClick={() => showInfo('Dirección se configura en el perfil del cliente')}
+                          style={{ cursor: 'pointer' }}
+                        >
                           <InlineStack align="space-between" blockAlign="center">
                             <InlineStack gap="200" blockAlign="center">
-                              <Icon source={PlusIcon} tone="base" /><Text as="span">Agregar dirección</Text>
+                              <Icon source={PlusIcon} tone="base" />
+                              <Text as="span">Agregar dirección</Text>
                             </InlineStack>
                             <Icon source={ChevronRightIcon} tone="subdued" />
                           </InlineStack>
@@ -197,8 +264,18 @@ export function NewCustomerForm({ onBack, onSuccess }: NewCustomerFormProps) {
 
                   <Card>
                     <BlockStack gap="400">
-                      <Text as="h2" variant="headingMd">Información fiscal</Text>
-                      <Select label="Configuración fiscal" options={[{ label: 'Recaudar impuestos', value: 'recaudar' }, { label: 'No recaudar impuestos', value: 'no-recaudar' }]} value={taxConfig} onChange={setTaxConfig} />
+                      <Text as="h2" variant="headingMd">
+                        Información fiscal
+                      </Text>
+                      <Select
+                        label="Configuración fiscal"
+                        options={[
+                          { label: 'Recaudar impuestos', value: 'recaudar' },
+                          { label: 'No recaudar impuestos', value: 'no-recaudar' },
+                        ]}
+                        value={taxConfig}
+                        onChange={setTaxConfig}
+                      />
                     </BlockStack>
                   </Card>
                 </BlockStack>
@@ -209,17 +286,28 @@ export function NewCustomerForm({ onBack, onSuccess }: NewCustomerFormProps) {
                   <Card>
                     <BlockStack gap="200">
                       <InlineStack align="space-between" blockAlign="center">
-                        <Text as="h2" variant="headingMd">Notas</Text>
-                        <Button variant="plain" icon={EditIcon} />
+                        <Text as="h2" variant="headingMd">
+                          Notas
+                        </Text>
                       </InlineStack>
-                      <Text as="p" variant="bodySm" tone="subdued">Las notas son privadas y no se compartirán con el cliente.</Text>
+                      <TextField
+                        label="Notas"
+                        labelHidden
+                        value={notes}
+                        onChange={setNotes}
+                        multiline={3}
+                        autoComplete="off"
+                        placeholder="Notas privadas sobre este cliente..."
+                        helpText="Las notas son privadas y no se compartirán con el cliente."
+                      />
                     </BlockStack>
                   </Card>
                   <Card>
                     <BlockStack gap="200">
                       <InlineStack align="space-between" blockAlign="center">
-                        <Text as="h2" variant="headingMd">Etiquetas</Text>
-                        <Button variant="plain" icon={EditIcon} />
+                        <Text as="h2" variant="headingMd">
+                          Etiquetas
+                        </Text>
                       </InlineStack>
                       <TextField label="Etiquetas" labelHidden value={tags} onChange={setTags} autoComplete="off" />
                     </BlockStack>
@@ -229,7 +317,7 @@ export function NewCustomerForm({ onBack, onSuccess }: NewCustomerFormProps) {
             </Layout>
 
             <Box paddingBlockStart="800" paddingBlockEnd="800">
-               {/* Espacio final para que el scroll no corte el contenido */}
+              {/* Espacio final para que el scroll no corte el contenido */}
             </Box>
           </div>
         </div>

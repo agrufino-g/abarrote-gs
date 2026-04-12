@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Frame, Loading, Page, Banner, Button, SkeletonPage, Layout, SkeletonBodyText, Box, BlockStack, Text } from '@shopify/polaris';
+import { Frame, Loading, Page, Banner, Button, SkeletonPage, Layout, SkeletonBodyText } from '@shopify/polaris';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { SidebarNav } from '@/components/navigation/SidebarNav';
 import { CustomTopBar } from '@/components/navigation/CustomTopBar';
@@ -33,7 +33,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isProductDetailActive = useDashboardStore((s) => s.isProductDetailActive);
   const openProductDetail = useDashboardStore((s) => s.openProductDetail);
   const closeProductDetail = useDashboardStore((s) => s.closeProductDetail);
-  const [sessionExpired, setSessionExpired] = useState(false); // New lock state
+  const [_sessionExpired, _setSessionExpired] = useState(false); // New lock state
 
   const { signOut } = useAuth(); // Access signOut from AuthContext
 
@@ -52,19 +52,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Handle auto-corte based on config time
   useEffect(() => {
     if (!user) return;
-    
-    const interval = setInterval(() => {
-      const now = new Date();
-      const currentH = now.getHours().toString().padStart(2, '0');
-      const currentM = now.getMinutes().toString().padStart(2, '0');
-      const currentTime = `${currentH}:${currentM}`;
-      
-      // If we reach or pass the auto-corte time, trigger it
-      // The server action handles idempotency for today
-      if (storeConfig.autoCorteTime && currentTime >= storeConfig.autoCorteTime) {
-        checkMidnightCorte();
-      }
-    }, 1000 * 60 * 10); // Check every 10 mins
+
+    const interval = setInterval(
+      () => {
+        const now = new Date();
+        const currentH = now.getHours().toString().padStart(2, '0');
+        const currentM = now.getMinutes().toString().padStart(2, '0');
+        const currentTime = `${currentH}:${currentM}`;
+
+        // If we reach or pass the auto-corte time, trigger it
+        // The server action handles idempotency for today
+        if (storeConfig.autoCorteTime && currentTime >= storeConfig.autoCorteTime) {
+          checkMidnightCorte();
+        }
+      },
+      1000 * 60 * 10,
+    ); // Check every 10 mins
 
     return () => clearInterval(interval);
   }, [user, storeConfig.autoCorteTime, checkMidnightCorte]);
@@ -74,7 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // NOT generic network errors or transient failures.
   useEffect(() => {
     if (!error) return;
-    
+
     // Exact phrases from src/lib/auth/guard.ts AuthError messages
     const AUTH_ERROR_PATTERNS = [
       'Tu sesión ha expirado',
@@ -83,9 +86,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       'Usuario no registrado',
       'Tu cuenta ha sido desactivada',
     ];
-    
-    const isAuthExpired = AUTH_ERROR_PATTERNS.some(pattern => error.includes(pattern));
-    
+
+    const isAuthExpired = AUTH_ERROR_PATTERNS.some((pattern) => error.includes(pattern));
+
     if (isAuthExpired) {
       console.error('AUTH EXPIRED: Redirecting to login');
       signOut().then(() => {
@@ -98,31 +101,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setMobileNavActive((prev) => !prev);
   }, []);
 
-  const handleSectionSelect = useCallback((section: string) => {
-    router.push(sectionToPath(section));
-    setMobileNavActive(false);
-  }, [router]);
+  const handleSectionSelect = useCallback(
+    (section: string) => {
+      router.push(sectionToPath(section));
+      setMobileNavActive(false);
+    },
+    [router],
+  );
 
-  const handleProductClick = useCallback((product: Product) => {
+  const _handleProductClick = useCallback((product: Product) => {
     openProductDetail(product);
   }, []);
 
-  const criticalAlerts = inventoryAlerts.filter(
-    (alert) => alert.severity === 'critical'
-  );
+  const criticalAlerts = inventoryAlerts.filter((alert) => alert.severity === 'critical');
 
   // Prevent ANY visualization if loading or no user
   if (authLoading || !user) {
     return (
-      <div style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        width: '100vw', 
-        height: '100vh', 
-        backgroundColor: '#f6f6f7', // Shopify Neutral BG
-        zIndex: 10000 
-      }} />
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: '#f6f6f7', // Shopify Neutral BG
+          zIndex: 10000,
+        }}
+      />
     );
   }
 
@@ -132,7 +138,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       onNavigationToggle={toggleMobileNav}
       onSectionSelect={handleSectionSelect}
       onProductClick={(product) => {
-        openProductDetail(product);
+        const products = useDashboardStore.getState().products;
+        const full = products.find((p) => p.id === product.id);
+        if (full) openProductDetail(full);
       }}
     />
   );
@@ -162,9 +170,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Banner>
         )}
         {syncStatus.circuitOpen && syncStatus.isOnline && (
-          <Banner tone="critical">
-            Problemas de sincronización detectados. Reintentando automáticamente…
-          </Banner>
+          <Banner tone="critical">Problemas de sincronización detectados. Reintentando automáticamente…</Banner>
         )}
         {isLoading && <Loading />}
         {error ? (

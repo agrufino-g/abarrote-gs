@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  Modal,
-  Text,
-  BlockStack,
-  Banner,
-} from '@shopify/polaris';
+import { Modal, Text, BlockStack, Banner } from '@shopify/polaris';
 import type { UserRoleRecord } from '@/types';
 
 interface DeactivateUserModalProps {
@@ -16,13 +11,7 @@ interface DeactivateUserModalProps {
   saving: boolean;
 }
 
-export function DeactivateUserModal({
-  open,
-  onClose,
-  selectedUser,
-  onDeactivate,
-  saving,
-}: DeactivateUserModalProps) {
+export function DeactivateUserModal({ open, onClose, selectedUser, onDeactivate, saving }: DeactivateUserModalProps) {
   return (
     <Modal
       open={open}
@@ -40,19 +29,21 @@ export function DeactivateUserModal({
         <BlockStack gap="300">
           <Banner tone="warning">
             <p>
-              Al dar de baja a <strong>{selectedUser?.displayName || selectedUser?.email}</strong>, su acceso al sistema será revocado inmediatamente.
+              Al dar de baja a <strong>{selectedUser?.displayName || selectedUser?.email}</strong>, su acceso al sistema
+              será revocado inmediatamente.
             </p>
           </Banner>
           {selectedUser?.globalId && (
             <Banner tone="info">
               <p>
-                El Global ID <strong>{selectedUser.globalId}</strong> quedará reservado permanentemente y no podrá ser reutilizado por nadie más.
+                El Global ID <strong>{selectedUser.globalId}</strong> quedará reservado permanentemente y no podrá ser
+                reutilizado por nadie más.
               </p>
             </Banner>
           )}
           <Text as="p" tone="subdued">
-            El usuario no será eliminado del sistema. Su registro permanecerá para auditoría y su Global ID nunca podrá ser reasignado.
-            Si necesitas reincorporarlo, podrás usar la opción &quot;Reactivar&quot;.
+            El usuario no será eliminado del sistema. Su registro permanecerá para auditoría y su Global ID nunca podrá
+            ser reasignado. Si necesitas reincorporarlo, podrás usar la opción &quot;Reactivar&quot;.
           </Text>
         </BlockStack>
       </Modal.Section>

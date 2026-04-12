@@ -75,77 +75,77 @@ export async function createStripeSPEICharge(params: {
   saleReference: string;
 }): Promise<StripeSPEIResult> {
   return stripeBreaker.execute(async () => {
-  const { amount, customerEmail, description, saleReference } = params;
-  const stripe = await getStripeClient();
+    const { amount, customerEmail, description, saleReference } = params;
+    const stripe = await getStripeClient();
 
-  const amountCents = Math.round(amount * 100);
+    const amountCents = Math.round(amount * 100);
 
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amountCents,
-    currency: 'mxn',
-    payment_method_types: ['customer_balance'],
-    payment_method_data: {
-      type: 'customer_balance',
-    },
-    payment_method_options: {
-      customer_balance: {
-        funding_type: 'bank_transfer',
-        bank_transfer: {
-          type: 'mx_bank_transfer',
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: 'mxn',
+      payment_method_types: ['customer_balance'],
+      payment_method_data: {
+        type: 'customer_balance',
+      },
+      payment_method_options: {
+        customer_balance: {
+          funding_type: 'bank_transfer',
+          bank_transfer: {
+            type: 'mx_bank_transfer',
+          },
         },
       },
-    },
-    customer: await getOrCreateStripeCustomer(stripe, customerEmail),
-    description: description || 'Venta POS',
-    metadata: {
-      sale_reference: saleReference,
-      source: 'abarrote-gs-pos',
-    },
-  });
+      customer: await getOrCreateStripeCustomer(stripe, customerEmail),
+      description: description || 'Venta POS',
+      metadata: {
+        sale_reference: saleReference,
+        source: 'abarrote-gs-pos',
+      },
+    });
 
-  // Extract bank transfer details from next_action
-  const nextAction = paymentIntent.next_action;
-  const bankTransfer = nextAction?.display_bank_transfer_instructions;
-  const clabeRef = bankTransfer?.financial_addresses?.[0]?.spei?.clabe ?? '';
-  const bankNameStr = bankTransfer?.financial_addresses?.[0]?.spei?.bank_name ?? 'STP';
+    // Extract bank transfer details from next_action
+    const nextAction = paymentIntent.next_action;
+    const bankTransfer = nextAction?.display_bank_transfer_instructions;
+    const clabeRef = bankTransfer?.financial_addresses?.[0]?.spei?.clabe ?? '';
+    const bankNameStr = bankTransfer?.financial_addresses?.[0]?.spei?.bank_name ?? 'STP';
 
-  const referenceNumber = `ST-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-  const expiresAt = new Date(Date.now() + 72 * 3600 * 1000); // 72h default
+    const referenceNumber = `ST-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const expiresAt = new Date(Date.now() + 72 * 3600 * 1000); // 72h default
 
-  // Track charge in DB
-  await db.insert(paymentCharges).values({
-    id: crypto.randomUUID(),
-    provider: 'stripe',
-    providerChargeId: paymentIntent.id,
-    saleId: null,
-    storeId: 'main',
-    amount: amount.toFixed(2),
-    currency: 'MXN',
-    paymentMethod: 'spei_stripe',
-    status: 'pending',
-    customerEmail,
-    referenceNumber,
-    clabeReference: clabeRef,
-    expiresAt,
-    providerMetadata: { paymentIntentId: paymentIntent.id },
-  });
+    // Track charge in DB
+    await db.insert(paymentCharges).values({
+      id: crypto.randomUUID(),
+      provider: 'stripe',
+      providerChargeId: paymentIntent.id,
+      saleId: null,
+      storeId: 'main',
+      amount: amount.toFixed(2),
+      currency: 'MXN',
+      paymentMethod: 'spei_stripe',
+      status: 'pending',
+      customerEmail,
+      referenceNumber,
+      clabeReference: clabeRef,
+      expiresAt,
+      providerMetadata: { paymentIntentId: paymentIntent.id },
+    });
 
-  logger.info('Stripe SPEI charge created', {
-    action: 'stripe_spei_charge',
-    paymentIntentId: paymentIntent.id,
-    amount,
-  });
+    logger.info('Stripe SPEI charge created', {
+      action: 'stripe_spei_charge',
+      paymentIntentId: paymentIntent.id,
+      amount,
+    });
 
-  return {
-    paymentIntentId: paymentIntent.id,
-    clientSecret: paymentIntent.client_secret ?? '',
-    clabeReference: clabeRef,
-    bankName: bankNameStr,
-    amount,
-    expiresAt,
-    referenceNumber,
-    hostedInstructionsUrl: bankTransfer?.hosted_instructions_url ?? null,
-  };
+    return {
+      paymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret ?? '',
+      clabeReference: clabeRef,
+      bankName: bankNameStr,
+      amount,
+      expiresAt,
+      referenceNumber,
+      hostedInstructionsUrl: bankTransfer?.hosted_instructions_url ?? null,
+    };
   }); // stripeBreaker.execute end
 }
 
@@ -158,78 +158,78 @@ export async function createStripeOXXOCharge(params: {
   saleReference: string;
 }): Promise<StripeOXXOResult> {
   return stripeBreaker.execute(async () => {
-  const { amount, customerEmail, description, saleReference } = params;
-  const stripe = await getStripeClient();
+    const { amount, customerEmail, description, saleReference } = params;
+    const stripe = await getStripeClient();
 
-  const amountCents = Math.round(amount * 100);
+    const amountCents = Math.round(amount * 100);
 
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amountCents,
-    currency: 'mxn',
-    payment_method_types: ['oxxo'],
-    payment_method_options: {
-      oxxo: {
-        expires_after_days: 3,
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: 'mxn',
+      payment_method_types: ['oxxo'],
+      payment_method_options: {
+        oxxo: {
+          expires_after_days: 3,
+        },
       },
-    },
-    description: description || 'Venta POS',
-    metadata: {
-      sale_reference: saleReference,
-      source: 'abarrote-gs-pos',
-      customer_email: customerEmail,
-    },
-  });
-
-  // Confirm with OXXO payment method
-  const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntent.id, {
-    payment_method_data: {
-      type: 'oxxo',
-      billing_details: {
-        email: customerEmail,
+      description: description || 'Venta POS',
+      metadata: {
+        sale_reference: saleReference,
+        source: 'abarrote-gs-pos',
+        customer_email: customerEmail,
       },
-    },
-  });
+    });
 
-  const nextAction = confirmedIntent.next_action;
-  const oxxoDisplay = nextAction?.oxxo_display_details;
-  const reference = oxxoDisplay?.number ?? '';
-  const expiresAt = oxxoDisplay?.expires_after
-    ? new Date(oxxoDisplay.expires_after * 1000)
-    : new Date(Date.now() + 3 * 24 * 3600 * 1000);
+    // Confirm with OXXO payment method
+    const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntent.id, {
+      payment_method_data: {
+        type: 'oxxo',
+        billing_details: {
+          email: customerEmail,
+        },
+      },
+    });
 
-  // Track charge in DB
-  await db.insert(paymentCharges).values({
-    id: crypto.randomUUID(),
-    provider: 'stripe',
-    providerChargeId: paymentIntent.id,
-    saleId: null,
-    storeId: 'main',
-    amount: amount.toFixed(2),
-    currency: 'MXN',
-    paymentMethod: 'oxxo_stripe',
-    status: 'pending',
-    customerEmail,
-    referenceNumber: reference,
-    oxxoReference: reference,
-    oxxoBarcode: oxxoDisplay?.hosted_voucher_url ?? null,
-    expiresAt,
-    providerMetadata: { paymentIntentId: paymentIntent.id },
-  });
+    const nextAction = confirmedIntent.next_action;
+    const oxxoDisplay = nextAction?.oxxo_display_details;
+    const reference = oxxoDisplay?.number ?? '';
+    const expiresAt = oxxoDisplay?.expires_after
+      ? new Date(oxxoDisplay.expires_after * 1000)
+      : new Date(Date.now() + 3 * 24 * 3600 * 1000);
 
-  logger.info('Stripe OXXO charge created', {
-    action: 'stripe_oxxo_charge',
-    paymentIntentId: paymentIntent.id,
-    amount,
-  });
+    // Track charge in DB
+    await db.insert(paymentCharges).values({
+      id: crypto.randomUUID(),
+      provider: 'stripe',
+      providerChargeId: paymentIntent.id,
+      saleId: null,
+      storeId: 'main',
+      amount: amount.toFixed(2),
+      currency: 'MXN',
+      paymentMethod: 'oxxo_stripe',
+      status: 'pending',
+      customerEmail,
+      referenceNumber: reference,
+      oxxoReference: reference,
+      oxxoBarcode: oxxoDisplay?.hosted_voucher_url ?? null,
+      expiresAt,
+      providerMetadata: { paymentIntentId: paymentIntent.id },
+    });
 
-  return {
-    paymentIntentId: paymentIntent.id,
-    clientSecret: confirmedIntent.client_secret ?? '',
-    reference,
-    amount,
-    expiresAt,
-    hostedVoucherUrl: oxxoDisplay?.hosted_voucher_url ?? null,
-  };
+    logger.info('Stripe OXXO charge created', {
+      action: 'stripe_oxxo_charge',
+      paymentIntentId: paymentIntent.id,
+      amount,
+    });
+
+    return {
+      paymentIntentId: paymentIntent.id,
+      clientSecret: confirmedIntent.client_secret ?? '',
+      reference,
+      amount,
+      expiresAt,
+      hostedVoucherUrl: oxxoDisplay?.hosted_voucher_url ?? null,
+    };
   }); // stripeBreaker.execute end
 }
 
@@ -237,22 +237,23 @@ export async function createStripeOXXOCharge(params: {
 
 export async function getStripeChargeStatus(paymentIntentId: string): Promise<StripeChargeStatus> {
   return stripeBreaker.execute(async () => {
-  const stripe = await getStripeClient();
-  const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const stripe = await getStripeClient();
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-  const status = pi.status === 'succeeded'
-    ? 'paid' as const
-    : pi.status === 'canceled'
-      ? 'expired' as const
-      : pi.status === 'requires_payment_method' || pi.status === 'requires_action'
-        ? 'pending' as const
-        : 'failed' as const;
+    const status =
+      pi.status === 'succeeded'
+        ? ('paid' as const)
+        : pi.status === 'canceled'
+          ? ('expired' as const)
+          : pi.status === 'requires_payment_method' || pi.status === 'requires_action'
+            ? ('pending' as const)
+            : ('failed' as const);
 
-  return {
-    id: pi.id,
-    status,
-    paidAt: status === 'paid' ? new Date() : null,
-  };
+    return {
+      id: pi.id,
+      status,
+      paidAt: status === 'paid' ? new Date() : null,
+    };
   }); // stripeBreaker.execute end
 }
 
@@ -291,12 +292,7 @@ export async function connectStripe(params: {
   const existing = await db
     .select()
     .from(paymentProviderConnections)
-    .where(
-      and(
-        eq(paymentProviderConnections.provider, 'stripe'),
-        eq(paymentProviderConnections.storeId, 'main'),
-      ),
-    )
+    .where(and(eq(paymentProviderConnections.provider, 'stripe'), eq(paymentProviderConnections.storeId, 'main')))
     .limit(1);
 
   const connectionData = {
@@ -339,12 +335,7 @@ export async function disconnectStripe(): Promise<void> {
       disconnectedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(
-      and(
-        eq(paymentProviderConnections.provider, 'stripe'),
-        eq(paymentProviderConnections.storeId, 'main'),
-      ),
-    );
+    .where(and(eq(paymentProviderConnections.provider, 'stripe'), eq(paymentProviderConnections.storeId, 'main')));
 
   logger.info('Stripe disconnected', { action: 'stripe_disconnect' });
 }
@@ -357,12 +348,7 @@ export async function getStripeConnectionStatus(): Promise<{
   const [connection] = await db
     .select()
     .from(paymentProviderConnections)
-    .where(
-      and(
-        eq(paymentProviderConnections.provider, 'stripe'),
-        eq(paymentProviderConnections.storeId, 'main'),
-      ),
-    )
+    .where(and(eq(paymentProviderConnections.provider, 'stripe'), eq(paymentProviderConnections.storeId, 'main')))
     .limit(1);
 
   if (!connection || connection.status !== 'connected') {

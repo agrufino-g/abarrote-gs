@@ -2,7 +2,7 @@
 
 import { requirePermission } from '@/lib/auth/guard';
 import { db } from '@/db';
-import { devoluciones, devolucionItems, products, clientes, saleRecords, saleItems } from '@/db/schema';
+import { devoluciones, devolucionItems, clientes, saleItems, auditLogs } from '@/db/schema';
 import { eq, desc, sql, inArray } from 'drizzle-orm';
 import type { Devolucion, DevolucionItem } from '@/types';
 import { numVal } from './_helpers';
@@ -33,7 +33,7 @@ async function _fetchDevoluciones(): Promise<Devolucion[]> {
   if (rows.length === 0) return [];
 
   // Batch-fetch all items in one query instead of N+1
-  const devIds = rows.map(r => r.id);
+  const devIds = rows.map((r) => r.id);
   const allItemRows = await db.select().from(devolucionItems).where(inArray(devolucionItems.devolucionId, devIds));
 
   // Group items by devolucionId
@@ -53,7 +53,7 @@ async function _fetchDevoluciones(): Promise<Devolucion[]> {
     itemsByDevId.set(i.devolucionId, list);
   }
 
-  return rows.map(row => mapDevolucion(row, itemsByDevId.get(row.id) || []));
+  return rows.map((row) => mapDevolucion(row, itemsByDevId.get(row.id) || []));
 }
 
 async function _createDevolucion(data: {
@@ -68,8 +68,8 @@ async function _createDevolucion(data: {
   clienteId?: string;
   items: Omit<DevolucionItem, 'id'>[];
 }): Promise<Devolucion> {
-  await requirePermission('sales.cancel');
-  const validated = validateSchema(createDevolucionSchema, data, 'createDevolucion');
+  const authUser = await requirePermission('sales.cancel');
+  const _validated = validateSchema(createDevolucionSchema, data, 'createDevolucion');
 
   const id = `dev-${crypto.randomUUID()}`;
   const now = new Date();
@@ -113,10 +113,31 @@ async function _createDevolucion(data: {
 
   // Si el método es crédito_cliente, abonar al balance del cliente
   if (data.metodoDev === 'credito_cliente' && data.clienteId) {
-    await db.update(clientes)
+    await db
+      .update(clientes)
       .set({ balance: sql`balance::numeric - ${data.montoDevuelto}`, lastTransaction: now })
       .where(eq(clientes.id, data.clienteId));
   }
+
+  // Audit trail
+  await db.insert(auditLogs).values({
+    id: `audit-${crypto.randomUUID()}`,
+    userId: authUser.uid,
+    userEmail: authUser.email ?? 'unknown',
+    action: 'create',
+    entity: 'devolucion',
+    entityId: id,
+    changes: {
+      saleId: data.saleId,
+      saleFolio: data.saleFolio,
+      tipo: data.tipo,
+      motivo: data.motivo,
+      montoDevuelto: data.montoDevuelto,
+      metodoDev: data.metodoDev,
+      itemCount: data.items.length,
+    },
+    timestamp: now,
+  });
 
   const [row] = await db.select().from(devoluciones).where(eq(devoluciones.id, id)).limit(1);
   return mapDevolucion(row, savedItems);
@@ -125,12 +146,14 @@ async function _createDevolucion(data: {
 // Precarga los items de una venta para poblar el formulario de devolución
 async function _getSaleItemsForDevolucion(saleId: string) {
   await requirePermission('sales.view');
-  
+
   // 1. Obtener todos los items de la venta original
   const sItems = await db.select().from(saleItems).where(eq(saleItems.saleId, saleId));
-  
+
   // 2. Obtener todas las devoluciones previas de esta venta
-  const prevDevs = await db.select().from(devolucionItems)
+  const prevDevs = await db
+    .select()
+    .from(devolucionItems)
     .innerJoin(devoluciones, eq(devolucionItems.devolucionId, devoluciones.id))
     .where(eq(devoluciones.saleId, saleId));
 
@@ -141,23 +164,28 @@ async function _getSaleItemsForDevolucion(saleId: string) {
   }
 
   // 4. Retornar items con la cantidad restante disponible para devolver
-  return sItems.map(i => {
-    const returned = returnedQtyMap.get(i.productId) || 0;
-    const availableToReturn = Math.max(0, i.quantity - returned);
-    
-    return {
-      productId: i.productId,
-      productName: i.productName,
-      sku: i.sku,
-      quantity: availableToReturn, // Esta es la cantidad disponible para devolver ahora
-      unitPrice: numVal(i.unitPrice),
-      subtotal: availableToReturn * numVal(i.unitPrice),
-    };
-  }).filter(i => i.quantity > 0); // Solo mostrar items que aún tienen algo por devolver
+  return sItems
+    .map((i) => {
+      const returned = returnedQtyMap.get(i.productId) || 0;
+      const availableToReturn = Math.max(0, i.quantity - returned);
+
+      return {
+        productId: i.productId,
+        productName: i.productName,
+        sku: i.sku,
+        quantity: availableToReturn, // Esta es la cantidad disponible para devolver ahora
+        unitPrice: numVal(i.unitPrice),
+        subtotal: availableToReturn * numVal(i.unitPrice),
+      };
+    })
+    .filter((i) => i.quantity > 0); // Solo mostrar items que aún tienen algo por devolver
 }
 
 // ==================== WRAPPED EXPORTS ====================
 
 export const fetchDevoluciones = withLogging('devolucion.fetchDevoluciones', _fetchDevoluciones);
 export const createDevolucion = withLogging('devolucion.createDevolucion', _createDevolucion);
-export const getSaleItemsForDevolucion = withLogging('devolucion.getSaleItemsForDevolucion', _getSaleItemsForDevolucion);
+export const getSaleItemsForDevolucion = withLogging(
+  'devolucion.getSaleItemsForDevolucion',
+  _getSaleItemsForDevolucion,
+);

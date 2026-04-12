@@ -1,14 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { Sale, SaleItem } from '@/domain/entities';
-import { Money, Quantity, Folio } from '@/domain/value-objects';
+import { Money, Quantity } from '@/domain/value-objects';
 
-function createTestSaleItem(overrides: Partial<{
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-  costPrice: number;
-  discount: number;
-}> = {}): SaleItem {
+function createTestSaleItem(
+  overrides: Partial<{
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+    costPrice: number;
+    discount: number;
+  }> = {},
+): SaleItem {
   return SaleItem.create({
     productId: overrides.productId ?? 'p-test',
     productName: 'Test Product',
@@ -33,23 +35,27 @@ describe('SaleItem Entity', () => {
     });
 
     it('throws on empty productId', () => {
-      expect(() => SaleItem.create({
-        productId: '',
-        productName: 'Test',
-        quantity: Quantity.of(1),
-        unitPrice: Money.fromPesos(10),
-        costPrice: Money.fromPesos(5),
-      })).toThrow('Product ID is required');
+      expect(() =>
+        SaleItem.create({
+          productId: '',
+          productName: 'Test',
+          quantity: Quantity.of(1),
+          unitPrice: Money.fromPesos(10),
+          costPrice: Money.fromPesos(5),
+        }),
+      ).toThrow('Product ID is required');
     });
 
     it('throws on zero quantity', () => {
-      expect(() => SaleItem.create({
-        productId: 'p-1',
-        productName: 'Test',
-        quantity: Quantity.zero(),
-        unitPrice: Money.fromPesos(10),
-        costPrice: Money.fromPesos(5),
-      })).toThrow('greater than zero');
+      expect(() =>
+        SaleItem.create({
+          productId: 'p-1',
+          productName: 'Test',
+          quantity: Quantity.zero(),
+          unitPrice: Money.fromPesos(10),
+          costPrice: Money.fromPesos(5),
+        }),
+      ).toThrow('greater than zero');
     });
   });
 
@@ -126,29 +132,33 @@ describe('Sale Entity', () => {
     });
 
     it('throws on empty items', () => {
-      expect(() => Sale.create({
-        items: [],
-        paymentMethod: 'efectivo',
-        amountPaid: Money.fromPesos(100),
-        cajero: 'Test',
-      })).toThrow('without items');
+      expect(() =>
+        Sale.create({
+          items: [],
+          paymentMethod: 'efectivo',
+          amountPaid: Money.fromPesos(100),
+          cajero: 'Test',
+        }),
+      ).toThrow('without items');
     });
 
     it('throws on empty cajero', () => {
-      expect(() => Sale.create({
-        items: [createTestSaleItem()],
-        paymentMethod: 'efectivo',
-        amountPaid: Money.fromPesos(100),
-        cajero: '',
-      })).toThrow('Cashier name is required');
+      expect(() =>
+        Sale.create({
+          items: [createTestSaleItem()],
+          paymentMethod: 'efectivo',
+          amountPaid: Money.fromPesos(100),
+          cajero: '',
+        }),
+      ).toThrow('Cashier name is required');
     });
   });
 
   describe('calculations', () => {
     it('calculates subtotal from items', () => {
       const items = [
-        createTestSaleItem({ quantity: 2, unitPrice: 50 }),  // 100
-        createTestSaleItem({ quantity: 1, unitPrice: 30 }),  // 30
+        createTestSaleItem({ quantity: 2, unitPrice: 50 }), // 100
+        createTestSaleItem({ quantity: 1, unitPrice: 30 }), // 30
       ];
       const sale = createTestSale(items);
       expect(sale.subtotal.toPesos()).toBe(130);
@@ -178,9 +188,7 @@ describe('Sale Entity', () => {
     });
 
     it('calculates profit', () => {
-      const items = [
-        createTestSaleItem({ quantity: 2, unitPrice: 50, costPrice: 30 }),
-      ];
+      const items = [createTestSaleItem({ quantity: 2, unitPrice: 50, costPrice: 30 })];
       const sale = createTestSale(items);
       // Total cost: 60, Subtotal: 100, IVA: 16, Total: 116
       // Profit ≈ 116 - 60 = 56
@@ -188,10 +196,7 @@ describe('Sale Entity', () => {
     });
 
     it('counts total items', () => {
-      const items = [
-        createTestSaleItem({ quantity: 2 }),
-        createTestSaleItem({ quantity: 3 }),
-      ];
+      const items = [createTestSaleItem({ quantity: 2 }), createTestSaleItem({ quantity: 3 })];
       const sale = createTestSale(items);
       expect(sale.itemCount).toBe(5);
     });
@@ -209,19 +214,16 @@ describe('Sale Entity', () => {
       const sale = createTestSale([createTestSaleItem({ productId: 'p-1', quantity: 2 })]);
       const addItem = createTestSaleItem({ productId: 'p-1', quantity: 3 });
       const updated = sale.addItem(addItem);
-      
+
       expect(updated.items).toHaveLength(1);
       expect(updated.items[0].quantity.value).toBe(5);
     });
 
     it('removes item from sale', () => {
-      const items = [
-        createTestSaleItem({ productId: 'p-1' }),
-        createTestSaleItem({ productId: 'p-2' }),
-      ];
+      const items = [createTestSaleItem({ productId: 'p-1' }), createTestSaleItem({ productId: 'p-2' })];
       const sale = createTestSale(items);
       const updated = sale.removeItem('p-1');
-      
+
       expect(updated.items).toHaveLength(1);
       expect(updated.items[0].productId).toBe('p-2');
     });

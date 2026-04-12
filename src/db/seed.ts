@@ -173,83 +173,122 @@ async function seed() {
   await db.insert(schema.saleRecords).values(sale2).onConflictDoNothing();
 
   // Sale items
-  await db.insert(schema.saleItems).values([
-    { id: 'si-seed-1', saleId: 'sale-seed-1', productId: 'p1', productName: 'Leche Entera 1L', sku: 'LEC-001', quantity: 2, unitPrice: '28.50', subtotal: '57.00' },
-    { id: 'si-seed-2', saleId: 'sale-seed-1', productId: 'p5', productName: 'Tortillas de Maíz 1kg', sku: 'TOR-001', quantity: 1, unitPrice: '22.00', subtotal: '22.00' },
-    { id: 'si-seed-3', saleId: 'sale-seed-2', productId: 'p3', productName: 'Huevo Blanco 1kg', sku: 'HUE-001', quantity: 3, unitPrice: '52.00', subtotal: '156.00' },
-  ]).onConflictDoNothing();
+  await db
+    .insert(schema.saleItems)
+    .values([
+      {
+        id: 'si-seed-1',
+        saleId: 'sale-seed-1',
+        productId: 'p1',
+        productName: 'Leche Entera 1L',
+        sku: 'LEC-001',
+        quantity: 2,
+        unitPrice: '28.50',
+        subtotal: '57.00',
+      },
+      {
+        id: 'si-seed-2',
+        saleId: 'sale-seed-1',
+        productId: 'p5',
+        productName: 'Tortillas de Maíz 1kg',
+        sku: 'TOR-001',
+        quantity: 1,
+        unitPrice: '22.00',
+        subtotal: '22.00',
+      },
+      {
+        id: 'si-seed-3',
+        saleId: 'sale-seed-2',
+        productId: 'p3',
+        productName: 'Huevo Blanco 1kg',
+        sku: 'HUE-001',
+        quantity: 3,
+        unitPrice: '52.00',
+        subtotal: '156.00',
+      },
+    ])
+    .onConflictDoNothing();
 
   // ==================== CLIENTES ====================
   console.log('👥 Insertando clientes de ejemplo...');
-  await db.insert(schema.clientes).values([
-    {
-      id: 'cli-seed-1',
-      name: 'María Sánchez',
-      phone: '(555) 111-2233',
-      address: 'Calle Juárez #23',
-      balance: '350.00',
-      creditLimit: '1000.00',
-      createdAt: new Date('2026-01-15T10:00:00Z'),
-      lastTransaction: new Date('2026-03-01T14:00:00Z'),
-    },
-    {
-      id: 'cli-seed-2',
-      name: 'José Ramírez',
-      phone: '(555) 444-5566',
-      address: 'Av. Reforma #456',
-      balance: '0',
-      creditLimit: '500.00',
-      createdAt: new Date('2026-02-01T10:00:00Z'),
-      lastTransaction: null,
-    },
-  ]).onConflictDoNothing();
+  await db
+    .insert(schema.clientes)
+    .values([
+      {
+        id: 'cli-seed-1',
+        name: 'María Sánchez',
+        phone: '(555) 111-2233',
+        address: 'Calle Juárez #23',
+        balance: '350.00',
+        creditLimit: '1000.00',
+        createdAt: new Date('2026-01-15T10:00:00Z'),
+        lastTransaction: new Date('2026-03-01T14:00:00Z'),
+      },
+      {
+        id: 'cli-seed-2',
+        name: 'José Ramírez',
+        phone: '(555) 444-5566',
+        address: 'Av. Reforma #456',
+        balance: '0',
+        creditLimit: '500.00',
+        createdAt: new Date('2026-02-01T10:00:00Z'),
+        lastTransaction: null,
+      },
+    ])
+    .onConflictDoNothing();
 
   // ==================== FIADO ====================
   console.log('📝 Insertando transacciones de fiado...');
-  await db.insert(schema.fiadoTransactions).values([
-    {
-      id: 'fiado-seed-1',
-      clienteId: 'cli-seed-1',
-      clienteName: 'María Sánchez',
-      type: 'fiado',
-      amount: '500.00',
-      description: 'Compra semanal',
-      saleFolio: null,
-      date: new Date('2026-02-20T10:00:00Z'),
-    },
-    {
-      id: 'fiado-seed-2',
-      clienteId: 'cli-seed-1',
-      clienteName: 'María Sánchez',
-      type: 'abono',
-      amount: '150.00',
-      description: 'Abono parcial',
-      date: new Date('2026-03-01T14:00:00Z'),
-    },
-  ]).onConflictDoNothing();
+  await db
+    .insert(schema.fiadoTransactions)
+    .values([
+      {
+        id: 'fiado-seed-1',
+        clienteId: 'cli-seed-1',
+        clienteName: 'María Sánchez',
+        type: 'fiado',
+        amount: '500.00',
+        description: 'Compra semanal',
+        saleFolio: null,
+        date: new Date('2026-02-20T10:00:00Z'),
+      },
+      {
+        id: 'fiado-seed-2',
+        clienteId: 'cli-seed-1',
+        clienteName: 'María Sánchez',
+        type: 'abono',
+        amount: '150.00',
+        description: 'Abono parcial',
+        date: new Date('2026-03-01T14:00:00Z'),
+      },
+    ])
+    .onConflictDoNothing();
 
   // ==================== GASTOS ====================
   console.log('💸 Insertando gastos de ejemplo...');
-  await db.insert(schema.gastos).values([
-    {
-      id: 'gasto-seed-1',
-      concepto: 'Renta del local',
-      categoria: 'renta',
-      monto: '8500.00',
-      fecha: new Date('2026-03-01T10:00:00Z'),
-      notas: 'Pago mensual de marzo',
-      comprobante: true,
-    },
-    {
-      id: 'gasto-seed-2',
-      concepto: 'Recibo de luz',
-      categoria: 'servicios',
-      monto: '1200.00',
-      fecha: new Date('2026-03-02T10:00:00Z'),
-      notas: 'Bimestral',
-      comprobante: true,
-    },
-  ]).onConflictDoNothing();
+  await db
+    .insert(schema.gastos)
+    .values([
+      {
+        id: 'gasto-seed-1',
+        concepto: 'Renta del local',
+        categoria: 'renta',
+        monto: '8500.00',
+        fecha: new Date('2026-03-01T10:00:00Z'),
+        notas: 'Pago mensual de marzo',
+        comprobante: true,
+      },
+      {
+        id: 'gasto-seed-2',
+        concepto: 'Recibo de luz',
+        categoria: 'servicios',
+        monto: '1200.00',
+        fecha: new Date('2026-03-02T10:00:00Z'),
+        notas: 'Bimestral',
+        comprobante: true,
+      },
+    ])
+    .onConflictDoNothing();
 
   console.log('');
   console.log('Seed completado exitosamente!');

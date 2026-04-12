@@ -2,12 +2,12 @@ import { Money, Quantity, StockLevel } from '../value-objects';
 
 /**
  * Product Entity
- * 
+ *
  * Represents a product in the inventory with business rules:
  * - Price must be greater than cost (enforced margin)
  * - Stock cannot go negative
  * - Perishable products require expiration date
- * 
+ *
  * @example
  * const product = Product.create({
  *   id: 'p-123',
@@ -90,19 +90,45 @@ export class Product {
   // Accessors
   // ─────────────────────────────────────────────────────────────────────
 
-  get id(): string { return this.props.id; }
-  get name(): string { return this.props.name; }
-  get sku(): string { return this.props.sku; }
-  get barcode(): string { return this.props.barcode; }
-  get category(): string { return this.props.category; }
-  get costPrice(): Money { return this.props.costPrice; }
-  get unitPrice(): Money { return this.props.unitPrice; }
-  get unit(): string { return this.props.unit; }
-  get unitMultiple(): number { return this.props.unitMultiple; }
-  get stockLevel(): StockLevel { return this.props.stockLevel; }
-  get isPerishable(): boolean { return this.props.isPerishable; }
-  get expirationDate(): string | null { return this.props.expirationDate; }
-  get imageUrl(): string | undefined { return this.props.imageUrl; }
+  get id(): string {
+    return this.props.id;
+  }
+  get name(): string {
+    return this.props.name;
+  }
+  get sku(): string {
+    return this.props.sku;
+  }
+  get barcode(): string {
+    return this.props.barcode;
+  }
+  get category(): string {
+    return this.props.category;
+  }
+  get costPrice(): Money {
+    return this.props.costPrice;
+  }
+  get unitPrice(): Money {
+    return this.props.unitPrice;
+  }
+  get unit(): string {
+    return this.props.unit;
+  }
+  get unitMultiple(): number {
+    return this.props.unitMultiple;
+  }
+  get stockLevel(): StockLevel {
+    return this.props.stockLevel;
+  }
+  get isPerishable(): boolean {
+    return this.props.isPerishable;
+  }
+  get expirationDate(): string | null {
+    return this.props.expirationDate;
+  }
+  get imageUrl(): string | undefined {
+    return this.props.imageUrl;
+  }
 
   // ─────────────────────────────────────────────────────────────────────
   // Derived Properties (Business Logic)

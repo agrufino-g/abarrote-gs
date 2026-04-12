@@ -1,4 +1,4 @@
-import { Money, Folio, Quantity } from '../value-objects';
+import { Money, Folio } from '../value-objects';
 import { SaleItem } from './SaleItem';
 
 /**
@@ -31,7 +31,7 @@ export type DiscountType = 'amount' | 'percent';
 
 /**
  * Sale Entity
- * 
+ *
  * Aggregate root for the sales bounded context.
  * Encapsulates all business rules for creating and managing sales.
  *
@@ -70,14 +70,17 @@ const IVA_RATE = 0.16;
  * Payment methods that require internet
  */
 const ONLINE_ONLY_METHODS = new Set<PaymentMethod>([
-  'spei_conekta', 'spei_stripe', 'oxxo_conekta', 'oxxo_stripe',
-  'tarjeta_web', 'tarjeta_clip', 'clip_terminal',
+  'spei_conekta',
+  'spei_stripe',
+  'oxxo_conekta',
+  'oxxo_stripe',
+  'tarjeta_web',
+  'tarjeta_clip',
+  'clip_terminal',
 ]);
 
 export class Sale {
-  private constructor(
-    private readonly props: Required<Omit<SaleProps, 'customerId'>> & { customerId?: string },
-  ) {}
+  private constructor(private readonly props: Required<Omit<SaleProps, 'customerId'>> & { customerId?: string }) {}
 
   // ─────────────────────────────────────────────────────────────────────
   // Factory Methods
@@ -139,31 +142,58 @@ export class Sale {
   }
 
   private static calculateSubtotal(items: readonly SaleItem[]): Money {
-    return items.reduce(
-      (acc, item) => acc.add(item.subtotal),
-      Money.zero(),
-    );
+    return items.reduce((acc, item) => acc.add(item.subtotal), Money.zero());
   }
 
   // ─────────────────────────────────────────────────────────────────────
   // Accessors
   // ─────────────────────────────────────────────────────────────────────
 
-  get id(): string { return this.props.id; }
-  get folio(): Folio { return this.props.folio; }
-  get items(): readonly SaleItem[] { return this.props.items; }
-  get paymentMethod(): PaymentMethod { return this.props.paymentMethod; }
-  get amountPaid(): Money { return this.props.amountPaid; }
-  get cajero(): string { return this.props.cajero; }
-  get customerId(): string | undefined { return this.props.customerId; }
-  get installments(): number { return this.props.installments; }
-  get discount(): Money { return this.props.discount; }
-  get discountType(): DiscountType { return this.props.discountType; }
-  get pointsUsed(): number { return this.props.pointsUsed; }
-  get pointsEarned(): number { return this.props.pointsEarned; }
-  get cardSurcharge(): Money { return this.props.cardSurcharge; }
-  get status(): SaleStatus { return this.props.status; }
-  get date(): Date { return this.props.date; }
+  get id(): string {
+    return this.props.id;
+  }
+  get folio(): Folio {
+    return this.props.folio;
+  }
+  get items(): readonly SaleItem[] {
+    return this.props.items;
+  }
+  get paymentMethod(): PaymentMethod {
+    return this.props.paymentMethod;
+  }
+  get amountPaid(): Money {
+    return this.props.amountPaid;
+  }
+  get cajero(): string {
+    return this.props.cajero;
+  }
+  get customerId(): string | undefined {
+    return this.props.customerId;
+  }
+  get installments(): number {
+    return this.props.installments;
+  }
+  get discount(): Money {
+    return this.props.discount;
+  }
+  get discountType(): DiscountType {
+    return this.props.discountType;
+  }
+  get pointsUsed(): number {
+    return this.props.pointsUsed;
+  }
+  get pointsEarned(): number {
+    return this.props.pointsEarned;
+  }
+  get cardSurcharge(): Money {
+    return this.props.cardSurcharge;
+  }
+  get status(): SaleStatus {
+    return this.props.status;
+  }
+  get date(): Date {
+    return this.props.date;
+  }
 
   // ─────────────────────────────────────────────────────────────────────
   // Derived Properties (Business Logic)
@@ -187,10 +217,7 @@ export class Sale {
    * Final total
    */
   get total(): Money {
-    return this.subtotal
-      .subtract(this.discount)
-      .add(this.iva)
-      .add(this.cardSurcharge);
+    return this.subtotal.subtract(this.discount).add(this.iva).add(this.cardSurcharge);
   }
 
   /**
@@ -207,10 +234,7 @@ export class Sale {
    * Total cost of all items
    */
   get totalCost(): Money {
-    return this.items.reduce(
-      (acc, item) => acc.add(item.totalCost),
-      Money.zero(),
-    );
+    return this.items.reduce((acc, item) => acc.add(item.totalCost), Money.zero());
   }
 
   /**
@@ -224,10 +248,7 @@ export class Sale {
    * Total quantity of items
    */
   get itemCount(): number {
-    return this.items.reduce(
-      (acc, item) => acc + item.quantity.value,
-      0,
-    );
+    return this.items.reduce((acc, item) => acc + item.quantity.value, 0);
   }
 
   /**
@@ -267,8 +288,8 @@ export class Sale {
    */
   addItem(item: SaleItem): Sale {
     // Check if product already exists, merge quantities
-    const existingIndex = this.items.findIndex(i => i.productId === item.productId);
-    
+    const existingIndex = this.items.findIndex((i) => i.productId === item.productId);
+
     let newItems: SaleItem[];
     if (existingIndex >= 0) {
       newItems = [...this.items];
@@ -287,7 +308,7 @@ export class Sale {
    * Remove an item from the sale
    */
   removeItem(productId: string): Sale {
-    const newItems = this.items.filter(i => i.productId !== productId);
+    const newItems = this.items.filter((i) => i.productId !== productId);
     if (newItems.length === 0) {
       throw new Error('Sale: Cannot remove last item');
     }
@@ -362,7 +383,7 @@ export class Sale {
     return {
       id: this.id,
       folio: this.folio.toString(),
-      items: this.items.map(i => i.toPlainObject()),
+      items: this.items.map((i) => i.toPlainObject()),
       subtotal: this.subtotal.toPesos(),
       iva: this.iva.toPesos(),
       cardSurcharge: this.cardSurcharge.toPesos(),

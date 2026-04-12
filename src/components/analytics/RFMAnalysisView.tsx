@@ -50,11 +50,11 @@ export function RFMAnalysisView() {
     }
   }, [period]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const filtered = data?.customers.filter(
-    (c) => filterSegment === 'all' || c.segment === filterSegment
-  ) ?? [];
+  const filtered = data?.customers.filter((c) => filterSegment === 'all' || c.segment === filterSegment) ?? [];
 
   const segmentOptions = [
     { label: 'Todos los segmentos', value: 'all' },
@@ -71,20 +71,32 @@ export function RFMAnalysisView() {
         <InlineGrid columns={3} gap="400">
           <Card>
             <BlockStack gap="100">
-              <Text variant="bodySm" as="p" tone="subdued">Clientes analizados</Text>
-              <Text variant="headingLg" as="p">{data.customers.length}</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Clientes analizados
+              </Text>
+              <Text variant="headingLg" as="p">
+                {data.customers.length}
+              </Text>
             </BlockStack>
           </Card>
           <Card>
             <BlockStack gap="100">
-              <Text variant="bodySm" as="p" tone="subdued">Recencia promedio</Text>
-              <Text variant="headingLg" as="p">{data.averageRecency} días</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Recencia promedio
+              </Text>
+              <Text variant="headingLg" as="p">
+                {data.averageRecency} días
+              </Text>
             </BlockStack>
           </Card>
           <Card>
             <BlockStack gap="100">
-              <Text variant="bodySm" as="p" tone="subdued">Gasto promedio</Text>
-              <Text variant="headingLg" as="p">{formatCurrency(data.averageMonetary)}</Text>
+              <Text variant="bodySm" as="p" tone="subdued">
+                Gasto promedio
+              </Text>
+              <Text variant="headingLg" as="p">
+                {formatCurrency(data.averageMonetary)}
+              </Text>
             </BlockStack>
           </Card>
         </InlineGrid>
@@ -94,7 +106,9 @@ export function RFMAnalysisView() {
       {data && (
         <Card>
           <BlockStack gap="300">
-            <Text variant="headingMd" as="h3">Distribución de segmentos</Text>
+            <Text variant="headingMd" as="h3">
+              Distribución de segmentos
+            </Text>
             <InlineStack gap="200" wrap>
               {(Object.entries(data.segments) as [RFMSegment, number][])
                 .filter(([, count]) => count > 0)
@@ -132,14 +146,20 @@ export function RFMAnalysisView() {
               onChange={(v) => setFilterSegment(v as typeof filterSegment)}
             />
           </InlineStack>
-          <Button icon={RefreshIcon} onClick={load} loading={loading}>Actualizar</Button>
+          <Button icon={RefreshIcon} onClick={load} loading={loading}>
+            Actualizar
+          </Button>
         </InlineStack>
       </Card>
 
       {/* Customer table */}
       <Card padding="0">
         {loading && !data ? (
-          <Box padding="800"><InlineStack align="center"><Spinner /></InlineStack></Box>
+          <Box padding="800">
+            <InlineStack align="center">
+              <Spinner />
+            </InlineStack>
+          </Box>
         ) : (
           <IndexTable
             resourceName={{ singular: 'cliente', plural: 'clientes' }}
@@ -160,23 +180,33 @@ export function RFMAnalysisView() {
             {filtered.map((c, i) => (
               <IndexTable.Row id={c.clienteId} key={c.clienteId} position={i}>
                 <IndexTable.Cell>
-                  <Text variant="bodyMd" as="span" fontWeight="semibold">{c.clienteName}</Text>
+                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                    {c.clienteName}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>{c.phone}</IndexTable.Cell>
                 <IndexTable.Cell>
                   <Badge tone={SEGMENT_TONES[c.segment]}>{RFM_SEGMENT_LABELS[c.segment]}</Badge>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{c.recency}d</Text>
+                  <Text as="span" alignment="end">
+                    {c.recency}d
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{c.frequency}</Text>
+                  <Text as="span" alignment="end">
+                    {c.frequency}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{formatCurrency(c.monetary)}</Text>
+                  <Text as="span" alignment="end">
+                    {formatCurrency(c.monetary)}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{c.rScore}-{c.fScore}-{c.mScore}</Text>
+                  <Text as="span" alignment="end">
+                    {c.rScore}-{c.fScore}-{c.mScore}
+                  </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
                   <Text as="span" alignment="end" tone={c.balance > 0 ? 'critical' : undefined}>
@@ -184,7 +214,9 @@ export function RFMAnalysisView() {
                   </Text>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Text as="span" alignment="end">{c.points}</Text>
+                  <Text as="span" alignment="end">
+                    {c.points}
+                  </Text>
                 </IndexTable.Cell>
               </IndexTable.Row>
             ))}

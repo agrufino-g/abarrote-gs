@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Text, InlineStack, Box, Icon } from '@shopify/polaris';
+import { Card, Text, Box, Icon } from '@shopify/polaris';
 import { ArrowUpIcon, ArrowDownIcon } from '@shopify/polaris-icons';
 import { SparkLineChart } from '@shopify/polaris-viz';
 import '@shopify/polaris-viz/build/esm/styles.css';
@@ -22,26 +22,19 @@ export function KPICard({
   value,
   type,
   change,
-  changeLabel = 'vs ayer',
-  icon,
+  changeLabel: _changeLabel = 'vs ayer',
+  icon: _icon,
   data = [],
 }: KPICardProps) {
-  const formattedValue = type === 'currency'
-    ? formatCurrency(value)
-    : type === 'percentage'
-    ? `${value}%`
-    : formatNumber(value);
+  const formattedValue =
+    type === 'currency' ? formatCurrency(value) : type === 'percentage' ? `${value}%` : formatNumber(value);
 
   const hasData = data && data.length > 1;
 
   // Calculate percentage change from first to last entry
-  const percentageChange = hasData
-    ? getPercentageChange(Number(data[0]), Number(data.at(-1)))
-    : change ?? null;
+  const percentageChange = hasData ? getPercentageChange(Number(data[0]), Number(data.at(-1))) : (change ?? null);
 
-  const chartData = hasData
-    ? [{ data: data.map((val, idx) => ({ key: idx, value: val })) }]
-    : [];
+  const chartData = hasData ? [{ data: data.map((val, idx) => ({ key: idx, value: val })) }] : [];
 
   return (
     <Card padding="0">
@@ -84,11 +77,8 @@ export function KPICard({
                   style={{
                     fontSize: '12px',
                     fontWeight: 500,
-                    color: Number(percentageChange) > 0
-                      ? '#008060'
-                      : Number(percentageChange) < 0
-                      ? '#d72c0d'
-                      : '#6d7175',
+                    color:
+                      Number(percentageChange) > 0 ? '#008060' : Number(percentageChange) < 0 ? '#d72c0d' : '#6d7175',
                   }}
                 >
                   {Math.abs(Number(percentageChange))}%
@@ -100,11 +90,7 @@ export function KPICard({
           {/* Right side: sparkline chart */}
           {chartData.length > 0 && (
             <div style={{ flex: 1, width: '50%', height: '80%', alignSelf: 'flex-end' }}>
-              <SparkLineChart
-                offsetLeft={4}
-                offsetRight={0}
-                data={chartData}
-              />
+              <SparkLineChart offsetLeft={4} offsetRight={0} data={chartData} />
             </div>
           )}
         </div>

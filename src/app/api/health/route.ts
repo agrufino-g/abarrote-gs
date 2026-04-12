@@ -8,18 +8,18 @@ import { sql } from 'drizzle-orm';
 
 /**
  * Health Check Endpoint
- * 
+ *
  * Returns comprehensive health status for:
  * - Application (always up if this responds)
  * - Database (PostgreSQL via Drizzle)
  * - Cache (Redis/Upstash)
- * 
+ *
  * Used by:
  * - Kubernetes liveness/readiness probes
  * - Load balancers
  * - Uptime monitoring (Checkly, Pingdom, etc.)
  * - Internal dashboards
- * 
+ *
  * Response codes:
  * - 200: All systems healthy
  * - 503: One or more systems degraded
@@ -53,12 +53,12 @@ const startTime = Date.now();
 
 async function checkDatabaseHealth(): Promise<DatabaseHealth> {
   const start = performance.now();
-  
+
   try {
     // Simple query to verify connection
     await db.execute(sql`SELECT 1`);
     const latencyMs = Math.round((performance.now() - start) * 100) / 100;
-    
+
     return {
       connected: true,
       latencyMs,
@@ -80,28 +80,25 @@ function determineOverallStatus(
   if (!dbHealth.connected) {
     return 'unhealthy';
   }
-  
+
   // Redis is optional (has memory fallback) - if down, system is degraded
   if (!redisHealth.connected) {
     return 'degraded';
   }
-  
+
   // High latency is a warning sign
   if ((dbHealth.latencyMs ?? 0) > 500 || (redisHealth.latencyMs ?? 0) > 100) {
     return 'degraded';
   }
-  
+
   return 'healthy';
 }
 
 export async function GET(): Promise<NextResponse<HealthStatus>> {
-  const [dbHealth, redisHealth] = await Promise.all([
-    checkDatabaseHealth(),
-    checkRedisHealth(),
-  ]);
-  
+  const [dbHealth, redisHealth] = await Promise.all([checkDatabaseHealth(), checkRedisHealth()]);
+
   const status = determineOverallStatus(dbHealth, redisHealth);
-  
+
   const response: HealthStatus = {
     status,
     timestamp: new Date().toISOString(),
@@ -118,10 +115,10 @@ export async function GET(): Promise<NextResponse<HealthStatus>> {
       domainEvents: getDomainEventStats(),
     },
   };
-  
+
   // Return 503 if not fully healthy
   const httpStatus = status === 'healthy' ? 200 : 503;
-  
+
   return NextResponse.json(response, {
     status: httpStatus,
     headers: {
@@ -133,14 +130,11 @@ export async function GET(): Promise<NextResponse<HealthStatus>> {
 
 // Also support HEAD requests for simple uptime checks
 export async function HEAD(): Promise<NextResponse> {
-  const [dbHealth, redisHealth] = await Promise.all([
-    checkDatabaseHealth(),
-    checkRedisHealth(),
-  ]);
-  
+  const [dbHealth, redisHealth] = await Promise.all([checkDatabaseHealth(), checkRedisHealth()]);
+
   const status = determineOverallStatus(dbHealth, redisHealth);
   const httpStatus = status === 'healthy' ? 200 : 503;
-  
+
   return new NextResponse(null, {
     status: httpStatus,
     headers: {

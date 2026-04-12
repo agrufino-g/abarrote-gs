@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Button, Banner, BlockStack, InlineStack, Text } from '@shopify/polaris';
+import { Button, Banner, BlockStack, Text } from '@shopify/polaris';
 import { CameraIcon } from '@shopify/polaris-icons';
 
 interface CameraScannerProps {
@@ -23,7 +23,7 @@ export function CameraScanner({
 }: CameraScannerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState('');
-  const [lastScanned, setLastScanned] = useState('');
+  const [_lastScanned, setLastScanned] = useState('');
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrCodeRef = useRef<import('html5-qrcode').Html5Qrcode | null>(null);
   const containerId = useRef(`camera-scanner-${Math.random().toString(36).slice(2, 9)}`);
@@ -99,7 +99,7 @@ export function CameraScanner({
               setTimeout(() => stopScanner(), 300);
             }
           },
-          () => { }
+          () => {},
         );
       } catch (err: unknown) {
         if (cancelled) return;
@@ -124,11 +124,16 @@ export function CameraScanner({
         try {
           const state = html5QrCodeRef.current.getState();
           if (state === 2 || state === 3) {
-            html5QrCodeRef.current.stop().catch(() => { }).finally(() => {
-              html5QrCodeRef.current?.clear();
-            });
+            html5QrCodeRef.current
+              .stop()
+              .catch(() => {})
+              .finally(() => {
+                html5QrCodeRef.current?.clear();
+              });
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     };
   }, [isOpen, continuous, stopScanner]);
@@ -168,42 +173,44 @@ export function CameraScanner({
       )}
 
       {isOpen && (
-        <div style={{
-          border: '2px solid #2c6ecb',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          position: 'relative',
-          background: '#000',
-        }}>
+        <div
+          style={{
+            border: '2px solid #2c6ecb',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            position: 'relative',
+            background: '#000',
+          }}
+        >
           {/* Scan guide overlay */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 10,
-            background: 'rgba(0,0,0,0.6)',
-            color: '#fff',
-            textAlign: 'center',
-            padding: '6px 8px',
-            fontSize: '12px',
-          }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 10,
+              background: 'rgba(0,0,0,0.6)',
+              color: '#fff',
+              textAlign: 'center',
+              padding: '6px 8px',
+              fontSize: '12px',
+            }}
+          >
             Apunta al codigo de barras del producto
           </div>
 
-          <div
-            id={containerId.current}
-            ref={scannerRef}
-            style={{ width: '100%', minHeight: '200px' }}
-          />
+          <div id={containerId.current} ref={scannerRef} style={{ width: '100%', minHeight: '200px' }} />
 
-          <div style={{
-            padding: '8px',
-            background: '#1a1a1a',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
+          <div
+            style={{
+              padding: '8px',
+              background: '#1a1a1a',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
             <Text as="span" variant="bodySm" tone="text-inverse">
               {continuous ? 'Escaneo continuo activo' : 'Esperando código...'}
             </Text>

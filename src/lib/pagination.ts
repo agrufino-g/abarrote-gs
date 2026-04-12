@@ -1,18 +1,18 @@
 /**
  * Enterprise Cursor Pagination System
- * 
+ *
  * Implements cursor-based pagination with:
  * - Base64 encoded cursors (opaque to clients)
  * - Forward and backward navigation
  * - Stable results even with concurrent writes
  * - Type-safe APIs
- * 
+ *
  * Why cursor over offset?
  * - Offset: O(n) - must scan all skipped rows
  * - Cursor: O(log n) - jumps directly to position
  * - Offset: Inconsistent with concurrent writes
  * - Cursor: Stable results
- * 
+ *
  * @example
  * // In a server action
  * const { data, pageInfo } = await paginate({
@@ -24,7 +24,7 @@
  * });
  */
 
-import { SQL, sql, desc, asc } from 'drizzle-orm';
+import { SQL } from 'drizzle-orm';
 import type { PgSelect } from 'drizzle-orm/pg-core';
 
 // ══════════════════════════════════════════════════════════════
@@ -80,13 +80,9 @@ export interface CursorData {
  */
 export function encodeCursor(data: CursorData): string {
   const json = JSON.stringify(data);
-  
+
   // Base64 URL-safe encoding
-  return Buffer.from(json, 'utf-8')
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  return Buffer.from(json, 'utf-8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /**
@@ -96,14 +92,12 @@ export function encodeCursor(data: CursorData): string {
 export function decodeCursor(cursor: string): CursorData | null {
   try {
     // Restore Base64 padding
-    const padded = cursor
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
-    const paddedLength = padded.length + (4 - (padded.length % 4)) % 4;
+    const padded = cursor.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedLength = padded.length + ((4 - (padded.length % 4)) % 4);
     const base64 = padded.padEnd(paddedLength, '=');
-    
+
     const json = Buffer.from(base64, 'base64').toString('utf-8');
-    
+
     return JSON.parse(json);
   } catch {
     return null;
@@ -116,18 +110,16 @@ export function decodeCursor(cursor: string): CursorData | null {
 
 /**
  * Execute paginated query with cursor.
- * 
+ *
  * This is a simplified version - for production, you'd need to:
  * 1. Build WHERE clause from cursor data
  * 2. Handle composite cursors properly
  * 3. Support different sort directions
  */
-export async function paginate<T>(
-  options: PaginationOptions<T>,
-): Promise<PaginatedResult<T>> {
+export async function paginate<T>(options: PaginationOptions<T>): Promise<PaginatedResult<T>> {
   const {
     query,
-    orderBy,
+    orderBy: _orderBy,
     limit: requestedLimit,
     cursor,
     direction = 'forward',
@@ -137,23 +129,23 @@ export async function paginate<T>(
 
   // Clamp limit to prevent abuse
   const limit = Math.min(Math.max(1, requestedLimit), 100);
-  
+
   // Fetch one extra row to detect hasNextPage
   const fetchLimit = limit + 1;
-  
+
   // Execute query
   // Note: In real implementation, you'd add WHERE clause based on decoded cursor
-  const rows = await query.limit(fetchLimit) as unknown as T[];
-  
+  const rows = (await query.limit(fetchLimit)) as unknown as T[];
+
   // Determine if there are more rows
   const hasMore = rows.length > limit;
   const data = hasMore ? rows.slice(0, limit) : rows;
-  
+
   // Reverse if backward pagination
   if (direction === 'backward') {
     data.reverse();
   }
-  
+
   // Build page info
   const pageInfo: PageInfo = {
     startCursor: data.length > 0 ? getCursor(data[0]) : null,
@@ -161,13 +153,13 @@ export async function paginate<T>(
     hasPreviousPage: direction === 'backward' ? hasMore : !!cursor,
     hasNextPage: direction === 'forward' ? hasMore : !!cursor,
   };
-  
+
   // Optional: Include total count (expensive!)
   if (includeTotalCount) {
     // You'd need a separate COUNT(*) query here
     // pageInfo.totalCount = await countQuery;
   }
-  
+
   return { data, pageInfo };
 }
 
@@ -225,10 +217,7 @@ export function parsePaginationParams(searchParams: URLSearchParams): SimplePagi
 /**
  * Build pagination URL params
  */
-export function buildPaginationParams(
-  pageInfo: PageInfo,
-  direction: 'next' | 'prev',
-): Record<string, string> {
+export function buildPaginationParams(pageInfo: PageInfo, direction: 'next' | 'prev'): Record<string, string> {
   if (direction === 'next' && pageInfo.hasNextPage && pageInfo.endCursor) {
     return { cursor: pageInfo.endCursor, direction: 'forward' };
   }
@@ -245,9 +234,7 @@ export function buildPaginationParams(
 /**
  * Format paginated result for API response
  */
-export function formatPaginatedResponse<T>(
-  result: PaginatedResult<T>,
-): {
+export function formatPaginatedResponse<T>(result: PaginatedResult<T>): {
   data: T[];
   pagination: {
     startCursor: string | null;

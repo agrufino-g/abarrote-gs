@@ -1,8 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  createCircuitBreaker,
-  CircuitOpenError,
-} from '@/infrastructure/circuit-breaker';
+import { describe, it, expect } from 'vitest';
+import { createCircuitBreaker, CircuitOpenError } from '@/infrastructure/circuit-breaker';
 
 describe('Circuit Breaker', () => {
   describe('createCircuitBreaker', () => {
@@ -25,7 +22,9 @@ describe('Circuit Breaker', () => {
       const breaker = createCircuitBreaker('test-service', { failureThreshold: 5 });
 
       await expect(
-        breaker.execute(async () => { throw new Error('fail'); }),
+        breaker.execute(async () => {
+          throw new Error('fail');
+        }),
       ).rejects.toThrow('fail');
 
       expect(breaker.getStats().failures).toBe(1);
@@ -37,7 +36,9 @@ describe('Circuit Breaker', () => {
 
       for (let i = 0; i < 3; i++) {
         await expect(
-          breaker.execute(async () => { throw new Error(`fail-${i}`); }),
+          breaker.execute(async () => {
+            throw new Error(`fail-${i}`);
+          }),
         ).rejects.toThrow();
       }
 
@@ -53,14 +54,14 @@ describe('Circuit Breaker', () => {
       // Trip the breaker
       for (let i = 0; i < 2; i++) {
         await expect(
-          breaker.execute(async () => { throw new Error('fail'); }),
+          breaker.execute(async () => {
+            throw new Error('fail');
+          }),
         ).rejects.toThrow();
       }
 
       // Next call should throw CircuitOpenError immediately
-      await expect(
-        breaker.execute(async () => 'should not reach'),
-      ).rejects.toThrow(CircuitOpenError);
+      await expect(breaker.execute(async () => 'should not reach')).rejects.toThrow(CircuitOpenError);
     });
 
     it('should recover after reset', () => {
@@ -76,7 +77,9 @@ describe('Circuit Breaker', () => {
       // 2 failures
       for (let i = 0; i < 2; i++) {
         await expect(
-          breaker.execute(async () => { throw new Error('fail'); }),
+          breaker.execute(async () => {
+            throw new Error('fail');
+          }),
         ).rejects.toThrow();
       }
 
@@ -94,7 +97,9 @@ describe('Circuit Breaker', () => {
       });
 
       await expect(
-        breaker.execute(async () => { throw new Error('fail'); }),
+        breaker.execute(async () => {
+          throw new Error('fail');
+        }),
       ).rejects.toThrow();
 
       // Should use fallback instead of throwing
@@ -107,7 +112,11 @@ describe('Circuit Breaker', () => {
 
       await breaker.execute(async () => 'ok');
       await breaker.execute(async () => 'ok');
-      await expect(breaker.execute(async () => { throw new Error('fail'); })).rejects.toThrow();
+      await expect(
+        breaker.execute(async () => {
+          throw new Error('fail');
+        }),
+      ).rejects.toThrow();
 
       const stats = breaker.getStats();
       expect(stats.totalRequests).toBe(3);

@@ -67,7 +67,7 @@ async function getConektaClient(): Promise<OrdersApi> {
   return new OrdersApi(config);
 }
 
-function getConektaEnvironment(): 'production' | 'sandbox' {
+function _getConektaEnvironment(): 'production' | 'sandbox' {
   return env.CONEKTA_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
 }
 
@@ -82,87 +82,87 @@ export async function createConektaSPEICharge(params: {
   expirationHours?: number;
 }): Promise<ConektaSPEIResult> {
   return conektaBreaker.execute(async () => {
-  const { amount, customerName, customerEmail, description, saleReference, expirationHours = 72 } = params;
-  const ordersApi = await getConektaClient();
+    const { amount, customerName, customerEmail, description, saleReference, expirationHours = 72 } = params;
+    const ordersApi = await getConektaClient();
 
-  const amountCents = Math.round(amount * 100);
-  const expiresAt = Math.floor(Date.now() / 1000) + expirationHours * 3600;
+    const amountCents = Math.round(amount * 100);
+    const expiresAt = Math.floor(Date.now() / 1000) + expirationHours * 3600;
 
-  const orderResponse = await ordersApi.createOrder({
-    currency: 'MXN',
-    customer_info: {
-      name: customerName,
-      email: customerEmail,
-      phone: '0000000000',
-    },
-    line_items: [
-      {
-        name: description || 'Venta POS',
-        unit_price: amountCents,
-        quantity: 1,
+    const orderResponse = await ordersApi.createOrder({
+      currency: 'MXN',
+      customer_info: {
+        name: customerName,
+        email: customerEmail,
+        phone: '0000000000',
       },
-    ],
-    charges: [
-      {
-        payment_method: {
-          type: 'spei',
-          expires_at: expiresAt,
+      line_items: [
+        {
+          name: description || 'Venta POS',
+          unit_price: amountCents,
+          quantity: 1,
         },
+      ],
+      charges: [
+        {
+          payment_method: {
+            type: 'spei',
+            expires_at: expiresAt,
+          },
+        },
+      ],
+      metadata: {
+        sale_reference: saleReference,
+        source: 'abarrote-gs-pos',
       },
-    ],
-    metadata: {
-      sale_reference: saleReference,
-      source: 'abarrote-gs-pos',
-    },
-  });
+    });
 
-  const order = orderResponse.data;
-  const charge = order.charges?.data?.[0];
-  if (!charge) {
-    throw new Error('Conekta no retornó información del cargo SPEI');
-  }
+    const order = orderResponse.data;
+    const charge = order.charges?.data?.[0];
+    if (!charge) {
+      throw new Error('Conekta no retornó información del cargo SPEI');
+    }
 
-  const paymentMethodResponse = charge.payment_method as unknown as Record<string, unknown>;
-  const clabeRef = (paymentMethodResponse?.clabe as string) ?? '';
-  const bankNameStr = (paymentMethodResponse?.bank as string) ?? 'STP';
+    const paymentMethodResponse = charge.payment_method as unknown as Record<string, unknown>;
+    const clabeRef = (paymentMethodResponse?.clabe as string) ?? '';
+    const bankNameStr = (paymentMethodResponse?.bank as string) ?? 'STP';
 
-  const referenceNumber = `CK-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const referenceNumber = `CK-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
-  // Track charge in DB
-  await db.insert(paymentCharges).values({
-    id: crypto.randomUUID(),
-    provider: 'conekta',
-    providerChargeId: charge.id ?? order.id ?? '',
-    saleId: null,
-    storeId: 'main',
-    amount: amount.toFixed(2),
-    currency: 'MXN',
-    paymentMethod: 'spei_conekta',
-    status: 'pending',
-    customerName,
-    customerEmail,
-    referenceNumber,
-    clabeReference: clabeRef,
-    expiresAt: new Date(expiresAt * 1000),
-    providerMetadata: { orderId: order.id, chargeId: charge.id },
-  });
+    // Track charge in DB
+    await db.insert(paymentCharges).values({
+      id: crypto.randomUUID(),
+      provider: 'conekta',
+      providerChargeId: charge.id ?? order.id ?? '',
+      saleId: null,
+      storeId: 'main',
+      amount: amount.toFixed(2),
+      currency: 'MXN',
+      paymentMethod: 'spei_conekta',
+      status: 'pending',
+      customerName,
+      customerEmail,
+      referenceNumber,
+      clabeReference: clabeRef,
+      expiresAt: new Date(expiresAt * 1000),
+      providerMetadata: { orderId: order.id, chargeId: charge.id },
+    });
 
-  logger.info('Conekta SPEI charge created', {
-    action: 'conekta_spei_charge',
-    orderId: order.id,
-    amount,
-    clabeRef: clabeRef.substring(0, 6) + '***',
-  });
+    logger.info('Conekta SPEI charge created', {
+      action: 'conekta_spei_charge',
+      orderId: order.id,
+      amount,
+      clabeRef: clabeRef.substring(0, 6) + '***',
+    });
 
-  return {
-    orderId: order.id ?? '',
-    chargeId: charge.id ?? '',
-    clabeReference: clabeRef,
-    bankName: bankNameStr,
-    amount,
-    expiresAt: new Date(expiresAt * 1000),
-    referenceNumber,
-  };
+    return {
+      orderId: order.id ?? '',
+      chargeId: charge.id ?? '',
+      clabeReference: clabeRef,
+      bankName: bankNameStr,
+      amount,
+      expiresAt: new Date(expiresAt * 1000),
+      referenceNumber,
+    };
   }); // conektaBreaker.execute end
 }
 
@@ -177,84 +177,84 @@ export async function createConektaOXXOCharge(params: {
   expirationHours?: number;
 }): Promise<ConektaOXXOResult> {
   return conektaBreaker.execute(async () => {
-  const { amount, customerName, customerEmail, description, saleReference, expirationHours = 72 } = params;
-  const ordersApi = await getConektaClient();
+    const { amount, customerName, customerEmail, description, saleReference, expirationHours = 72 } = params;
+    const ordersApi = await getConektaClient();
 
-  const amountCents = Math.round(amount * 100);
-  const expiresAt = Math.floor(Date.now() / 1000) + expirationHours * 3600;
+    const amountCents = Math.round(amount * 100);
+    const expiresAt = Math.floor(Date.now() / 1000) + expirationHours * 3600;
 
-  const orderResponse = await ordersApi.createOrder({
-    currency: 'MXN',
-    customer_info: {
-      name: customerName,
-      email: customerEmail,
-      phone: '0000000000',
-    },
-    line_items: [
-      {
-        name: description || 'Venta POS',
-        unit_price: amountCents,
-        quantity: 1,
+    const orderResponse = await ordersApi.createOrder({
+      currency: 'MXN',
+      customer_info: {
+        name: customerName,
+        email: customerEmail,
+        phone: '0000000000',
       },
-    ],
-    charges: [
-      {
-        payment_method: {
-          type: 'oxxo_cash',
-          expires_at: expiresAt,
+      line_items: [
+        {
+          name: description || 'Venta POS',
+          unit_price: amountCents,
+          quantity: 1,
         },
+      ],
+      charges: [
+        {
+          payment_method: {
+            type: 'oxxo_cash',
+            expires_at: expiresAt,
+          },
+        },
+      ],
+      metadata: {
+        sale_reference: saleReference,
+        source: 'abarrote-gs-pos',
       },
-    ],
-    metadata: {
-      sale_reference: saleReference,
-      source: 'abarrote-gs-pos',
-    },
-  });
+    });
 
-  const order = orderResponse.data;
-  const charge = order.charges?.data?.[0];
-  if (!charge) {
-    throw new Error('Conekta no retornó información del cargo OXXO');
-  }
+    const order = orderResponse.data;
+    const charge = order.charges?.data?.[0];
+    if (!charge) {
+      throw new Error('Conekta no retornó información del cargo OXXO');
+    }
 
-  const pm = charge.payment_method as unknown as Record<string, unknown>;
-  const barcodeUrl = (pm?.barcode_url as string) ?? '';
-  const reference = (pm?.reference as string) ?? '';
+    const pm = charge.payment_method as unknown as Record<string, unknown>;
+    const barcodeUrl = (pm?.barcode_url as string) ?? '';
+    const reference = (pm?.reference as string) ?? '';
 
-  // Track charge in DB
-  await db.insert(paymentCharges).values({
-    id: crypto.randomUUID(),
-    provider: 'conekta',
-    providerChargeId: charge.id ?? order.id ?? '',
-    saleId: null,
-    storeId: 'main',
-    amount: amount.toFixed(2),
-    currency: 'MXN',
-    paymentMethod: 'oxxo_conekta',
-    status: 'pending',
-    customerName,
-    customerEmail,
-    referenceNumber: reference,
-    oxxoBarcode: barcodeUrl,
-    oxxoReference: reference,
-    expiresAt: new Date(expiresAt * 1000),
-    providerMetadata: { orderId: order.id, chargeId: charge.id },
-  });
+    // Track charge in DB
+    await db.insert(paymentCharges).values({
+      id: crypto.randomUUID(),
+      provider: 'conekta',
+      providerChargeId: charge.id ?? order.id ?? '',
+      saleId: null,
+      storeId: 'main',
+      amount: amount.toFixed(2),
+      currency: 'MXN',
+      paymentMethod: 'oxxo_conekta',
+      status: 'pending',
+      customerName,
+      customerEmail,
+      referenceNumber: reference,
+      oxxoBarcode: barcodeUrl,
+      oxxoReference: reference,
+      expiresAt: new Date(expiresAt * 1000),
+      providerMetadata: { orderId: order.id, chargeId: charge.id },
+    });
 
-  logger.info('Conekta OXXO charge created', {
-    action: 'conekta_oxxo_charge',
-    orderId: order.id,
-    amount,
-  });
+    logger.info('Conekta OXXO charge created', {
+      action: 'conekta_oxxo_charge',
+      orderId: order.id,
+      amount,
+    });
 
-  return {
-    orderId: order.id ?? '',
-    chargeId: charge.id ?? '',
-    barcodeUrl,
-    reference,
-    amount,
-    expiresAt: new Date(expiresAt * 1000),
-  };
+    return {
+      orderId: order.id ?? '',
+      chargeId: charge.id ?? '',
+      barcodeUrl,
+      reference,
+      amount,
+      expiresAt: new Date(expiresAt * 1000),
+    };
   }); // conektaBreaker.execute end
 }
 
@@ -262,28 +262,29 @@ export async function createConektaOXXOCharge(params: {
 
 export async function getConektaChargeStatus(orderId: string): Promise<ConektaChargeStatus> {
   return conektaBreaker.execute(async () => {
-  const ordersApi = await getConektaClient();
-  const response = await ordersApi.getOrderById(orderId);
-  const order = response.data;
-  const charge = order.charges?.data?.[0];
+    const ordersApi = await getConektaClient();
+    const response = await ordersApi.getOrderById(orderId);
+    const order = response.data;
+    const charge = order.charges?.data?.[0];
 
-  if (!charge) {
-    throw new Error('Cargo no encontrado en Conekta');
-  }
+    if (!charge) {
+      throw new Error('Cargo no encontrado en Conekta');
+    }
 
-  const status = charge.status === 'paid'
-    ? 'paid' as const
-    : charge.status === 'expired'
-      ? 'expired' as const
-      : charge.status === 'pending_payment'
-        ? 'pending' as const
-        : 'failed' as const;
+    const status =
+      charge.status === 'paid'
+        ? ('paid' as const)
+        : charge.status === 'expired'
+          ? ('expired' as const)
+          : charge.status === 'pending_payment'
+            ? ('pending' as const)
+            : ('failed' as const);
 
-  return {
-    id: charge.id ?? orderId,
-    status,
-    paidAt: status === 'paid' ? new Date((charge.paid_at ?? 0) * 1000) : null,
-  };
+    return {
+      id: charge.id ?? orderId,
+      status,
+      paidAt: status === 'paid' ? new Date((charge.paid_at ?? 0) * 1000) : null,
+    };
   }); // conektaBreaker.execute end
 }
 
@@ -320,12 +321,7 @@ export async function connectConekta(params: {
   const existing = await db
     .select()
     .from(paymentProviderConnections)
-    .where(
-      and(
-        eq(paymentProviderConnections.provider, 'conekta'),
-        eq(paymentProviderConnections.storeId, 'main'),
-      ),
-    )
+    .where(and(eq(paymentProviderConnections.provider, 'conekta'), eq(paymentProviderConnections.storeId, 'main')))
     .limit(1);
 
   const connectionData = {
@@ -366,12 +362,7 @@ export async function disconnectConekta(): Promise<void> {
       disconnectedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(
-      and(
-        eq(paymentProviderConnections.provider, 'conekta'),
-        eq(paymentProviderConnections.storeId, 'main'),
-      ),
-    );
+    .where(and(eq(paymentProviderConnections.provider, 'conekta'), eq(paymentProviderConnections.storeId, 'main')));
 
   logger.info('Conekta disconnected', { action: 'conekta_disconnect' });
 }
@@ -384,12 +375,7 @@ export async function getConektaConnectionStatus(): Promise<{
   const [connection] = await db
     .select()
     .from(paymentProviderConnections)
-    .where(
-      and(
-        eq(paymentProviderConnections.provider, 'conekta'),
-        eq(paymentProviderConnections.storeId, 'main'),
-      ),
-    )
+    .where(and(eq(paymentProviderConnections.provider, 'conekta'), eq(paymentProviderConnections.storeId, 'main')))
     .limit(1);
 
   if (!connection || connection.status !== 'connected') {

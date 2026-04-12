@@ -93,7 +93,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
     try {
       const raw = await redis.get<string>(buildKey(REDIS_PREFIXES.CACHE, key));
       if (raw !== null && raw !== undefined) {
-        const data: T = typeof raw === 'string' ? JSON.parse(raw) : raw as T;
+        const data: T = typeof raw === 'string' ? JSON.parse(raw) : (raw as T);
         // Back-fill L1 with a conservative TTL (we don't know the remaining Redis TTL)
         l1Store.set(key, { data, storedAt: Date.now(), ttlMs: DEFAULT_TTL_MS });
         return data;
