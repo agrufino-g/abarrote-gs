@@ -17,7 +17,11 @@ export default function NotificationsPage() {
   }, []);
 
   return (
-    <Page fullWidth title="Alertas y Notificaciones">
+    <Page
+      fullWidth
+      title="Alertas y Notificaciones"
+      subtitle="Monitoreo centralizado de inventario · Canal sugerido: Telegram"
+    >
       <NotificationsCenter
         alerts={inventoryAlerts}
         storeConfig={storeConfig}

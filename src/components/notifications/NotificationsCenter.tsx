@@ -8,19 +8,32 @@ import {
   Box,
   Button,
   Card,
+  Divider,
   EmptyState,
   Icon,
   IndexTable,
   InlineGrid,
   InlineStack,
+  OptionList,
+  Popover,
   ProgressBar,
-  Select,
   Tabs,
   Text,
   TextField,
   Tooltip,
 } from '@shopify/polaris';
-import { SearchIcon, SettingsIcon, NotificationIcon } from '@shopify/polaris-icons';
+import {
+  SearchIcon,
+  SettingsIcon,
+  NotificationIcon,
+  AlertCircleIcon,
+  AlertTriangleIcon,
+  CheckCircleIcon,
+  InventoryIcon,
+  CalendarIcon,
+  XCircleIcon,
+  CartIcon,
+} from '@shopify/polaris-icons';
 import type { InventoryAlert, Product, StoreConfig } from '@/types';
 
 interface NotificationsCenterProps {
@@ -39,10 +52,29 @@ const TYPE_LABELS: Record<InventoryAlert['alertType'], string> = {
   merma: 'Merma',
 };
 
+const TYPE_ICONS: Record<InventoryAlert['alertType'], React.FC<React.SVGProps<SVGSVGElement>>> = {
+  low_stock: InventoryIcon,
+  expiration: CalendarIcon,
+  expired: XCircleIcon,
+  merma: CartIcon,
+};
+
 const SEVERITY_ORDER: Record<InventoryAlert['severity'], number> = {
   critical: 0,
   warning: 1,
   info: 2,
+};
+
+const SEVERITY_LABELS: Record<InventoryAlert['severity'], string> = {
+  critical: 'Críticas',
+  warning: 'Advertencias',
+  info: 'Informativas',
+};
+
+const SEVERITY_TONES: Record<InventoryAlert['severity'], 'critical' | 'highlight' | 'success'> = {
+  critical: 'critical',
+  warning: 'highlight',
+  info: 'success',
 };
 
 function getRelativeTime(dateStr: string): string {
@@ -68,7 +100,7 @@ function StockBar({
   severity: InventoryAlert['severity'];
 }) {
   const ratio = minimum > 0 ? Math.min(Math.round((current / minimum) * 100), 100) : 100;
-  const tone = severity === 'critical' ? 'critical' : severity === 'warning' ? 'highlight' : 'success';
+  const tone = SEVERITY_TONES[severity];
   return (
     <InlineStack gap="150" blockAlign="center" wrap={false}>
       <div style={{ width: 80 }}>
@@ -81,42 +113,19 @@ function StockBar({
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  tone,
-  subtitle,
-  icon,
-}: {
-  label: string;
-  value: number | string;
-  tone: 'success' | 'critical' | 'attention' | 'info';
-  subtitle?: string;
-  icon: React.FC<React.SVGProps<SVGSVGElement>>;
-}) {
+function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <Card>
-      <BlockStack gap="200">
-        <InlineStack align="space-between">
-          <Text as="p" variant="bodySm" tone="subdued" fontWeight="medium">
-            {label.toUpperCase()}
-          </Text>
-          <div style={{ color: `var(--p-color-icon-${tone})` }}>
-            <Icon source={icon} tone="inherit" />
-          </div>
-        </InlineStack>
-        <BlockStack gap="050">
-          <Text as="h2" variant="heading2xl" fontWeight="bold">
-            {value}
-          </Text>
-          {subtitle && (
-            <Text as="p" variant="bodyXs" tone="subdued">
-              {subtitle}
-            </Text>
-          )}
-        </BlockStack>
+    <BlockStack gap="200">
+      <BlockStack gap="100">
+        <Text as="h2" variant="headingMd" fontWeight="semibold">
+          {title}
+        </Text>
+        <Text as="p" variant="bodySm" tone="subdued">
+          {subtitle}
+        </Text>
       </BlockStack>
-    </Card>
+      <Divider />
+    </BlockStack>
   );
 }
 
@@ -124,6 +133,7 @@ export function NotificationsCenter({ alerts, storeConfig, onProductClick, onOpe
   const [queryValue, setQueryValue] = useState('');
   const [selectedTab, setSelectedTab] = useState(0);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [typePopoverOpen, setTypePopoverOpen] = useState(false);
 
   const counts = useMemo(
     () => ({
@@ -134,6 +144,12 @@ export function NotificationsCenter({ alerts, storeConfig, onProductClick, onOpe
     }),
     [alerts],
   );
+
+  const typeCounts = useMemo(() => {
+    const map: Record<string, number> = { low_stock: 0, expiration: 0, expired: 0, merma: 0 };
+    for (const a of alerts) map[a.alertType] = (map[a.alertType] || 0) + 1;
+    return map;
+  }, [alerts]);
 
   const tabs = useMemo(
     () => [
@@ -174,20 +190,19 @@ export function NotificationsCenter({ alerts, storeConfig, onProductClick, onOpe
 
   const isConnected = !!(storeConfig.enableNotifications && storeConfig.telegramToken && storeConfig.telegramChatId);
 
+  const criticalPct = counts.all > 0 ? Math.round((counts.critical / counts.all) * 100) : 0;
+
   const rowMarkup = filteredAlerts.map((alert, index) => {
     const badgeTone = alert.severity === 'critical' ? 'critical' : alert.severity === 'warning' ? 'warning' : 'info';
     const rowTone = alert.severity === 'critical' ? 'critical' : alert.severity === 'warning' ? 'warning' : undefined;
 
     return (
       <IndexTable.Row id={alert.id} key={alert.id} position={index} tone={rowTone}>
-        {/* Severity indicator */}
         <IndexTable.Cell>
           <Badge tone={badgeTone}>
             {alert.severity === 'critical' ? 'Crítica' : alert.severity === 'warning' ? 'Advertencia' : 'Info'}
           </Badge>
         </IndexTable.Cell>
-
-        {/* Product name + meta */}
         <IndexTable.Cell>
           <BlockStack gap="050">
             <Button variant="plain" onClick={() => onProductClick?.(alert.product)}>
@@ -207,25 +222,20 @@ export function NotificationsCenter({ alerts, storeConfig, onProductClick, onOpe
             </InlineStack>
           </BlockStack>
         </IndexTable.Cell>
-
-        {/* Alert type */}
         <IndexTable.Cell>
-          <Badge>{TYPE_LABELS[alert.alertType]}</Badge>
+          <InlineStack gap="100" blockAlign="center" wrap={false}>
+            <Icon source={TYPE_ICONS[alert.alertType]} tone="subdued" />
+            <Badge>{TYPE_LABELS[alert.alertType]}</Badge>
+          </InlineStack>
         </IndexTable.Cell>
-
-        {/* Stock level bar */}
         <IndexTable.Cell>
           <StockBar current={alert.product.currentStock} minimum={alert.product.minStock} severity={alert.severity} />
         </IndexTable.Cell>
-
-        {/* Message */}
         <IndexTable.Cell>
           <Text as="span" variant="bodySm" tone="subdued">
             {alert.message}
           </Text>
         </IndexTable.Cell>
-
-        {/* Relative time */}
         <IndexTable.Cell>
           <Tooltip content={new Date(alert.createdAt).toLocaleString('es-MX')}>
             <Text as="span" variant="bodyXs" tone="subdued">
@@ -237,154 +247,279 @@ export function NotificationsCenter({ alerts, storeConfig, onProductClick, onOpe
     );
   });
 
-  return (
-    <BlockStack gap="400">
-      {/* ── Header ── */}
-      <Box paddingBlockEnd="400">
-        <BlockStack gap="400">
-          <Banner tone="info" title="Sistema de Notificaciones en Beta">
-            <p>
-              Este centro de control está en fase Beta. Estamos priorizando las{' '}
-              <strong>notificaciones vía Telegram</strong> para una gestión más inmediata.
-              {!isConnected && ' Actualmente Telegram no está configurado.'}
-            </p>
-          </Banner>
+  const typeFilterLabel = typeFilter === 'all' ? 'Todos los tipos' : TYPE_LABELS[typeFilter];
 
-          <InlineStack align="space-between" blockAlign="center">
-            <BlockStack gap="100">
-              <InlineStack gap="200" blockAlign="center">
-                <Text as="h1" variant="headingLg">
-                  Gestión de Alertas
+  return (
+    <BlockStack gap="600">
+      {/* ═══════════════════════════════════════════════════════════════
+          Chapter 1 · Panorama de Alertas — KPIs macro
+         ═══════════════════════════════════════════════════════════════ */}
+      <BlockStack gap="400">
+        <SectionHeader
+          title="Panorama de Alertas"
+          subtitle={`${counts.all} alertas activas · ${criticalPct}% requieren acción inmediata`}
+        />
+        <InlineGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="400">
+          <Card>
+            <BlockStack gap="200">
+              <InlineStack align="space-between">
+                <Text as="p" variant="bodySm" tone="subdued" fontWeight="medium">
+                  TOTAL ALERTAS
                 </Text>
-                <Badge tone="attention">Beta</Badge>
+                <div style={{ color: 'var(--p-color-icon-info)' }}>
+                  <Icon source={NotificationIcon} tone="inherit" />
+                </div>
               </InlineStack>
-              <Text as="p" variant="bodyMd" tone="subdued">
-                Monitoreo centralizado · Canal principal sugerido: Telegram.
+              <Text as="p" variant="heading2xl" fontWeight="bold">
+                {counts.all}
+              </Text>
+              <Text as="p" variant="bodyXs" tone="subdued">
+                Pendientes de revisión
               </Text>
             </BlockStack>
-            <Button icon={SettingsIcon} onClick={onOpenSettings}>
-              Configurar Telegram
-            </Button>
-          </InlineStack>
-        </BlockStack>
-      </Box>
-
-      {/* ── Metric cards ── */}
-      <Box paddingBlockEnd="400">
-        <InlineGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="400">
-          <MetricCard
-            label="Total Alertas"
-            value={counts.all}
-            tone="info"
-            subtitle="Pendientes globales"
-            icon={NotificationIcon}
-          />
-          <MetricCard
-            label="Casos Críticos"
-            value={counts.critical}
-            tone="critical"
-            subtitle="Resolver de inmediato"
-            icon={SearchIcon}
-          />
-          <MetricCard
-            label="Advertencias"
-            value={counts.warning}
-            tone="attention"
-            subtitle="Monitoreo preventivo"
-            icon={SearchIcon}
-          />
-          <MetricCard
-            label="Canal Externo"
-            value={isConnected ? 'Conectado' : 'Pendiente'}
-            tone={isConnected ? 'success' : 'attention'}
-            subtitle={isConnected ? 'Telegram activo' : 'Configuración necesaria'}
-            icon={SettingsIcon}
-          />
+          </Card>
+          <Card>
+            <BlockStack gap="200">
+              <InlineStack align="space-between">
+                <Text as="p" variant="bodySm" tone="subdued" fontWeight="medium">
+                  CASOS CRÍTICOS
+                </Text>
+                <div style={{ color: 'var(--p-color-icon-critical)' }}>
+                  <Icon source={AlertCircleIcon} tone="inherit" />
+                </div>
+              </InlineStack>
+              <Text as="p" variant="heading2xl" fontWeight="bold">
+                {counts.critical}
+              </Text>
+              <Text as="p" variant="bodyXs" tone="subdued">
+                Resolver de inmediato
+              </Text>
+            </BlockStack>
+          </Card>
+          <Card>
+            <BlockStack gap="200">
+              <InlineStack align="space-between">
+                <Text as="p" variant="bodySm" tone="subdued" fontWeight="medium">
+                  ADVERTENCIAS
+                </Text>
+                <div style={{ color: 'var(--p-color-icon-caution)' }}>
+                  <Icon source={AlertTriangleIcon} tone="inherit" />
+                </div>
+              </InlineStack>
+              <Text as="p" variant="heading2xl" fontWeight="bold">
+                {counts.warning}
+              </Text>
+              <Text as="p" variant="bodyXs" tone="subdued">
+                Monitoreo preventivo
+              </Text>
+            </BlockStack>
+          </Card>
+          <Card>
+            <BlockStack gap="200">
+              <InlineStack align="space-between">
+                <Text as="p" variant="bodySm" tone="subdued" fontWeight="medium">
+                  CANAL EXTERNO
+                </Text>
+                <div style={{ color: isConnected ? 'var(--p-color-icon-success)' : 'var(--p-color-icon-caution)' }}>
+                  <Icon source={isConnected ? CheckCircleIcon : SettingsIcon} tone="inherit" />
+                </div>
+              </InlineStack>
+              <Text as="p" variant="heading2xl" fontWeight="bold">
+                {isConnected ? 'Activo' : 'Pendiente'}
+              </Text>
+              <InlineStack gap="100" blockAlign="center">
+                <Text as="p" variant="bodyXs" tone="subdued">
+                  {isConnected ? 'Telegram conectado' : 'Configuración necesaria'}
+                </Text>
+                {!isConnected && (
+                  <Button variant="plain" size="micro" onClick={onOpenSettings}>
+                    Configurar
+                  </Button>
+                )}
+              </InlineStack>
+            </BlockStack>
+          </Card>
         </InlineGrid>
-      </Box>
+      </BlockStack>
 
-      {/* ── Main alerts table ── */}
-      <Card padding="0">
-        <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-          {/* Toolbar */}
-          <Box padding="400" paddingBlockEnd="300">
-            <InlineStack gap="300" wrap>
-              <div style={{ flex: 2, minWidth: 240 }}>
-                <TextField
-                  label="Buscar"
-                  labelHidden
-                  autoComplete="off"
-                  value={queryValue}
-                  onChange={setQueryValue}
-                  prefix={<Icon source={SearchIcon} tone="subdued" />}
-                  placeholder="Buscar por producto, SKU, categoría o mensaje…"
-                  clearButton
-                  onClearButtonClick={() => setQueryValue('')}
-                />
-              </div>
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <Select
-                  label="Tipo"
-                  labelHidden
-                  options={[
-                    { label: 'Todos los tipos', value: 'all' },
-                    { label: 'Stock bajo', value: 'low_stock' },
-                    { label: 'Por vencer', value: 'expiration' },
-                    { label: 'Vencido', value: 'expired' },
-                    { label: 'Merma', value: 'merma' },
-                  ]}
-                  value={typeFilter}
-                  onChange={(v) => setTypeFilter(v as TypeFilter)}
-                />
-              </div>
-            </InlineStack>
-          </Box>
+      {/* ═══════════════════════════════════════════════════════════════
+          Chapter 2 · Distribución — Severidad + Tipo
+         ═══════════════════════════════════════════════════════════════ */}
+      <BlockStack gap="400">
+        <SectionHeader
+          title="Distribución de Alertas"
+          subtitle="Proporción por severidad y tipo de alerta activa"
+        />
+        <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+          {/* Severity distribution */}
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h3" variant="headingSm" fontWeight="semibold">
+                Por Severidad
+              </Text>
+              <BlockStack gap="300">
+                {(['critical', 'warning', 'info'] as const).map((sev) => {
+                  const count = counts[sev];
+                  const pct = counts.all > 0 ? Math.round((count / counts.all) * 100) : 0;
+                  return (
+                    <BlockStack key={sev} gap="100">
+                      <InlineStack align="space-between">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Badge tone={sev === 'critical' ? 'critical' : sev === 'warning' ? 'warning' : 'info'}>
+                            {SEVERITY_LABELS[sev]}
+                          </Badge>
+                        </InlineStack>
+                        <Text as="span" variant="bodySm" fontWeight="medium">
+                          {count} ({pct}%)
+                        </Text>
+                      </InlineStack>
+                      <ProgressBar size="small" tone={SEVERITY_TONES[sev]} progress={pct} />
+                    </BlockStack>
+                  );
+                })}
+              </BlockStack>
+            </BlockStack>
+          </Card>
 
-          {/* Telegram warning banner */}
-          {!isConnected && (
-            <Box paddingInline="400" paddingBlockEnd="300">
-              <Banner tone="warning" title="Canal externo no configurado">
-                <p>
-                  Las alertas críticas no se enviarán a supervisión. Configura Telegram para recibir avisos en tiempo
-                  real.
-                </p>
-              </Banner>
+          {/* Type distribution */}
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h3" variant="headingSm" fontWeight="semibold">
+                Por Tipo de Alerta
+              </Text>
+              <BlockStack gap="300">
+                {(Object.keys(TYPE_LABELS) as InventoryAlert['alertType'][]).map((type) => {
+                  const count = typeCounts[type] || 0;
+                  const pct = counts.all > 0 ? Math.round((count / counts.all) * 100) : 0;
+                  return (
+                    <BlockStack key={type} gap="100">
+                      <InlineStack align="space-between">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Icon source={TYPE_ICONS[type]} tone="subdued" />
+                          <Text as="span" variant="bodySm">
+                            {TYPE_LABELS[type]}
+                          </Text>
+                        </InlineStack>
+                        <Text as="span" variant="bodySm" fontWeight="medium">
+                          {count} ({pct}%)
+                        </Text>
+                      </InlineStack>
+                      <ProgressBar
+                        size="small"
+                        tone={type === 'expired' ? 'critical' : type === 'merma' ? 'critical' : 'highlight'}
+                        progress={pct}
+                      />
+                    </BlockStack>
+                  );
+                })}
+              </BlockStack>
+            </BlockStack>
+          </Card>
+        </InlineGrid>
+      </BlockStack>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          Chapter 3 · Detalle de Alertas — Tabla interactiva
+         ═══════════════════════════════════════════════════════════════ */}
+      <BlockStack gap="400">
+        <SectionHeader
+          title="Detalle de Alertas"
+          subtitle={`${filteredAlerts.length} de ${counts.all} alertas visibles con filtros actuales`}
+        />
+
+        {!isConnected && (
+          <Banner tone="warning" title="Canal externo no configurado">
+            <p>
+              Las alertas críticas no se enviarán a supervisión. Configura Telegram para recibir avisos en tiempo real.
+            </p>
+          </Banner>
+        )}
+
+        <Card padding="0">
+          <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
+            <Box padding="400" paddingBlockEnd="300">
+              <InlineStack gap="300" wrap>
+                <div style={{ flex: 2, minWidth: 240 }}>
+                  <TextField
+                    label="Buscar"
+                    labelHidden
+                    autoComplete="off"
+                    value={queryValue}
+                    onChange={setQueryValue}
+                    prefix={<Icon source={SearchIcon} tone="subdued" />}
+                    placeholder="Buscar por producto, SKU, categoría o mensaje…"
+                    clearButton
+                    onClearButtonClick={() => setQueryValue('')}
+                  />
+                </div>
+                <div style={{ minWidth: 160 }}>
+                  <Popover
+                    active={typePopoverOpen}
+                    activator={
+                      <Button
+                        onClick={() => setTypePopoverOpen((o) => !o)}
+                        disclosure={typePopoverOpen ? 'up' : 'down'}
+                        fullWidth
+                      >
+                        {typeFilterLabel}
+                      </Button>
+                    }
+                    onClose={() => setTypePopoverOpen(false)}
+                    preferredAlignment="left"
+                    fullWidth
+                  >
+                    <OptionList
+                      onChange={([v]) => {
+                        setTypeFilter((v as TypeFilter) || 'all');
+                        setTypePopoverOpen(false);
+                      }}
+                      options={[
+                        { label: 'Todos los tipos', value: 'all' },
+                        { label: `Stock bajo (${typeCounts.low_stock || 0})`, value: 'low_stock' },
+                        { label: `Por vencer (${typeCounts.expiration || 0})`, value: 'expiration' },
+                        { label: `Vencido (${typeCounts.expired || 0})`, value: 'expired' },
+                        { label: `Merma (${typeCounts.merma || 0})`, value: 'merma' },
+                      ]}
+                      selected={[typeFilter]}
+                    />
+                  </Popover>
+                </div>
+              </InlineStack>
             </Box>
-          )}
 
-          {/* Empty state */}
-          {filteredAlerts.length === 0 ? (
-            <Box padding="600">
-              <EmptyState
-                heading={alerts.length === 0 ? '¡Todo en orden!' : 'Sin resultados para este filtro'}
-                image=""
+            {filteredAlerts.length === 0 ? (
+              <Box padding="600">
+                <EmptyState
+                  heading={alerts.length === 0 ? '¡Todo en orden!' : 'Sin resultados para este filtro'}
+                  image=""
+                >
+                  <p>
+                    {alerts.length === 0
+                      ? 'No hay alertas activas. El inventario está dentro de los parámetros normales.'
+                      : 'Ajusta la búsqueda o el tipo de alerta para ver otros resultados.'}
+                  </p>
+                </EmptyState>
+              </Box>
+            ) : (
+              <IndexTable
+                resourceName={{ singular: 'alerta', plural: 'alertas' }}
+                itemCount={filteredAlerts.length}
+                selectable={false}
+                headings={[
+                  { title: 'Severidad' },
+                  { title: 'Producto' },
+                  { title: 'Tipo' },
+                  { title: 'Nivel de stock' },
+                  { title: 'Mensaje' },
+                  { title: 'Tiempo' },
+                ]}
               >
-                <p>
-                  {alerts.length === 0
-                    ? 'No hay alertas activas. El inventario está dentro de los parámetros normales.'
-                    : 'Ajusta la búsqueda o el tipo de alerta para ver otros resultados.'}
-                </p>
-              </EmptyState>
-            </Box>
-          ) : (
-            <IndexTable
-              resourceName={{ singular: 'alerta', plural: 'alertas' }}
-              itemCount={filteredAlerts.length}
-              selectable={false}
-              headings={[
-                { title: 'Severidad' },
-                { title: 'Producto' },
-                { title: 'Tipo' },
-                { title: 'Nivel de stock' },
-                { title: 'Mensaje' },
-                { title: 'Tiempo' },
-              ]}
-            >
-              {rowMarkup}
-            </IndexTable>
-          )}
-        </Tabs>
-      </Card>
+                {rowMarkup}
+              </IndexTable>
+            )}
+          </Tabs>
+        </Card>
+      </BlockStack>
     </BlockStack>
   );
 }
