@@ -1,377 +1,531 @@
-# Abarrotes GS - Sistema de Punto de Venta
+<p align="center">
+  <img src="public/icon/icon-512.png" alt="Kiosko" width="120" height="120" />
+</p>
 
-Sistema integral de gestión para tiendas de abarrotes y pequeños comercios en México. Solución completa que incluye punto de venta, gestión de inventario, control de crédito a clientes, corte de caja, gastos, proveedores y sistema de roles con autenticación.
+<h1 align="center">Kiosko</h1>
 
-## Características Principales
+<p align="center">
+  <strong>Sistema de Punto de Venta de Nueva Generación para el Comercio Mexicano</strong>
+</p>
 
-### Punto de Venta (POS)
-- Registro de ventas con soporte para escáner de código de barras
-- Múltiples métodos de pago: efectivo, tarjeta, transferencia, tarjeta manual y fiado
-- Cálculo automático de IVA (16%), cambio y comisión por tarjeta
-- Generación de tickets de venta optimizados para impresoras térmicas (58mm/80mm)
-- Integración con terminal Mercado Pago Point Smart
-- Sistema de puntos de lealtad (monedero electrónico)
-- Cancelación de ventas con reversión automática de inventario
+<p align="center">
+  <code>v0.12.568 Edition Prerelease</code>
+</p>
 
-### Gestión de Inventario
-- Catálogo completo de productos con SKU, código de barras, precio de costo y precio de venta
-- Control de stock mínimo con sistema de alertas automáticas
-- Registro y seguimiento de mermas (expiración, daño, desperdicio)
-- Gestión de productos perecederos con fecha de caducidad
-- Actualización de stock en tiempo real
-- Categorización de productos
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16.2-black?logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/React-19.2-61DAFB?logo=react" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Polaris-13.9-7AB55C?logo=shopify" alt="Polaris" />
+  <img src="https://img.shields.io/badge/PostgreSQL-Neon-4169E1?logo=postgresql" alt="Neon" />
+  <img src="https://img.shields.io/badge/Tests-481%20passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/License-Proprietary-red" alt="License" />
+</p>
 
-### Corte de Caja
-- Cierre diario con desglose detallado por método de pago
-- Comparación entre efectivo esperado y efectivo contado
-- Cálculo automático de diferencias y fondo inicial
-- Historial completo de cortes con capacidad de impresión
-- Integración con gastos del día
-- Generación automática de cortes programados
+---
 
-### Sistema de Fiado (Crédito a Clientes)
-- Registro de clientes con límite de crédito personalizado
-- Ventas a crédito directamente desde el punto de venta
-- Seguimiento detallado de saldos y abonos
-- Historial completo con productos de cada operación
-- Alertas de límite de crédito
-- Gestión de pagos parciales
+## Visión General
 
-### Control de Gastos
-- Registro de gastos por categoría (renta, servicios, salarios, proveedores, mantenimiento, impuestos)
-- Control de comprobantes fiscales
-- Integración automática con corte de caja diario
-- Edición y eliminación de registros
-- Filtrado por fecha y categoría
+**Kiosko** es una plataforma integral de punto de venta diseñada específicamente para abarrotes, tiendas de conveniencia y pequeños comercios en México. No es solo un POS — es un sistema operativo completo para tu negocio.
 
-### Gestión de Proveedores y Pedidos
-- Directorio completo de proveedores con datos de contacto
-- Creación y seguimiento de órdenes de compra
-- Estados de pedido (pendiente, enviado, recibido)
-- Actualización automática de inventario al recibir pedidos
-- Historial de pedidos por proveedor
+Construido sobre una arquitectura **offline-first** con sincronización en tiempo real, impresión térmica nativa vía ESC/POS, 4 proveedores de pago integrados, sistema de facturación electrónica (CFDI), analíticos con inteligencia artificial y una experiencia de usuario de clase enterprise con Shopify Polaris.
 
-### Dashboard y Reportes
-- KPIs en tiempo real (ventas del día, inventario bajo, alertas de caducidad)
-- Gráficas de ventas por hora y tendencias mensuales
-- Top productos más vendidos
-- Reportes detallados por método de pago
-- Exportación de datos a formato CSV
-- Vista de analíticas avanzadas
+```
+32 tablas · 24 server actions · 10 grupos de API · 110+ componentes · 481 tests · 25 migraciones
+```
 
-### Sistema de Autenticación y Roles
-- Autenticación con Firebase Authentication
-- Sistema de roles personalizables (owner, admin, gerente, cajero, almacenista, contador)
-- Control de acceso granular por permisos
-- Gestión de usuarios y asignación de roles
-- Perfil de usuario con información personalizada
-- Recuperación de contraseña
+---
 
-### Configuración
-- Datos de la tienda personalizables (razón social, RFC, régimen fiscal)
-- Configuración de impresora térmica
-- Gestión de cajeros y empleados
-- Parámetros de IVA y comisiones
-- Configuración de terminal Mercado Pago
+## Tabla de Contenidos
+
+- [Arquitectura](#arquitectura)
+- [Módulos del Sistema](#módulos-del-sistema)
+- [Stack Tecnológico](#stack-tecnológico)
+- [Instalación](#instalación)
+- [Configuración](#configuración)
+- [Modelo de Datos](#modelo-de-datos)
+- [Infraestructura](#infraestructura)
+- [Testing](#testing)
+- [Seguridad](#seguridad)
+- [Despliegue](#despliegue)
+- [Licencia](#licencia)
+
+---
+
+## Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CAPA DE PRESENTACIÓN                        │
+│  Next.js 16 App Router · Shopify Polaris · Polaris Viz · Three.js  │
+│  Zustand (5 slices) · React 19 · Turbopack                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                         CAPA DE APLICACIÓN                          │
+│  24 Server Actions · 10 API Route Groups · 3 Cron Jobs             │
+│  Action Factory · Safe Actions · Error Boundary                    │
+├─────────────────────────────────────────────────────────────────────┤
+│                          CAPA DE DOMINIO                            │
+│  Entities: Product, Sale, SaleItem                                 │
+│  Value Objects: Money, Quantity, StockLevel, Folio                 │
+│  Services: PricingService, StockService                            │
+│  Domain Events · Business Rules · Validation                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                       CAPA DE INFRAESTRUCTURA                       │
+│  Neon PostgreSQL (32 tablas) · Drizzle ORM · Redis (Upstash)      │
+│  QStash Jobs · Firebase Auth · S3/Vercel Blob · WebSerial          │
+│  Circuit Breaker · Rate Limiting · Distributed Locks               │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Patrón Offline-First
+
+```
+                    ┌──────────────┐
+                    │   IndexedDB  │ ◄── Productos cacheados
+                    │  Offline DB  │ ◄── Ventas pendientes
+                    │              │ ◄── Estado del carrito
+                    └──────┬───────┘
+                           │
+              ┌────────────▼────────────┐
+              │     Hybrid POS Engine   │
+              │  ┌────────┐ ┌────────┐  │
+              │  │ Online │ │Offline │  │
+              │  │  Mode  │ │  Mode  │  │
+              │  └────────┘ └────────┘  │
+              │  Idempotency · Dedup    │
+              └────────────┬────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │     SyncEngine v1       │
+              │  BroadcastChannel       │──► Cross-tab sync
+              │  Visibility Refresh     │──► Smart polling
+              │  Network Reconnect      │──► Auto-recovery
+              │  Circuit Breaker        │──► Fault tolerance
+              └─────────────────────────┘
+```
+
+---
+
+## Módulos del Sistema
+
+### 💰 Punto de Venta
+
+| Característica | Detalle |
+|---|---|
+| **Motor Híbrido** | Venta online y offline con cola de sincronización, idempotencia y detección de stale |
+| **16 Métodos de Pago** | Efectivo, tarjeta terminal, tarjeta web, tarjeta manual, transferencia, SPEI manual, SPEI Conekta, SPEI Stripe, OXXO Conekta, OXXO Stripe, Clip Checkout, Clip Terminal, PayPal, QR CoDi, fiado, puntos |
+| **Impresión ESC/POS** | Impresión directa a térmicas USB vía WebSerial. Fallback a HTML iframe. Soporte 80mm |
+| **Cajón de Dinero** | Apertura automática vía pulso ESC/POS (RJ-11) al imprimir ticket |
+| **Escáner** | USB keyboard-wedge + cámara del dispositivo (html5-qrcode) |
+| **Ticket Designer** | Editor visual drag-and-drop con vista previa en tiempo real. 3 tipos: venta, corte, proveedor |
+| **Recargos por Tarjeta** | Comisión configurable (default 2.5%) aplicada automáticamente |
+| **Descuentos y Promociones** | Motor de promociones con reglas configurables |
+
+### 📦 Inventario
+
+| Característica | Detalle |
+|---|---|
+| **Catálogo** | SKU, código de barras, precio costo/venta, categorías, caducidad, stock mínimo |
+| **Alertas Inteligentes** | Detección automática de stock bajo, próximo a vencer, vencido y mermas por severidad |
+| **Mermas** | Registro con motivo (expiración, daño, robo, desperdicio), evidencia fotográfica vía DropZone |
+| **Auditorías** | Sesiones de auditoría de inventario con conteo físico vs sistema |
+| **Edición Masiva** | Bulk edit de precios, stock y categorías |
+| **Import/Export** | CSV import con validación, Excel/ZIP export, PDF generation |
+
+### 📊 Analíticos e Inteligencia Artificial
+
+| Característica | Detalle |
+|---|---|
+| **Dashboard KPIs** | Ventas del día, ticket promedio, inventario bajo, alertas activas — actualización en tiempo real |
+| **Análisis ABC** | Clasificación de productos por contribución al ingreso (Pareto 80/20) |
+| **Análisis RFM** | Segmentación de clientes por Recency, Frequency, Monetary value |
+| **Pronóstico de Demanda** | Proyección de ventas basada en tendencias históricas |
+| **Aging de Inventario** | Rotación de stock y detección de productos estancados |
+| **Márgenes por Producto** | Análisis de rentabilidad individual con costo vs precio |
+| **Smart Reorder** | Sugerencias automáticas de reabastecimiento basadas en velocidad de venta |
+| **AI Receipt Scanner** | Extracción automática de datos de recibos con OpenAI SDK |
+| **Polaris Viz** | Gráficas profesionales: ventas por hora, tendencias mensuales, top productos |
+
+### 💳 Pagos Integrados — 4 Proveedores
+
+| Proveedor | Conexión | Métodos |
+|---|---|---|
+| **Mercado Pago** | OAuth 2.0 | Terminal Point Smart + Checkout Web (SDK React) |
+| **Stripe** | API Keys + Webhook | SPEI automático + OXXO voucher |
+| **Conekta** | API Keys + Webhook | SPEI automático + OXXO voucher |
+| **Clip** | API Keys + Webhook | Checkout Link + Terminal PinPad |
+
+Plus métodos manuales: **SPEI** (CLABE), **PayPal** (PayPal.Me), **QR de Cobro** (CoDi con auto-verificación vía Cobrar.io).
+
+### 🧾 Facturación Electrónica (CFDI)
+
+Abstracción de PAC (Proveedor Autorizado de Certificación) con soporte para:
+- **Facturama** — Facturación en la nube
+- **SW Sapien** — Timbrado fiscal
+- **Finkok** — Certificación digital
+
+### 🏪 Gestión Financiera
+
+| Módulo | Capacidades |
+|---|---|
+| **Corte de Caja** | Cierre diario con desglose por método, cortes automáticos programados, impresión de corte |
+| **Gastos** | Registro por categoría, escaneo de recibos con IA, integración con corte de caja |
+| **Movimientos** | Entradas/salidas de efectivo, fondo inicial configurable |
+| **Estado de Resultados** | P&L format con ingresos, costos, gastos y utilidad neta |
+| **Flujo de Efectivo** | Cash flow operativo con tendencia y margen |
+| **Devoluciones** | Proceso completo con reversión automática de inventario |
+
+### 👥 Clientes y Lealtad
+
+| Característica | Detalle |
+|---|---|
+| **Fiado (Crédito)** | Límite configurable, seguimiento de saldos, abonos parciales, historial detallado |
+| **Programa de Puntos** | Acumulación por compra, canje como método de pago, expiración configurable |
+| **Perfiles** | Directorio de clientes con KPIs, historial de compras, segmentación RFM |
+
+### 🚚 Proveedores y Pedidos
+
+| Característica | Detalle |
+|---|---|
+| **Directorio** | Proveedores con datos de contacto, categoría, condiciones de pago |
+| **Órdenes de Compra** | Creación, seguimiento de estados (pendiente/enviado/recibido), impresión de orden |
+| **Recepción** | Actualización automática de inventario al recibir, ticket de recepción |
+
+### 🔒 Autenticación y Roles (RBAC)
+
+| Característica | Detalle |
+|---|---|
+| **Firebase Auth** | Email/password, recuperación de contraseña, sesiones seguras |
+| **Roles** | Owner, Admin, Gerente, Cajero, Almacenista, Contador — totalmente customizables |
+| **Permisos Granulares** | 12+ permisos: `manage_sales`, `cancel_sales`, `manage_inventory`, `view_reports`, `cashdrawer.open`, etc. |
+| **PIN Pad** | Autenticación rápida por PIN numérico para cambio de cajero |
+
+### 🖥️ Customer Display
+
+Pantalla de cara al cliente con animaciones 3D construida con:
+- **Three.js** + **React Three Fiber** + **Postprocessing**
+- Muestra productos, precios y promociones
+- Animaciones configurables desde settings
+
+### 📱 Servicios y Recargas
+
+Motor de pagos de servicios con 4 proveedores:
+- **LocalProvider** — Recargas telefónicas locales
+- **TuRecarga** — Plataforma de recargas
+- **Infopago** — Pagos de servicios
+- **Billpocket** — Pagos diversos
+
+### 🔔 Notificaciones
+
+| Canal | Detalle |
+|---|---|
+| **Telegram** | Alertas de stock crítico en tiempo real vía bot |
+| **In-App** | Centro de notificaciones con filtros por severidad y tipo |
+| **Toast** | Sistema de notificaciones transaccionales (Sileo) |
+| **QStash** | Alertas asíncronas de stock vía background jobs |
+
+---
 
 ## Stack Tecnológico
 
-### Frontend
-- **Framework:** Next.js 16.1.6 (App Router con Turbopack)
-- **UI Library:** React 19.2.3
-- **Design System:** Shopify Polaris 13.9.5
-- **Icons:** Polaris Icons 9.3.1
-- **Charts:** Polaris Viz 16.16.0
-- **State Management:** Zustand 5.0.11
-- **Styling:** Tailwind CSS 4.x
-- **Language:** TypeScript 5.x
+### Core
 
-### Backend
-- **Database:** Neon PostgreSQL (Serverless)
-- **ORM:** Drizzle ORM 0.45.1
-- **Authentication:** Firebase Authentication
-- **Runtime:** Bun 1.3+
+| Capa | Tecnología | Versión |
+|---|---|---|
+| **Framework** | Next.js (App Router + Turbopack) | 16.2.3 |
+| **Runtime** | React + React Compiler | 19.2.3 |
+| **Language** | TypeScript (strict mode) | 6.0.2 |
+| **Database** | Neon Serverless PostgreSQL | — |
+| **ORM** | Drizzle ORM | 0.45.1 |
+| **State** | Zustand (5 slices) | 5.0.11 |
+| **Auth** | Firebase Authentication + Admin | 12.10 / 13.7 |
+| **Deployment** | Vercel (Edge + Serverless) | — |
+| **Package Manager** | Bun | 1.3+ |
 
-### Integraciones
-- **Payments:** Mercado Pago Point API
-- **Barcode:** JsBarcode para generación de códigos
-- **PDF Generation:** jsPDF con autotable
-- **Notifications:** Sileo (toast system)
+### UI & Design
 
-## Estructura del Proyecto
+| Tecnología | Uso |
+|---|---|
+| **Shopify Polaris 13.9** | Design system completo — 110+ componentes |
+| **Polaris Viz 16.16** | Gráficas y visualizaciones de datos |
+| **Tailwind CSS 4** | Utilidades de estilo |
+| **Radix UI** | Primitivas accesibles |
+| **Lucide React** | Iconografía complementaria |
+| **dnd-kit** | Drag and drop (ticket designer, reordenamiento) |
+| **Three.js + R3F** | Pantalla de cliente 3D con postprocessing |
 
-```
-src/
-├── app/
-│   ├── actions/
-│   │   └── db-actions.ts           # Server Actions (CRUD operations)
-│   ├── api/
-│   │   └── sync/                   # API endpoints para sincronización
-│   ├── auth/
-│   │   └── [[...pathname]]/        # Rutas de autenticación
-│   ├── globals.css
-│   ├── layout.tsx
-│   ├── page.tsx
-│   └── PolarisProvider.tsx
-├── components/
-│   ├── actions/                    # Acciones rápidas del dashboard
-│   ├── analytics/                  # Vista de analíticas
-│   ├── auth/                       # Componentes de autenticación
-│   ├── caja/                       # Corte de caja
-│   ├── charts/                     # Gráficas de ventas
-│   ├── dashboard/                  # Vista principal
-│   ├── export/                     # Exportación CSV
-│   ├── fiado/                      # Gestión de fiado
-│   ├── filters/                    # Filtros avanzados
-│   ├── gastos/                     # Gestión de gastos
-│   ├── inventory/                  # Tablas de inventario
-│   ├── kpi/                        # Tarjetas KPI
-│   ├── metrics/                    # Métricas y top productos
-│   ├── modals/                     # Modales del sistema
-│   ├── navigation/                 # Navegación y topbar
-│   ├── notifications/              # Sistema de notificaciones
-│   ├── pedidos/                    # Gestión de pedidos
-│   ├── reports/                    # Vista de reportes
-│   ├── roles/                      # Gestión de roles
-│   ├── sales/                      # Historial de ventas
-│   ├── scanner/                    # Escáner de cámara
-│   ├── settings/                   # Configuración
-│   ├── suppliers/                  # Gestión de proveedores
-│   └── ui/                         # Componentes UI reutilizables
-├── db/
-│   ├── index.ts                    # Conexión a Neon
-│   ├── schema.ts                   # Schema de 13 tablas
-│   ├── seed.ts                     # Datos de prueba
-│   └── audit-schema.ts             # Schema de auditoría
-├── lib/
-│   ├── auth/                       # Utilidades de autenticación
-│   ├── audit.ts                    # Sistema de auditoría
-│   ├── backup.ts                   # Respaldos
-│   ├── cache.ts                    # Sistema de caché
-│   ├── firebase.ts                 # Configuración Firebase
-│   ├── mercadopago.ts              # Integración Mercado Pago
-│   ├── offline.ts                  # Soporte offline
-│   ├── printer.ts                  # Utilidades de impresión
-│   ├── stock-lock.ts               # Control de concurrencia
-│   ├── usePermissions.ts           # Hook de permisos
-│   └── utils.ts                    # Utilidades generales
-├── store/
-│   └── dashboardStore.ts           # Store global con Zustand
-└── types/
-    └── index.ts                    # Definiciones TypeScript
+### Infraestructura
 
-public/
-├── logo_for_kiosko_login.svg       # Logo del sistema
-└── ...                             # Otros assets
-```
+| Servicio | Uso |
+|---|---|
+| **Upstash Redis** | Cache, rate limiting, distributed locks, idempotencia |
+| **Upstash QStash** | Background jobs (stock alerts, daily reports, payment polling) |
+| **Vercel Blob / AWS S3** | Almacenamiento de archivos (logos, evidencia de mermas) |
+| **Vercel Analytics** | Métricas de rendimiento |
+| **Vercel Speed Insights** | Core Web Vitals |
 
-## Modelo de Datos
+### Integraciones de Pago
 
-El sistema utiliza 13 tablas en PostgreSQL:
+| Proveedor | Paquete | Versión |
+|---|---|---|
+| **Stripe** | `stripe` | 21.0.1 |
+| **Mercado Pago** | `mercadopago` + `@mercadopago/sdk-react` | 2.0.15 / 0.0.19 |
+| **Conekta** | `conekta` | 8.0.2 |
+| **Clip** | Custom provider | — |
 
-### Tablas Principales
+### AI & Data
 
-**store_config**
-- Configuración general de la tienda (nombre, RFC, régimen fiscal, parámetros)
+| Tecnología | Uso |
+|---|---|
+| **Vercel AI SDK** | Abstracción de modelos de IA |
+| **OpenAI** | Extracción de recibos, análisis de datos |
+| **Zod 4** | Validación de schemas y payloads |
+| **jsPDF + AutoTable** | Generación de reportes PDF |
+| **JsBarcode** | Generación de códigos de barras |
+| **html5-qrcode** | Escaneo de QR y códigos de barras por cámara |
 
-**products**
-- Catálogo de productos con SKU, código de barras, precios y stock
-
-**sale_records**
-- Registro maestro de ventas con totales y método de pago
-
-**sale_items**
-- Detalle de productos por cada venta
-
-**merma_records**
-- Registro de mermas con razón y valor
-
-**pedidos**
-- Órdenes de compra a proveedores
-
-**pedido_items**
-- Detalle de productos por pedido
-
-**clientes**
-- Directorio de clientes con límite de crédito
-
-**fiado_transactions**
-- Operaciones de crédito (fiado y abonos)
-
-**fiado_items**
-- Productos de cada operación de fiado
-
-**gastos**
-- Registro de gastos por categoría
-
-**proveedores**
-- Directorio de proveedores
-
-**cortes_caja**
-- Historial de cortes de caja
-
-**role_definitions**
-- Definición de roles y permisos
-
-**user_roles**
-- Asignación de roles a usuarios
-
-**servicios**
-- Registro de recargas y pagos de servicios
+---
 
 ## Instalación
 
 ### Prerrequisitos
 
-- Bun >= 1.3 (https://bun.sh/)
-- Cuenta en Neon (https://neon.tech/)
-- Cuenta en Firebase (https://firebase.google.com/)
+| Herramienta | Versión Mínima |
+|---|---|
+| [Bun](https://bun.sh/) | 1.3+ |
+| [Neon](https://neon.tech/) | Cuenta activa |
+| [Firebase](https://firebase.google.com/) | Proyecto con Auth habilitado |
 
-### Pasos de Instalación
-
-1. Clonar el repositorio
+### Setup
 
 ```bash
+# 1. Clonar
 git clone https://github.com/OWSSamples/abarrote-gs.git
 cd abarrote-gs
-```
 
-2. Instalar dependencias
-
-```bash
+# 2. Instalar dependencias
 bun install
+
+# 3. Configurar variables de entorno
+cp .env.example .env.local
+# Editar .env.local con tus credenciales
+
+# 4. Setup de base de datos
+bun run db:push      # Crear schema en Neon
+bun run db:seed      # Datos de demo (opcional)
+
+# 5. Iniciar
+bun run dev          # → http://localhost:3000
 ```
 
-3. Configurar variables de entorno
+### Scripts
 
-Crear archivo `.env.local` en la raíz del proyecto:
+| Comando | Descripción |
+|---|---|
+| `bun run dev` | Servidor de desarrollo (Turbopack) |
+| `bun run build` | Build de producción |
+| `bun run start` | Servidor de producción |
+| `bun run lint` | ESLint |
+| `bun run typecheck` | TypeScript strict check |
+| `bun run test` | Vitest (481 unit tests) |
+| `bun run test:e2e` | Playwright (7 E2E specs) |
+| `bun run db:generate` | Generar migraciones Drizzle |
+| `bun run db:migrate` | Ejecutar migraciones |
+| `bun run db:push` | Push schema directo |
+| `bun run db:studio` | Drizzle Studio (GUI) |
+| `bun run db:seed` | Datos de demo |
+| `bun run format` | Prettier |
+
+---
+
+## Configuración
+
+### Variables de Entorno
 
 ```env
-# Neon Database
-DATABASE_URL=postgresql://user:password@ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+# ── Base de Datos ──
+DATABASE_URL=postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require
 
-# Firebase Configuration
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+# ── Firebase ──
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+FIREBASE_SERVICE_ACCOUNT_KEY=    # JSON (para Admin SDK)
+
+# ── Redis (Upstash) ──
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+QSTASH_TOKEN=
+
+# ── Pagos (todos opcionales) ──
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+MP_ACCESS_TOKEN=
+CONEKTA_PRIVATE_KEY=
+CLIP_API_KEY=
+CLIP_SECRET_KEY=
+
+# ── Storage ──
+BLOB_READ_WRITE_TOKEN=           # Vercel Blob
+# O alternativamente:
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_S3_BUCKET=
+
+# ── AI (opcional) ──
+OPENAI_API_KEY=
+
+# ── Notificaciones (opcional) ──
+TELEGRAM_BOT_TOKEN=
 ```
 
-4. Inicializar la base de datos
+---
+
+## Modelo de Datos
+
+**32 tablas** organizadas por dominio:
+
+```
+CORE                    VENTAS                  INVENTARIO
+─────────────────       ─────────────────       ─────────────────
+store_config            sale_records            products
+feature_flags           sale_items              product_categories
+audit_logs              devoluciones            merma_records
+                        devolucion_items        inventory_audits
+                        promotions              inventory_audit_items
+
+FINANZAS                CLIENTES                PROVEEDORES
+─────────────────       ─────────────────       ─────────────────
+cortes_caja             clientes                proveedores
+gastos                  fiado_transactions      pedidos
+cash_movements          fiado_items             pedido_items
+                        loyalty_transactions
+
+PAGOS                   AUTH                    SERVICIOS
+─────────────────       ─────────────────       ─────────────────
+payment_charges         role_definitions        servicios
+payment_provider_conn   user_roles              cfdi_records
+mercadopago_payments
+mercadopago_refunds
+oauth_states
+```
+
+---
+
+## Infraestructura
+
+### Background Jobs (QStash)
+
+| Job | Schedule | Descripción |
+|---|---|---|
+| **daily-report** | `0 8 * * *` | Reporte diario de ventas |
+| **token-maintenance** | `0 6 * * *` | Mantenimiento de tokens OAuth |
+| **loyalty-expire** | `0 3 * * 1` | Expiración semanal de puntos de lealtad |
+| **stock-alert** | On demand | Alertas de stock crítico vía Telegram |
+| **payment-poll** | On demand | Polling de estado de pagos |
+| **notification** | On demand | Envío de notificaciones Telegram |
+
+### Webhooks
+
+| Endpoint | Proveedor |
+|---|---|
+| `/api/webhooks/stripe` | Stripe (SPEI + OXXO confirmations) |
+| `/api/webhooks/conekta` | Conekta (SPEI + OXXO confirmations) |
+| `/api/webhooks/clip` | Clip (payment confirmations) |
+| `/api/webhooks/cobrar` | Cobrar.io (QR payment verification) |
+| `/api/webhooks/servicios` | Service providers (recharge status) |
+| `/api/mercadopago/webhook` | MercadoPago (payment + refund events) |
+| `/api/telegram/webhook` | Telegram bot commands |
+
+### Patrones de Resiliencia
+
+| Patrón | Implementación |
+|---|---|
+| **Circuit Breaker** | Auto-trip en errores consecutivos, cooldown configurable |
+| **Rate Limiting** | Tiers por endpoint (Upstash) |
+| **Distributed Locks** | Redis locks para operaciones de stock |
+| **Idempotency** | Keys Redis para prevenir duplicados |
+| **Soft Delete** | Borrado lógico con restauración |
+| **Feature Flags** | Toggle de funcionalidades por DB |
+| **Audit Log** | Registro inmutable de operaciones críticas |
+
+---
+
+## Testing
+
+| Tipo | Framework | Archivos | Tests |
+|---|---|---|---|
+| **Unit** | Vitest 4.1 | 31 | 481 |
+| **E2E** | Playwright 1.59 | 7 | — |
 
 ```bash
-# Crear las tablas en Neon
-bun run db:push
-
-# Cargar datos de prueba (opcional)
-bun run db:seed
+bun run test              # Unit tests
+bun run test:watch        # Watch mode
+bun run test:ci           # CI mode
+bun run test:e2e          # E2E headless
+bun run test:e2e:ui       # E2E con UI
 ```
 
-5. Iniciar el servidor de desarrollo
+### Cobertura por Dominio
 
-```bash
-bun run dev
-```
+- **Domain**: `Folio`, `Money`, `Quantity`, `StockLevel`, `Product`, `Sale`, `SaleItem`, `PricingService`, `StockService`
+- **Infrastructure**: Circuit breaker, cache, rate limiting, Redis keys, idempotency, soft delete, feature flags, job schemas
+- **Application**: Action factory, audit log, auth errors, validation schemas, pagination, helpers, logger, navigation, utils, crypto, RFC validation
 
-La aplicación estará disponible en http://localhost:3000
-
-## Scripts Disponibles
-
-```bash
-# Desarrollo
-bun run dev              # Servidor de desarrollo con Turbopack
-bun run build            # Build de producción
-bun run start            # Servidor de producción
-bun run lint             # Ejecutar ESLint
-
-# Base de datos
-bun run db:generate      # Generar migraciones Drizzle
-bun run db:migrate       # Ejecutar migraciones
-bun run db:push          # Push schema directo a BD
-bun run db:studio        # Abrir Drizzle Studio (GUI)
-bun run db:seed          # Cargar datos de prueba
-```
-
-## Configuración de Firebase
-
-1. Crear proyecto en Firebase Console
-2. Habilitar Authentication con Email/Password
-3. Obtener las credenciales del proyecto
-4. Agregar las variables de entorno en `.env.local`
-
-## Configuración de Mercado Pago (Opcional)
-
-Para habilitar pagos con terminal Mercado Pago Point:
-
-1. Obtener Access Token de Mercado Pago
-2. Registrar Device ID de tu terminal
-3. Configurar en la sección de Configuración del sistema
-
-## Sistema de Permisos
-
-El sistema incluye permisos granulares:
-
-- `view_dashboard` - Ver dashboard principal
-- `manage_sales` - Gestionar ventas
-- `manage_inventory` - Gestionar inventario
-- `manage_clients` - Gestionar clientes
-- `manage_suppliers` - Gestionar proveedores
-- `manage_expenses` - Gestionar gastos
-- `view_reports` - Ver reportes
-- `manage_cash_register` - Gestionar corte de caja
-- `manage_users` - Gestionar usuarios
-- `manage_settings` - Gestionar configuración
-- `cancel_sales` - Cancelar ventas
-
-## Impresión de Tickets
-
-Los tickets están diseñados en formato monoespaciado optimizado para impresoras térmicas de 58mm/80mm. Incluyen:
-
-- Datos fiscales completos (RFC, régimen fiscal)
-- Desglose de productos con cantidades y precios
-- IVA desglosado al 16%
-- Código de barras de transacción
-- Leyendas legales personalizables
+---
 
 ## Seguridad
 
-- Autenticación mediante Firebase Authentication
-- Control de acceso basado en roles (RBAC)
-- Validación de permisos en cliente y servidor
-- Protección de rutas mediante middleware
-- Sanitización de datos de entrada
-- Conexión segura a base de datos (SSL)
+| Control | Implementación |
+|---|---|
+| **Autenticación** | Firebase Auth (email/password) con verificación server-side |
+| **Autorización** | RBAC con 12+ permisos granulares |
+| **Validación** | Zod 4 schemas en todas las Server Actions |
+| **Rate Limiting** | Upstash Redis por endpoint y usuario |
+| **CSRF** | Next.js built-in protections |
+| **SQL Injection** | Drizzle ORM parameterized queries |
+| **XSS** | React auto-escaping + sanitización de inputs |
+| **Webhook Verification** | Signature validation (Stripe, QStash, Conekta) |
+| **Secrets** | Server-only env vars, no exposición al cliente |
+| **Audit Trail** | Log inmutable de operaciones sensibles |
 
-## Optimizaciones
+---
 
-- Server-side rendering con Next.js App Router
-- Compilación optimizada con Turbopack
-- State management eficiente con Zustand
-- Queries optimizadas con Drizzle ORM
-- Lazy loading de componentes
-- Caché de datos frecuentes
-- Soporte para modo offline (en desarrollo)
+## Despliegue
 
-## Roadmap
+### Vercel (Recomendado)
 
-- [ ] Modo offline completo con sincronización
-- [ ] Integración con proveedores de recargas (Seycel)
-- [ ] Reportes avanzados con filtros personalizados
-- [ ] Aplicación móvil nativa
-- [ ] Integración con SAT para facturación electrónica
-- [ ] Dashboard de múltiples sucursales
-- [ ] API REST pública para integraciones
+```bash
+# Instalar CLI
+bun add -g vercel
 
-## Soporte
+# Vincular proyecto
+vercel link
 
-Para reportar problemas o solicitar características, crear un issue en el repositorio de GitHub.
+# Deploy preview
+vercel
+
+# Deploy producción
+vercel --prod
+```
+
+El proyecto incluye `vercel.json` con:
+- 3 cron jobs programados
+- Extended function duration para webhooks (30s) e imports (60s)
+- Configuración de regiones
+
+---
 
 ## Licencia
 
-Este proyecto está bajo la licencia PROPETARITY OPENDEX. Consultar el archivo LICENSE para más detalles.
+Licencia propietaria de **OPENDEX**. Consulta el archivo [LICENSE](LICENSE) para términos completos.
 
-## Créditos
+---
 
-Desarrollado para los tenderos de México que buscan modernizar sus operaciones con tecnología accesible y profesional.
+<p align="center">
+  <strong>Kiosko</strong> — Construido para los tenderos de México que merecen tecnología de clase mundial.
+</p>
+
+<p align="center">
+  <sub>OPENDEX Corporation · 2024–2026</sub>
+</p>

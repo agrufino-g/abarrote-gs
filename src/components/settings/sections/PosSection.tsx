@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, TextField, FormLayout, BlockStack, Checkbox, Box, Layout } from '@shopify/polaris';
+import { Banner, Card, TextField, FormLayout, BlockStack, Checkbox, Box, Layout } from '@shopify/polaris';
 import { FormSelect } from '@/components/ui/FormSelect';
 import { TicketDesignerSection } from './TicketDesignerSection';
 import type { SettingsSectionProps } from './types';
@@ -8,6 +8,14 @@ import type { SettingsSectionProps } from './types';
 export function PosSection({ config, updateField }: SettingsSectionProps) {
   return (
     <BlockStack gap="500">
+      <Banner tone="warning" title="Sección en Beta">
+        <p>
+          Las configuraciones de <strong>Punto de Venta y Recibos</strong> están en fase Beta.
+          Esto significa que las funciones están disponibles para pruebas pero pueden presentar
+          comportamientos inesperados, cambios en su interfaz o ajustes en futuras
+          actualizaciones. No se garantiza compatibilidad total con todos los periféricos.
+        </p>
+      </Banner>
       <Layout.AnnotatedSection
         title="Comportamiento del checkout"
         description="Automatizaciones para agilizar el cobro en mostrador."

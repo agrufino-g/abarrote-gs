@@ -1,6 +1,6 @@
 {
   "name": "kiosko",
-  "version": "0.12.568.589.002",
+  "version": "0.12.568.589.002 Edition Prerelease",
   "private": true,
   "scripts": {
     "dev": "next dev",

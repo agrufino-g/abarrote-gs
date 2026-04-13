@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useTransition, useEffect, useMemo } from 'react';
+import { useCallback, useRef, useState, useTransition, useEffect, useMemo } from 'react';
 import {
   Card,
   BlockStack,
@@ -330,9 +330,13 @@ export function TicketDesignerSection() {
     () => storeConfig.ticketDesignProveedor ?? { ...DEFAULT_TICKET_DESIGN_PROVEEDOR },
   );
 
-  // Sync from store on hydration
+  // Track whether a save is in-flight to prevent useEffect from overwriting optimistic state
+  const savingRef = useRef(false);
+
+  // Sync from store on hydration (skip while saving to avoid reverting optimistic updates)
   /* eslint-disable react-hooks/set-state-in-effect -- external store hydration sync */
   useEffect(() => {
+    if (savingRef.current) return;
     if (storeConfig.ticketDesignVenta) setDesignVenta(storeConfig.ticketDesignVenta);
     if (storeConfig.ticketDesignCorte) setDesignCorte(storeConfig.ticketDesignCorte);
     if (storeConfig.ticketDesignProveedor) setDesignProveedor(storeConfig.ticketDesignProveedor);
@@ -370,8 +374,12 @@ export function TicketDesignerSection() {
   // ── Save handler (auto-save on change) ──
   const updateDesign = useCallback(
     <K extends keyof TicketDesignConfig>(field: K, value: TicketDesignConfig[K]) => {
-      const next = { ...currentDesign, [field]: value };
-      setCurrentDesign(next);
+      let next!: TicketDesignConfig;
+      setCurrentDesign((prev) => {
+        next = { ...prev, [field]: value };
+        return next;
+      });
+      savingRef.current = true;
       startTransition(async () => {
         setStatus('saving');
         try {
@@ -381,10 +389,12 @@ export function TicketDesignerSection() {
         } catch (err) {
           setStatus('error');
           setErrorMsg(parseError(err).description);
+        } finally {
+          savingRef.current = false;
         }
       });
     },
-    [currentDesign, setCurrentDesign, configKey, saveStoreConfig],
+    [setCurrentDesign, configKey, saveStoreConfig],
   );
 
   const resetToDefaults = useCallback(() => {

@@ -64,6 +64,7 @@ const SETTINGS_CATEGORIES = [
     title: 'Punto de Venta y Recibos',
     description: 'Personaliza los tickets impresos y la estructura de códigos de barras.',
     icon: ReceiptIcon,
+    beta: true,
   },
   {
     id: 'hardware',
@@ -620,7 +621,10 @@ export function ConfiguracionPage() {
                                   </BlockStack>
                                 </InlineStack>
 
-                                <InlineStack gap="300" blockAlign="center">
+                                <InlineStack gap="200" blockAlign="center">
+                                  {'beta' in cat && cat.beta && (
+                                    <Badge tone="attention">Beta</Badge>
+                                  )}
                                   <Badge tone={status?.configured ? 'success' : undefined}>
                                     {status?.label ?? 'Pendiente'}
                                   </Badge>

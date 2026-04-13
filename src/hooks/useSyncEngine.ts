@@ -35,20 +35,9 @@ export function useSyncEngine(enabled: boolean = true) {
 
   const fetchDashboardData = useDashboardStore((s) => s.fetchDashboardData);
 
-  // ── Refresh handler: called by SyncEngine when data needs refresh ──
-  const handleRefresh = useCallback(
-    async (_domain: SyncDomain) => {
-      // For now, full refresh. In the future, domain-specific refresh
-      // can be implemented by splitting fetchDashboardFromDB.
-      await fetchDashboardData();
-    },
-    [fetchDashboardData],
-  );
-
-  // ── Status handler: called by SyncEngine when status changes ──
-  const handleStatusChange = useCallback((status: SyncStatus) => {
-    setSyncStatus(status);
-  }, []);
+  // Use refs for callbacks so the useEffect doesn't re-run when they change
+  const fetchRef = useRef(fetchDashboardData);
+  fetchRef.current = fetchDashboardData;
 
   // ── Initialize engine + queue on mount ──
   useEffect(() => {
@@ -72,7 +61,10 @@ export function useSyncEngine(enabled: boolean = true) {
 
     // Initialize IDB queue, then start engine
     queue.init().then(() => {
-      engine.start(handleRefresh, handleStatusChange);
+      engine.start(
+        async (domain) => { await fetchRef.current(); },
+        (status) => { setSyncStatus(status); },
+      );
 
       // Initial data load — only once per mount, after engine starts
       if (!initialLoadDone.current) {
@@ -114,7 +106,7 @@ export function useSyncEngine(enabled: boolean = true) {
       queueRef.current = null;
       initialLoadDone.current = false;
     };
-  }, [enabled, handleRefresh, handleStatusChange]);
+  }, [enabled]); // eslint-disable-line react-hooks/exhaustive-deps -- callbacks use refs to avoid re-init loops
 
   // ── Exposed APIs ──
 
